@@ -32,15 +32,36 @@
 #include <string.h>
 #include <unistd.h>
 
+static void _ReaderWakeUp(Thread* from, Reader* reader) {
+    unsigned char dummy = 1;
+
+    if (write(reader->selector[AIO4C_PIPE_WRITE], &dummy, sizeof(unsigned char)) <= 0) {
+        Log(from, WARN, "wake up reader %s: %s", reader->thread->name, strerror(errno));
+    }
+
+    Log(from, DEBUG, "notified reader %s", reader->thread->name);
+}
+
+static void _ReaderWokenUp(Reader* reader) {
+    unsigned char dummy = 0;
+    aio4c_size_t nbNotifies = 0;
+
+    errno = 0;
+
+    while (read(reader->selector[AIO4C_PIPE_READ], &dummy, sizeof(unsigned char)) > 0) {
+        nbNotifies++;
+    }
+
+    Log(reader->thread, DEBUG, "%d notifications received", nbNotifies);
+}
+
 static void _ReaderInit(Reader* reader) {
     Log(reader->thread, DEBUG, "reader initialized");
 }
 
 static aio4c_bool_t _ReaderRun(Reader* reader) {
     int numConnectionsReady = 0, i = 0, soError = 0;
-    unsigned char dummy = 0;
     socklen_t soLen = sizeof(int);
-    aio4c_bool_t closeConnection = false;
     TakeLock(reader->thread, reader->lock);
 
     while (reader->numConnections <= 0) {
@@ -63,34 +84,23 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
     }
 
     if (reader->polling[0].revents == POLLIN) {
-        if (read(reader->pipe[0], &dummy, sizeof(unsigned char)) < 0) {
-            perror("read pipe");
-        }
-        printf("notified from pipe !\n");
-        dummy = 0;
+        _ReaderWokenUp(reader);
         reader->polling[0].revents = 0;
         reader->polling[0].events = POLLIN;
     }
 
     for (i = 1; i < reader->numConnections; i++) {
-        closeConnection = false;
         if (reader->polling[i].revents == POLLIN) {
             ConnectionRead(reader->connections[i]);
         } else if (reader->polling[i].revents & POLLERR) {
             getsockopt(reader->connections[i]->socket, SOL_SOCKET, SO_ERROR, &soError, &soLen);
             Log(reader->thread, WARN, "error on connection read: %s", strerror(soError));
-            closeConnection = true;
         } else if (reader->polling[i].revents & POLLHUP) {
             Log(reader->thread, WARN, "connection disconnected");
-            closeConnection = true;
         }
 
         reader->polling[i].revents = 0;
         reader->polling[i].events = POLLIN;
-
-        if (closeConnection) {
-            ConnectionClose(reader->connections[i]);
-        }
     }
 
     ReleaseLock(reader->lock);
@@ -115,9 +125,13 @@ static void _ReaderExit(Reader* reader) {
     free(reader->connections);
     free(reader->polling);
 
-    FreeLock(&reader->lock);
+    close(reader->selector[AIO4C_PIPE_READ]);
+    close(reader->selector[AIO4C_PIPE_WRITE]);
+
+    FreeWorker(reader->thread, &reader->worker);
 
     FreeLock(&reader->lock);
+
     FreeCondition(&reader->condition);
 
     free(reader);
@@ -125,50 +139,67 @@ static void _ReaderExit(Reader* reader) {
     Log(readerThread, DEBUG, "reader exited");
 }
 
-Reader* NewReader(Thread* parent) {
+Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize) {
     Reader* reader = NULL;
 
     if ((reader = malloc(sizeof(Reader))) == NULL) {
+        Log(parent, ERROR, "reader allocation: %s", strerror(errno));
         return NULL;
     }
 
-    reader->connections = malloc(sizeof(Connection*));
-    if (reader->connections == NULL) {
-        perror("malloc connections");
+    if ((reader->connections = malloc(sizeof(Connection*))) == NULL) {
+        Log(parent, ERROR, "reader allocation: %s", strerror(errno));
+        free(reader);
+        return NULL;
     }
-    reader->polling = malloc(sizeof(aio4c_poll_t));
-    if (reader->polling == NULL) {
-        perror("malloc polling");
+
+    if ((reader->polling = malloc(sizeof(aio4c_poll_t))) == NULL) {
+        Log(parent, ERROR, "reader allocation: %s", strerror(errno));
+        free(reader->connections);
+        free(reader);
+        return NULL;
     }
+
     reader->numConnections = 1;
     reader->maxConnections = 1;
     reader->lock = NewLock();
     reader->condition = NewCondition();
-    if (pipe(reader->pipe) != 0) {
-        perror("pipe");
+
+    if (pipe(reader->selector) != 0) {
+        Log(parent, ERROR, "reader selector creation: %s", strerror(errno));
+        FreeLock(&reader->lock);
+        FreeCondition(&reader->condition);
+        free(reader->polling);
+        free(reader->connections);
+        return NULL;
     }
-    if (fcntl(reader->pipe[0], F_SETFL, O_NONBLOCK) != 0) {
-        perror("pipe");
+
+    if (fcntl(reader->selector[AIO4C_PIPE_READ], F_SETFL, O_NONBLOCK) != 0) {
+        Log(parent, WARN, "reader read selector non-block: %s", strerror(errno));
     }
-    if (fcntl(reader->pipe[1], F_SETFL, O_NONBLOCK) != 0) {
-        perror("pipe");
+
+    if (fcntl(reader->selector[AIO4C_PIPE_WRITE], F_SETFL, O_NONBLOCK) != 0) {
+        Log(parent, WARN, "reader write selector non-block: %s", strerror(errno));
     }
+
     reader->connections[0] = NULL;
-    reader->polling[0].fd = reader->pipe[0];
+    reader->polling[0].fd = reader->selector[AIO4C_PIPE_READ];
     reader->polling[0].events = POLLIN;
     reader->polling[0].revents = 0;
-    reader->thread = NewThread(parent, "reader", aio4c_thread_handler(_ReaderInit), aio4c_thread_run(_ReaderRun), aio4c_thread_handler(_ReaderExit), aio4c_thread_arg(reader));
+    reader->thread = NewThread(parent, name, aio4c_thread_handler(_ReaderInit), aio4c_thread_run(_ReaderRun), aio4c_thread_handler(_ReaderExit), aio4c_thread_arg(reader));
+    reader->worker = NewWorker(reader->thread, "worker", bufferSize);
 
     return reader;
 }
 
-void _ReaderCloseHandler(Event event, Connection* connection, Reader* reader) {
-    unsigned char dummy = 1;
+static void _ReaderCloseHandler(Event event, Connection* connection, Reader* reader) {
     int i = 0;
+    Thread* currentThread = ThreadSelf(NULL);
 
-    TakeLock(reader->thread, reader->lock);
-    if (write(reader->pipe[1], &dummy, sizeof(unsigned char)) < 0) {
-        perror("write pipe");
+    TakeLock(currentThread, reader->lock);
+
+    if (currentThread != reader->thread) {
+        _ReaderWakeUp(currentThread, reader);
     }
 
     for (i = 1; i < reader->numConnections; i++) {
@@ -178,7 +209,6 @@ void _ReaderCloseHandler(Event event, Connection* connection, Reader* reader) {
     }
 
     if (i < reader->numConnections) {
-        printf("removing connection %d\n", i);
         for (; i < reader->numConnections - 1; i++) {
             reader->connections[i] = reader->connections[i + 1];
             memcpy(&reader->polling[i], &reader->polling[i + 1], sizeof(aio4c_poll_t));
@@ -194,11 +224,9 @@ void _ReaderCloseHandler(Event event, Connection* connection, Reader* reader) {
 }
 
 void ReaderManageConnection(Thread* from, Reader* reader, Connection* connection) {
-    unsigned char dummy = 1;
     TakeLock(from, reader->lock);
-    if (write(reader->pipe[1], &dummy, sizeof(unsigned char)) < 0) {
-        perror("write pipe");
-    }
+
+    _ReaderWakeUp(from, reader);
 
     if (reader->numConnections >= reader->maxConnections) {
         if ((reader->connections = realloc(reader->connections, (reader->maxConnections + 1) * sizeof(Connection*))) == NULL) {
@@ -221,6 +249,8 @@ void ReaderManageConnection(Thread* from, Reader* reader, Connection* connection
     reader->numConnections ++;
 
     ConnectionAddHandler(connection, CLOSE_EVENT, aio4c_connection_handler(_ReaderCloseHandler), aio4c_connection_handler_arg(reader), true);
+
+    WorkerManageConnection(reader->worker, connection);
 
     NotifyCondition(from, reader->condition, reader->lock);
 

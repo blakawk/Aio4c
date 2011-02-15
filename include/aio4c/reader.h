@@ -23,19 +23,21 @@
 #include <aio4c/connection.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
+#include <aio4c/worker.h>
 
 typedef struct s_Reader {
     Connection**   connections;
     aio4c_poll_t*  polling;
     aio4c_size_t   numConnections;
     aio4c_size_t   maxConnections;
-    aio4c_socket_t pipe[2];
+    aio4c_pipe_t   selector;
     Lock*          lock;
     Condition*     condition;
     Thread*        thread;
+    Worker*        worker;
 } Reader;
 
-extern Reader* NewReader(Thread* parent);
+extern Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize);
 
 extern void ReaderManageConnection(Thread* from, Reader* reader, Connection* connection);
 

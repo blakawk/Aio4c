@@ -41,6 +41,8 @@ typedef struct sockaddr aio4c_addr_t;
 
 typedef u_int16_t aio4c_port_t;
 
+#define INET_PORTSTRLEN 5
+
 typedef int aio4c_socket_t;
 
 typedef FILE aio4c_file_t;
@@ -52,5 +54,11 @@ typedef pthread_mutex_t aio4c_lock_t;
 typedef pthread_cond_t aio4c_cond_t;
 
 typedef struct pollfd aio4c_poll_t;
+
+typedef int aio4c_pipe_t[2];
+
+#define AIO4C_PIPE_READ 0
+
+#define AIO4C_PIPE_WRITE 1
 
 #endif

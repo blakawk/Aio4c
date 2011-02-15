@@ -119,6 +119,8 @@ extern Thread* ThreadMain(char* name);
 
 extern Thread* ThreadCancel(Thread* parent, Thread* thread, aio4c_bool_t force);
 
+extern Thread* ThreadSelf(Thread* parent);
+
 extern Thread* ThreadJoin(Thread* parent, Thread* thread);
 
 extern void FreeThread(Thread* parent, Thread** thread);

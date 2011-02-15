@@ -27,6 +27,8 @@
 #include <netinet/ip.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
 
 #ifndef UNIX_PATH_MAX
@@ -74,6 +76,8 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
     struct sockaddr_in* ipv4 = NULL;
     struct sockaddr_in6* ipv6 = NULL;
     struct sockaddr_un* un = NULL;
+    aio4c_bool_t addPort = false;
+    aio4c_size_t addrLen = 0, stringLen = 0;
 
     if ((pAddress = malloc(sizeof(Address))) == NULL) {
         return NULL;
@@ -104,6 +108,12 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv4->sin_family = AF_INET;
             ipv4->sin_port = htons(port);
             ResolveIP(type, address, (struct sockaddr*)ipv4);
+            if ((pAddress->string = malloc(INET_ADDRSTRLEN * sizeof(char))) != NULL) {
+                if ((inet_ntop(AF_INET, &ipv4->sin_addr, pAddress->string, INET_ADDRSTRLEN)) != NULL) {
+                    addrLen = strlen(pAddress->string);
+                    addPort = true;
+                }
+            }
             break;
         case IPV6:
             ipv6 = (struct sockaddr_in6*)pAddress->address;
@@ -112,6 +122,13 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv6->sin6_flowinfo = 0;
             ipv6->sin6_scope_id = 0;
             ResolveIP(type, address, (struct sockaddr*)ipv6);
+            if ((pAddress->string = malloc((INET6_ADDRSTRLEN + 1) * sizeof(char))) != NULL) {
+                if ((inet_ntop(AF_INET6, &ipv6->sin6_addr, &pAddress->string[1], INET6_ADDRSTRLEN)) != NULL) {
+                    pAddress->string[0] = '[';
+                    addrLen = strlen(pAddress->string);
+                    addPort = true;
+                }
+            }
             break;
         case UNIX:
             un = (struct sockaddr_un*)pAddress->address;
@@ -123,6 +140,18 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             break;
     }
 
+    if (addPort) {
+        if (type == IPV4) {
+            stringLen = snprintf(&pAddress->string[addrLen], 1, ":%u", port);
+            pAddress->string = realloc(pAddress->string, (addrLen + stringLen) * sizeof(char));
+            snprintf(&pAddress->string[addrLen], stringLen, ":%u", port);
+        } else if (type == IPV6) {
+            stringLen = snprintf(&pAddress->string[addrLen], 1, "]:%u", port);
+            pAddress->string = realloc(pAddress->string, (addrLen + stringLen) * sizeof(char));
+            snprintf(&pAddress->string[addrLen], stringLen, "]:%u", port);
+        }
+    }
+
     return pAddress;
 }
 
@@ -132,6 +161,10 @@ void FreeAddress(Address** address) {
     if (address != NULL && (pAddress = *address) != NULL) {
         if (pAddress->address != NULL) {
             free(pAddress->address);
+        }
+
+        if (pAddress->string != NULL) {
+            free(pAddress->string);
         }
 
         free(pAddress);

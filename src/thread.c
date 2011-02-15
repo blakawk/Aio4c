@@ -243,6 +243,33 @@ Thread* ThreadMain(char* name) {
     return _MainThread;
 }
 
+Thread* ThreadSelf(Thread* parent) {
+    int i = 0;
+    Thread* child = NULL;
+
+    if (parent == NULL && _MainThread == NULL) {
+        return NULL;
+    }
+
+    if (parent == NULL) {
+        parent = _MainThread;
+    }
+
+    for (i = 0; i < parent->childrenCount; i++) {
+        if (parent->children[i]->id == aio4c_thread_self()) {
+            return parent->children[i];
+        }
+    }
+
+    for (i = 0; i < parent->childrenCount; i++) {
+        if ((child = ThreadSelf(parent->children[i])) != NULL) {
+            return child;
+        }
+    }
+
+    return NULL;
+}
+
 Thread* NewThread(Thread* parent, char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg) {
     Thread* thread = NULL;
 
@@ -296,6 +323,7 @@ Thread* ThreadCancel(Thread* parent, Thread* thread, aio4c_bool_t force) {
 
 Thread* ThreadJoin(Thread* parent, Thread* thread) {
     void* returnValue = NULL;
+    int i = 0;
 
     if (thread->state != STOPPED && thread->state != EXITED) {
         ThreadCancel(parent, thread, false);
@@ -311,8 +339,22 @@ Thread* ThreadJoin(Thread* parent, Thread* thread) {
 
     thread->state = JOINED;
 
-    thread->parent->children[thread->parent->childrenCount - 1] = NULL;
+    TakeLock(parent, thread->parent->lock);
+
+    for (i = 0; i < thread->parent->childrenCount; i++) {
+        if (thread->parent->children[i] == thread) {
+            break;
+        }
+    }
+
+    for (; i < thread->parent->childrenCount - 1; i++) {
+        thread->parent->children[i] = thread->parent->children[i + 1];
+    }
+
     thread->parent->childrenCount--;
+    thread->parent->children[thread->parent->childrenCount] = NULL;
+
+    ReleaseLock(thread->lock);
 
     return thread;
 }
@@ -322,8 +364,10 @@ void FreeThread(Thread* parent, Thread** thread) {
     int i = 0;
 
     if (thread != NULL && (pThread = *thread) != NULL) {
-        if (pThread->state != EXITED && parent != NULL) {
-            ThreadCancel(parent, pThread, true);
+        if (pThread->state != JOINED && parent != NULL) {
+            if (pThread->state != EXITED) {
+                ThreadCancel(parent, pThread, true);
+            }
             ThreadJoin(parent, pThread);
         }
 

@@ -54,15 +54,14 @@ void onConnect(Event event, Connection* source, Client* c) {
     ReaderManageConnection(c->thread, c->reader, source);
 }
 
-void onRead(Event event, Connection* source, Client* c) {
-    Log(c->thread, DEBUG, "read %d bytes", source->readBuffer->position);
-    BufferFlip(source->readBuffer);
-    LogBuffer(c->thread, DEBUG, source->readBuffer);
+void onRead(Event event, Buffer* source, Client* c) {
+    Log(c->thread, DEBUG, "read %d bytes", source->limit);
+    LogBuffer(c->thread, DEBUG, source);
 }
 
 void onClose(Event event, Connection* source, Client* c) {
     if (source->closeCause != NO_ERROR) {
-        Log(c->thread, ERROR, "connection unexpectedly closed for reason %d with code %d\n", source->closeCause, source->closeCode);
+        Log(c->thread, ERROR, "connection unexpectedly closed for reason %d with code %d", source->closeCause, source->closeCode);
     } else {
         Log(c->thread, WARN, "connection closed");
     }
@@ -101,9 +100,9 @@ aio4c_bool_t clientRun(Client* c) {
     ConnectionAddHandler(c->conn, INIT_EVENT, aio4c_connection_handler(onInit), aio4c_connection_handler_arg(c), true);
     ConnectionAddHandler(c->conn, CONNECTING_EVENT, aio4c_connection_handler(onConnecting), aio4c_connection_handler_arg(c), true);
     ConnectionAddHandler(c->conn, CONNECTED_EVENT, aio4c_connection_handler(onConnect), aio4c_connection_handler_arg(c), true);
-    ConnectionAddHandler(c->conn, READ_EVENT, aio4c_connection_handler(onRead), aio4c_connection_handler_arg(c), false);
+    ConnectionAddHandler(c->conn, INBOUND_DATA_EVENT, aio4c_connection_handler(onRead), aio4c_connection_handler_arg(c), false);
     ConnectionAddHandler(c->conn, CLOSE_EVENT, aio4c_connection_handler(onClose), aio4c_connection_handler_arg(c), true);
-    c->reader = NewReader(c->thread);
+    c->reader = NewReader(c->thread, "reader", 8192);
     Thread* readerT = c->reader->thread;
     ConnectionInit(c->conn);
     ThreadJoin(c->thread, readerT);
@@ -129,7 +128,7 @@ int main (int argc, char** argv) {
     data->counter = 0;
 
     Thread* mainThread = ThreadMain("client");
-    LogInit(mainThread, DEBUG, "client.log");
+    LogInit(mainThread, WARN, "client.log");
 
     Thread* testThread = data->thread = NewThread(mainThread, "test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);
     Thread* clientThread = client->thread = NewThread(mainThread, "client", aio4c_thread_handler(clientInit), aio4c_thread_run(clientRun), aio4c_thread_handler(clientExit), aio4c_thread_arg(client));

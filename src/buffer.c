@@ -18,8 +18,11 @@
  * not, see <http://www.gnu.org/licenses/>.
  **/
 #include <aio4c/buffer.h>
+
 #include <aio4c/types.h>
+
 #include <stdlib.h>
+#include <string.h>
 
 Buffer* NewBuffer(aio4c_size_t size) {
     Buffer* buffer = NULL;
@@ -72,7 +75,7 @@ Buffer* BufferPosition(Buffer* buffer, aio4c_position_t position) {
 }
 
 Buffer* BufferLimit(Buffer* buffer, aio4c_position_t limit) {
-    if (limit >= buffer->size) {
+    if (limit > buffer->size) {
         FreeBuffer(&buffer);
     } else {
         buffer->limit = limit;
@@ -80,3 +83,12 @@ Buffer* BufferLimit(Buffer* buffer, aio4c_position_t limit) {
 
     return buffer;
 }
+
+Buffer* BufferReset(Buffer* buffer) {
+    memset(buffer->data, 0, buffer->size);
+    buffer->position = 0;
+    buffer->limit = buffer->size;
+
+    return buffer;
+}
+

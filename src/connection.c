@@ -56,6 +56,7 @@ Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
     connection->address = address;
     connection->closeCause = NO_ERROR;
     connection->closeCode = 0;
+    connection->string = address->string;
 
     return connection;
 }

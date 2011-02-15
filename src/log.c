@@ -184,7 +184,9 @@ static void _FreeLogger(Logger** logger) {
 static void _LogExit(Logger* logger) {
     ReleaseLock(logger->queue->lock);
     Log(logger->thread, INFO, "logging finished");
-    _LogRun(logger);
+    if (logger->queue->itemsCount > 0) {
+        _LogRun(logger);
+    }
     _FreeLogger(&logger);
 }
 

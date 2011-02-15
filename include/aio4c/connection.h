@@ -56,6 +56,7 @@ typedef struct s_Connection {
     EventQueue*          handlers;
     ConnectionCloseCause closeCause;
     int                  closeCode;
+    char*                string;
 } Connection;
 
 #define aio4c_connection_handler(handler) \

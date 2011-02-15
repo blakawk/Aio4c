@@ -17,28 +17,29 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-#ifndef __AIO4C_BUFFER_H__
-#define __AIO4C_BUFFER_H__
+#ifndef __AIO4C_WORKER_H__
+#define __AIO4C_WORKER_H__
 
+#include <aio4c/buffer.h>
+#include <aio4c/connection.h>
+#include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-typedef struct s_Buffer {
-    aio4c_size_t     size;
-    aio4c_byte_t*    data;
-    aio4c_position_t position;
-    aio4c_position_t limit;
-} Buffer;
+typedef struct s_Worker {
+    Thread*      thread;
+    Buffer**     queue;
+    Connection** connections;
+    aio4c_size_t queueSize;
+    aio4c_size_t itemsCount;
+    aio4c_size_t bufferSize;
+    Condition*   condition;
+    Lock*        lock;
+} Worker;
 
-extern Buffer* NewBuffer(aio4c_size_t size);
+extern Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize);
 
-extern void FreeBuffer(Buffer** buffer);
+extern void WorkerManageConnection(Worker* worker, Connection* connection);
 
-extern Buffer* BufferFlip(Buffer* buffer);
-
-extern Buffer* BufferPosition(Buffer* buffer, aio4c_position_t position);
-
-extern Buffer* BufferLimit(Buffer* buffer, aio4c_position_t limit);
-
-extern Buffer* BufferReset(Buffer* buffer);
+extern void FreeWorker(Thread* parent, Worker** worker);
 
 #endif

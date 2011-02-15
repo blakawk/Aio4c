@@ -29,9 +29,10 @@ typedef enum e_AddressType {
 } AddressType;
 
 typedef struct s_Address {
+    char*            string;
     AddressType      type;
-    aio4c_addr_t*      address;
-    aio4c_size_t       size;
+    aio4c_addr_t*    address;
+    aio4c_size_t     size;
 } Address;
 
 extern Address* NewAddress(AddressType type, char* address, aio4c_port_t port);
