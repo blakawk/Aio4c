@@ -42,17 +42,20 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
     SelectionKey* key = NULL;
     int numConnectionsReady = 0;
 
-    while(Dequeue(reader->queue, &item)) {
+    while(Dequeue(reader->queue, &item, false)) {
         switch(item->type) {
             case EXIT:
+                Log(reader->thread, DEBUG, "read EXIT message");
                 FreeItem(&item);
                 return false;
             case DATA:
                 connection = (Connection*)item->content.data;
+                Log(reader->thread, DEBUG, "registering connection %s", connection->string);
                 Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
                 break;
             case EVENT:
                 connection = (Connection*)item->content.event.source;
+                Log(reader->thread, DEBUG, "close for connection %s received", connection->string);
                 break;
         }
 
@@ -63,10 +66,12 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
 
     if (numConnectionsReady > 0) {
         while (SelectionKeyReady(reader->selector, &key)) {
+            Log(reader->thread, DEBUG, "connection %s ready", ((Connection*)key->attachment)->string);
             if (key->result == key->operation) {
                 ConnectionRead((Connection*)key->attachment);
             } else {
                 ConnectionClose((Connection*)key->attachment);
+                Unregister(reader->selector, key);
             }
         }
     }
@@ -75,16 +80,18 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
 }
 
 static void _ReaderExit(Reader* reader) {
-    Thread* readerThread = reader->thread;
+    Thread* worker = reader->worker->thread;
 
-    FreeWorker(reader->thread, &reader->worker);
+    WorkerEnd(reader->worker);
+    ThreadJoin(worker);
+    FreeThread(&worker);
 
     FreeQueue(&reader->queue);
     FreeSelector(&reader->selector);
 
-    free(reader);
+    Log(reader->thread, INFO, "exited");
 
-    Log(readerThread, INFO, "exited");
+    free(reader);
 }
 
 Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize) {
@@ -106,11 +113,9 @@ Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize) {
 }
 
 static void _ReaderEventHandler(Event event, Connection* connection, Reader* reader) {
-    QueueItem* item = NewEventItem(event, connection);
+    Enqueue(reader->queue, NewEventItem(event, connection));
 
-    Enqueue(reader->queue, item);
-
-    Log(ThreadSelf(), DEBUG, "%s closing connection %s", reader->thread->name, connection->string);
+    SelectorWakeUp(reader->selector);
 }
 
 void ReaderManageConnection(Thread* from, Reader* reader, Connection* connection) {
@@ -121,5 +126,13 @@ void ReaderManageConnection(Thread* from, Reader* reader, Connection* connection
     ConnectionAddSystemHandler(connection, CLOSE_EVENT, aio4c_connection_handler(_ReaderEventHandler), aio4c_connection_handler_arg(reader), true);
 
     WorkerManageConnection(reader->worker, connection);
+
+    SelectorWakeUp(reader->selector);
+}
+
+void ReaderEnd(Reader* reader) {
+    Enqueue(reader->queue, NewExitItem());
+
+    SelectorWakeUp(reader->selector);
 }
 

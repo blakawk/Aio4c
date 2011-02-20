@@ -38,21 +38,11 @@ typedef enum e_LogLevel {
     DEBUG = 4
 } LogLevel;
 
-typedef struct s_LogMessageQueue {
-    char**         queue;
-    aio4c_size_t   itemsCount;
-    aio4c_size_t   maxItems;
-    Lock*          lock;
-    Condition*     condition;
-    aio4c_bool_t   isValid;
-} LogMessageQueue;
-
 typedef struct s_Logger {
     LogLevel          level;
     aio4c_file_t*     file;
-    LogMessageQueue*  queue;
+    Queue*            queue;
     Thread*           thread;
-    Lock*             lock;
 } Logger;
 
 extern void LogInit(Thread* parent, LogLevel level, char* filename);

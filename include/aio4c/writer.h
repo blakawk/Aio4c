@@ -22,26 +22,27 @@
 
 #include <aio4c/buffer.h>
 #include <aio4c/connection.h>
+#include <aio4c/event.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
+typedef struct s_WriterEvent {
+    Event type;
+    Connection* connection;
+    Buffer* buffer;
+} WriterEvent;
+
 typedef struct s_Writer {
     Thread*       thread;
-    Lock*         lock;
-    Condition*    condition;
-    aio4c_pipe_t  selector;
-    Connection**  connections;
-    aio4c_poll_t* polling;
-    Buffer**      buffers;
-    aio4c_size_t  numConnections;
-    aio4c_size_t  maxConnections;
     aio4c_size_t  bufferSize;
+    Selector*     selector;
+    Queue*        queue;
 } Writer;
 
 extern Writer* NewWriter(Thread* parent, char* name, aio4c_size_t bufferSize);
 
 extern void WriterManageConnection(Writer* writer, Connection* connection);
 
-extern void FreeWriter(Thread* parent, Writer** writer);
+extern void WriterEnd(Writer* writer);
 
 #endif

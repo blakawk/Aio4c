@@ -190,7 +190,7 @@ extern QueueItem* NewExitItem(void);
 
 extern void FreeItem(QueueItem** item);
 
-extern aio4c_bool_t Dequeue(Queue* queue, QueueItem** item);
+extern aio4c_bool_t Dequeue(Queue* queue, QueueItem** item, aio4c_bool_t wait);
 
 extern aio4c_bool_t Enqueue(Queue* queue, QueueItem* item);
 

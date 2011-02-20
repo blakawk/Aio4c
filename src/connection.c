@@ -244,13 +244,10 @@ Connection* ConnectionAddHandler(Connection* connection, Event event, void (*han
 Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once) {
     EventHandler* eventHandler = NULL;
 
-    TakeLock(connection->lock);
-
     eventHandler = NewEventHandler(event, aio4c_event_handler(handler), aio4c_event_handler_arg(arg), once);
 
     if (eventHandler != NULL) {
         if (EventHandlerAdd(connection->systemHandlers, eventHandler) != NULL) {
-            ReleaseLock(connection->lock);
             return connection;
         }
     }
@@ -259,12 +256,8 @@ Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void
 }
 
 Connection* ConnectionEventHandle(Connection* connection, Event event, void* arg) {
-    TakeLock(connection->lock);
-
     EventHandle(connection->systemHandlers, event, arg);
     EventHandle(connection->userHandlers, event, arg);
-
-    ReleaseLock(connection->lock);
 
     return connection;
 }

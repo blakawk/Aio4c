@@ -100,3 +100,7 @@ Buffer* BufferCopy(Buffer* dst, Buffer* src) {
     return dst;
 }
 
+aio4c_bool_t BufferHasRemaining(Buffer* buffer) {
+    return (buffer->position < buffer->limit);
+}
+

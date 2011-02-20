@@ -36,6 +36,6 @@ extern Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize);
 
 extern void ReaderManageConnection(Thread* from, Reader* reader, Connection* connection);
 
-extern void FreeReader(Reader** reader);
+extern void ReaderEnd(Reader* reader);
 
 #endif

@@ -36,60 +36,43 @@ static void _WorkerInit(Worker* worker) {
 }
 
 static aio4c_bool_t _WorkerRun(Worker* worker) {
-    int i = 0;
-    Buffer* bufferToProcess = NULL;
-    Connection* connectionToProcess = NULL;
+    QueueItem* item = NULL;
+    Task* task = NULL;
 
-    TakeLock(worker->lock);
-
-    while (worker->itemsCount <= 0 && WaitCondition(worker->condition, worker->lock));
-
-    while (worker->itemsCount > 0) {
-        bufferToProcess = worker->queue[0];
-        connectionToProcess = worker->connections[0];
-
-        ReleaseLock(worker->lock);
-
-        ConnectionEventHandle(connectionToProcess, INBOUND_DATA_EVENT, bufferToProcess);
-
-        TakeLock(worker->lock);
-
-        for (i = 0; i < worker->itemsCount - 1; i++) {
-            worker->queue[i] = worker->queue[i + 1];
-            worker->connections[i] = worker->connections[i + 1];
+    while (Dequeue(worker->queue, &item, true)) {
+        switch (item->type) {
+            case EXIT:
+                Log(worker->thread, DEBUG, "read EXIT message");
+                FreeItem(&item);
+                return false;
+            case DATA:
+                task = (Task*)item->content.data;
+                ConnectionEventHandle(task->connection, INBOUND_DATA_EVENT, task->buffer);
+                FreeBuffer(&task->buffer);
+                free(task);
+                break;
+            case EVENT:
+                ConnectionEventHandle(item->content.event.source, item->content.event.type, item->content.event.source);
+                break;
         }
-
-        BufferReset(bufferToProcess);
-
-        worker->queue[i] = bufferToProcess;
-        worker->connections[i] = NULL;
-        worker->itemsCount--;
-
+        FreeItem(&item);
     }
-
-    ReleaseLock(worker->lock);
 
     return true;
 }
 
 static void _WorkerExit(Worker* worker) {
-    int i = 0;
+    Thread* writer = worker->writer->thread;
 
-    if (worker->writer != NULL) {
-        FreeWriter(worker->thread, &worker->writer);
-    }
+    FreeQueue(&worker->queue);
 
-    if (worker->itemsCount > 0) {
-        for (i = 0; i < worker->itemsCount; i++) {
-            if (worker->queue[i] != NULL) {
-                FreeBuffer(&worker->queue[i]);
-                worker->connections[i] = NULL;
-            }
-        }
-        worker->itemsCount = 0;
-    }
+    WriterEnd(worker->writer);
+    ThreadJoin(writer);
+    FreeThread(&writer);
 
     Log(worker->thread, INFO, "exited");
+
+    free(worker);
 }
 
 Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize) {
@@ -99,13 +82,8 @@ Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize) {
         return NULL;
     }
 
-    worker->queue = NULL;
-    worker->connections = NULL;
-    worker->queueSize = 0;
-    worker->itemsCount = 0;
+    worker->queue = NewQueue();
     worker->bufferSize = bufferSize;
-    worker->condition = NewCondition();
-    worker->lock = NewLock();
     worker->thread = NULL;
     worker->thread = NewThread(name, aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
     worker->writer = NULL;
@@ -115,35 +93,28 @@ Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize) {
 }
 
 static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) {
-    Thread* current = ThreadSelf();
     Buffer* bufferCopy = NULL;
+    Task* task = NULL;
+    QueueItem* item = NULL;
 
-    TakeLock(worker->lock);
-
-    if (worker->queueSize <= worker->itemsCount) {
-        if ((worker->queue = realloc(worker->queue, (worker->queueSize + 1) * sizeof(Buffer*))) == NULL) {
-            Log(current, WARN, "unable to alloc buffer queue: %s", strerror(errno));
-            FreeBuffer(&bufferCopy);
-            return;
-        }
-
-        if ((worker->connections = realloc(worker->connections, (worker->queueSize + 1) * sizeof(Connection*))) == NULL) {
-            Log(current, WARN, "unable to allocate connection queue: %s", strerror(errno));
-            FreeBuffer(&bufferCopy);
-            return;
-        }
-
-        worker->queue[worker->queueSize] = NewBuffer(worker->bufferSize);
-        worker->queueSize++;
+    if ((task = malloc(sizeof(Task))) == NULL) {
+        return;
     }
 
-    BufferCopy(worker->queue[worker->itemsCount], source->readBuffer);
-    worker->connections[worker->itemsCount] = source;
-    worker->itemsCount++;
+    bufferCopy = NewBuffer(worker->bufferSize);
 
-    NotifyCondition(worker->condition, worker->lock);
+    BufferFlip(source->readBuffer);
 
-    ReleaseLock(worker->lock);
+    BufferCopy(bufferCopy, source->readBuffer);
+
+    BufferReset(source->readBuffer);
+
+    task->connection = source;
+    task->buffer = bufferCopy;
+
+    item = NewDataItem((void*)task);
+
+    Enqueue(worker->queue, item);
 }
 
 void WorkerManageConnection(Worker* worker, Connection* connection) {
@@ -151,41 +122,9 @@ void WorkerManageConnection(Worker* worker, Connection* connection) {
     WriterManageConnection(worker->writer, connection);
 }
 
-void FreeWorker(Thread* parent, Worker** worker) {
-    Worker* pWorker = NULL;
-    int i = 0;
+void WorkerEnd(Worker* worker) {
+    QueueItem* item = NewExitItem();
 
-    if (worker != NULL && (pWorker = *worker) != NULL) {
-        if (pWorker->thread != NULL) {
-            ThreadCancel(pWorker->thread, true);
-            FreeThread(&pWorker->thread);
-        }
-
-        if (pWorker->queue != NULL) {
-            for (i = 0; i < pWorker->queueSize; i++) {
-                if (pWorker->queue[i] != NULL) {
-                    FreeBuffer(&pWorker->queue[i]);
-                }
-            }
-            pWorker->queueSize = 0;
-            pWorker->itemsCount = 0;
-            free(pWorker->queue);
-        }
-
-        if (pWorker->connections != NULL) {
-            free(pWorker->connections);
-        }
-
-        if (pWorker->condition != NULL) {
-            FreeCondition(&pWorker->condition);
-        }
-
-        if (pWorker->lock != NULL) {
-            FreeLock(&pWorker->lock);
-        }
-
-        free(pWorker);
-        *worker = NULL;
-    }
+    Enqueue(worker->queue, item);
 }
 

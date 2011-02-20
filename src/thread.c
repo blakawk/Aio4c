@@ -56,72 +56,17 @@ Lock* NewLock(void) {
 }
 
 Lock* TakeLock(Lock* lock) {
-    Thread* owner = ThreadSelf();
-
-    if (lock == NULL || lock->state == DESTROYED) {
-        debugLock("lock %p has been destroyed\n", (void*)lock);
-        return NULL;
-    }
-
-    if (owner != NULL && owner == lock->owner) {
-        debugLock("lock %p is already owned by %p [%s]\n", (void*)lock, (void*)owner, owner->name);
-        return NULL;
-    }
-
-    if (lock->owner != owner && lock->owner != NULL && !ThreadRunning(lock->owner)) {
-        debugLock("lock %p owner %p [%s] is not running anymore\n", (void*)lock, (void*)lock->owner, lock->owner->name);
-        return NULL;
-    }
-
-    if (owner != NULL) {
-        owner->state = BLOCKED;
-    }
-
-    debugLock("%p [%s] locking %p\n", (void*)owner, (owner != NULL)?owner->name:NULL, (void*)lock);
     if ((errno = aio4c_mutex_lock(&lock->mutex)) != 0) {
-        debugLock("error locking %p: %s", (void*)lock, strerror(errno));
-        lock->owner = NULL;
-        lock->state = FREE;
-        if (owner->state == BLOCKED) {
-            owner->state = RUNNING;
-        }
-        return NULL;
-    }
-
-    lock->owner = owner;
-    lock->state = LOCKED;
-
-    if (owner != NULL) {
-        if (owner->state == BLOCKED) {
-            owner->state = RUNNING;
-        }
+        return lock;
     }
 
     return lock;
 }
 
 Lock* ReleaseLock(Lock* lock) {
-    Thread* releaser = ThreadSelf();
-    if (lock == NULL || lock->state == DESTROYED) {
-        debugLock("lock %p has been destroyed\n", (void*)lock);
-        return NULL;
-    }
-
-    if (lock->owner == NULL) {
-        debugLock("lock %p is already released\n", (void*)lock);
-        return NULL;
-    }
-
-    debugLock("%p [%s] releasing %p owned by %p [%s]\n", (void*)releaser, releaser->name, (void*)lock, (void*)lock->owner, lock->owner->name);
-
-    lock->owner = NULL;
-    lock->state = FREE;
-
     if ((errno = aio4c_mutex_unlock(&lock->mutex)) != 0) {
-        debugLock("error unlocking %p: %s\n", (void*)lock, strerror(errno));
         return NULL;
     }
-
     return lock;
 }
 
@@ -129,11 +74,6 @@ void FreeLock(Lock** lock) {
     Lock * pLock = NULL;
 
     if (lock != NULL && (pLock = *lock) != NULL) {
-        while (pLock->state == LOCKED) {
-            ReleaseLock(pLock);
-        }
-
-        debugLock("destroying lock %p\n", (void*)lock);
         pLock->state = DESTROYED;
 
         aio4c_mutex_destroy(&pLock->mutex);
@@ -161,74 +101,14 @@ Condition* NewCondition(void) {
 }
 
 aio4c_bool_t WaitCondition(Condition* condition, Lock* lock) {
-    Thread* owner = ThreadSelf();
-
-    if (lock == NULL || condition == NULL) {
-        return false;
-    }
-
-    if ((condition->owner != NULL && condition->owner == owner)
-    || ((lock->owner != NULL && lock->owner != owner)
-      || lock->state != LOCKED)) {
-        return false;
-    }
-
-    condition->owner = owner;
-
-    if (owner != NULL) {
-        TakeLock(owner->lock);
-        if (!ThreadRunning(owner)) {
-            ReleaseLock(owner->lock);
-            return false;
-        }
-        owner->state = IDLE;
-        ReleaseLock(owner->lock);
-    }
-
-    lock->state = FREE;
-    lock->owner = NULL;
-
     if (aio4c_cond_wait(&condition->condition, &lock->mutex) != 0) {
-        lock->owner = owner;
-        lock->state = LOCKED;
-        condition->owner = NULL;
-        if (owner != NULL) {
-            TakeLock(owner->lock);
-            if (owner->state == IDLE) {
-                owner->state = RUNNING;
-            }
-            ReleaseLock(owner->lock);
-        }
         return false;
-    }
-
-    lock->owner = owner;
-    lock->state = LOCKED;
-
-    condition->owner = NULL;
-
-    if (owner != NULL) {
-        TakeLock(owner->lock);
-        if (owner->state == IDLE) {
-            owner->state = RUNNING;
-        }
-        ReleaseLock(owner->lock);
     }
 
     return true;
 }
 
 void NotifyCondition(Condition* condition, Lock* lock) {
-    Thread* notifier = ThreadSelf();
-
-    if (condition == NULL || lock == NULL) {
-        return;
-    }
-
-    if (notifier == NULL || condition->owner == notifier || condition->owner == NULL || ((lock->owner != NULL && lock->owner != notifier) || lock->state != LOCKED)) {
-        return;
-    }
-
     aio4c_cond_signal(&condition->condition);
 }
 
@@ -309,7 +189,7 @@ void FreeItem(QueueItem** pItem) {
     }
 }
 
-aio4c_bool_t Dequeue(Queue* queue, QueueItem** item) {
+aio4c_bool_t Dequeue(Queue* queue, QueueItem** item, aio4c_bool_t wait) {
     int i = 0;
 
     TakeLock(queue->lock);
@@ -320,7 +200,7 @@ aio4c_bool_t Dequeue(Queue* queue, QueueItem** item) {
         return false;
     }
 
-    while (queue->numItems == 0 && queue->valid) {
+    while (wait && queue->numItems == 0 && queue->valid) {
         if (!WaitCondition(queue->condition, queue->lock)) {
             break;
         }
@@ -529,14 +409,20 @@ aio4c_size_t Select(Selector* selector) {
         owner->state = IDLE;
     }
 
+    Log(owner, DEBUG, "about to poll %d connections", selector->numPolls);
+
     while ((nbPolls = poll(selector->polls, selector->numPolls, -1)) < 0) {
         if (errno != EINTR) {
+            Log(owner, DEBUG, "poll failed with %s", strerror(errno));
+
             if (owner != NULL) {
                 owner->state = RUNNING;
             }
             return 0;
         }
     }
+
+    Log(owner, DEBUG, "poll resulted in %d connections ready", nbPolls);
 
     if (owner != NULL) {
         owner->state = RUNNING;
@@ -545,10 +431,13 @@ aio4c_size_t Select(Selector* selector) {
     TakeLock(selector->lock);
 
     if (selector->polls[0].revents == POLLIN) {
+        Log(owner, DEBUG, "woken up on selector");
         read(selector->pipe[AIO4C_PIPE_READ], &dummy, sizeof(unsigned char));
         selector->polls[0].revents = 0;
         nbPolls--;
     }
+
+    ReleaseLock(selector->lock);
 
     return nbPolls;
 }
@@ -779,7 +668,7 @@ Thread* ThreadJoin(Thread* thread) {
     void* returnValue = NULL;
     Thread* parent = ThreadSelf();
 
-    if (thread->state == JOINED || !thread->stateValid) {
+    if (thread->state == JOINED) {
         return thread;
     }
 

@@ -33,7 +33,7 @@ void onConnect(Event event, Connection* source, Client* c) {
 void onRead(Event event, Buffer* source, Client* c) {
     Log(c->thread, DEBUG, "read %d bytes", source->limit);
     LogBuffer(c->thread, DEBUG, source);
-    ConnectionEventHandle(c->conn, OUTBOUND_DATA_EVENT, c);
+    ConnectionEventHandle(c->conn, OUTBOUND_DATA_EVENT, c->conn);
 }
 
 void onWrite(Event event, Buffer* source, Client* c) {
@@ -49,7 +49,7 @@ void onClose(Event event, Connection* source, Client* c) {
     } else {
         Log(c->thread, WARN, "connection closed");
     }
-    ThreadCancel(c->reader->thread, true);
+    ReaderEnd(c->reader);
 }
 
 typedef struct s_Data {
@@ -112,7 +112,7 @@ int main (int argc, char** argv) {
     data->counter = 0;
 
     Thread* mainThread = ThreadMain("main");
-    LogInit(mainThread, DEBUG, "client.log");
+    LogInit(mainThread, ERROR, "client.log");
 
     Thread* testThread = data->thread = NewThread("test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);
     Thread* clientThread = client->thread = NewThread("client", aio4c_thread_handler(clientInit), aio4c_thread_run(clientRun), aio4c_thread_handler(clientExit), aio4c_thread_arg(client));

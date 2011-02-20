@@ -43,4 +43,6 @@ extern Buffer* BufferReset(Buffer* buffer);
 
 extern Buffer* BufferCopy(Buffer* dst, Buffer* src);
 
+extern aio4c_bool_t BufferHasRemaining(Buffer* buffer);
+
 #endif

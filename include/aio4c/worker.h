@@ -26,22 +26,22 @@
 #include <aio4c/types.h>
 #include <aio4c/writer.h>
 
+typedef struct s_Task {
+    Connection* connection;
+    Buffer* buffer;
+} Task;
+
 typedef struct s_Worker {
     Thread*      thread;
-    Buffer**     queue;
-    Connection** connections;
-    aio4c_size_t queueSize;
-    aio4c_size_t itemsCount;
     aio4c_size_t bufferSize;
-    Condition*   condition;
-    Lock*        lock;
     Writer*      writer;
+    Queue*       queue;
 } Worker;
 
 extern Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize);
 
 extern void WorkerManageConnection(Worker* worker, Connection* connection);
 
-extern void FreeWorker(Thread* parent, Worker** worker);
+extern void WorkerEnd(Worker* worker);
 
 #endif
