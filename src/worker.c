@@ -25,6 +25,7 @@
 #include <aio4c/log.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
+#include <aio4c/writer.h>
 
 #include <errno.h>
 #include <stdlib.h>
@@ -39,11 +40,9 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
     Buffer* bufferToProcess = NULL;
     Connection* connectionToProcess = NULL;
 
-    TakeLock(worker->thread, worker->lock);
+    TakeLock(worker->lock);
 
-    while (worker->itemsCount <= 0) {
-        WaitCondition(worker->thread, worker->condition, worker->lock);
-    }
+    while (worker->itemsCount <= 0 && WaitCondition(worker->condition, worker->lock));
 
     while (worker->itemsCount > 0) {
         bufferToProcess = worker->queue[0];
@@ -51,9 +50,9 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
 
         ReleaseLock(worker->lock);
 
-        EventHandle(connectionToProcess->handlers, INBOUND_DATA_EVENT, bufferToProcess);
+        ConnectionEventHandle(connectionToProcess, INBOUND_DATA_EVENT, bufferToProcess);
 
-        TakeLock(worker->thread, worker->lock);
+        TakeLock(worker->lock);
 
         for (i = 0; i < worker->itemsCount - 1; i++) {
             worker->queue[i] = worker->queue[i + 1];
@@ -75,6 +74,10 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
 
 static void _WorkerExit(Worker* worker) {
     int i = 0;
+
+    if (worker->writer != NULL) {
+        FreeWriter(worker->thread, &worker->writer);
+    }
 
     if (worker->itemsCount > 0) {
         for (i = 0; i < worker->itemsCount; i++) {
@@ -103,16 +106,19 @@ Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize) {
     worker->bufferSize = bufferSize;
     worker->condition = NewCondition();
     worker->lock = NewLock();
-    worker->thread = NewThread(parent, name, aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
+    worker->thread = NULL;
+    worker->thread = NewThread(name, aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
+    worker->writer = NULL;
+    worker->writer = NewWriter(worker->thread, "writer", worker->bufferSize);
 
     return worker;
 }
 
 static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) {
-    Thread* current = ThreadSelf(NULL);
+    Thread* current = ThreadSelf();
     Buffer* bufferCopy = NULL;
 
-    TakeLock(current, worker->lock);
+    TakeLock(worker->lock);
 
     if (worker->queueSize <= worker->itemsCount) {
         if ((worker->queue = realloc(worker->queue, (worker->queueSize + 1) * sizeof(Buffer*))) == NULL) {
@@ -131,19 +137,18 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
         worker->queueSize++;
     }
 
-    memcpy(worker->queue[worker->itemsCount]->data, source->readBuffer->data, source->readBuffer->position);
-    BufferPosition(source->readBuffer, 0);
-    BufferLimit(source->readBuffer, source->readBuffer->size);
+    BufferCopy(worker->queue[worker->itemsCount], source->readBuffer);
     worker->connections[worker->itemsCount] = source;
     worker->itemsCount++;
 
-    NotifyCondition(current, worker->condition, worker->lock);
+    NotifyCondition(worker->condition, worker->lock);
 
     ReleaseLock(worker->lock);
 }
 
 void WorkerManageConnection(Worker* worker, Connection* connection) {
-    ConnectionAddHandler(connection, READ_EVENT, aio4c_connection_handler(_WorkerReadHandler), aio4c_connection_handler_arg(worker), false);
+    ConnectionAddSystemHandler(connection, READ_EVENT, aio4c_connection_handler(_WorkerReadHandler), aio4c_connection_handler_arg(worker), false);
+    WriterManageConnection(worker->writer, connection);
 }
 
 void FreeWorker(Thread* parent, Worker** worker) {
@@ -152,7 +157,8 @@ void FreeWorker(Thread* parent, Worker** worker) {
 
     if (worker != NULL && (pWorker = *worker) != NULL) {
         if (pWorker->thread != NULL) {
-            FreeThread(parent, &pWorker->thread);
+            ThreadCancel(pWorker->thread, true);
+            FreeThread(&pWorker->thread);
         }
 
         if (pWorker->queue != NULL) {

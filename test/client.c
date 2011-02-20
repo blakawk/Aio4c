@@ -22,41 +22,25 @@ typedef struct s_Client {
 
 void onInit(Event event, Connection* source, Client* c) {
     Log(c->thread, INFO, "connection initialized");
+    ReaderManageConnection(c->thread, c->reader, source);
     ConnectionConnect(source);
-}
-
-void onConnecting(Event event, Connection* source, Client* c) {
-    struct pollfd polls[1] = { { .fd = source->socket, .events = POLLOUT, .revents = 0} };
-    int soError = 0;
-    socklen_t soLen = sizeof(soError);
-    Log(c->thread, INFO, "connecting...");
-    while (poll(polls, 1, -1) == 0);
-    if (polls[0].revents == POLLOUT) {
-        ConnectionFinishConnect(source);
-    } else {
-        if (polls[0].revents & POLLERR) {
-            getsockopt(source->socket, SOL_SOCKET, SO_ERROR, &soError, &soLen);
-            errno = soError;
-            Log(c->thread, ERROR, "connecting [POLLERR]: %s", strerror(errno));
-            ConnectionClose(source);
-        } else if (polls[0].revents & POLLHUP) {
-            Log(c->thread, ERROR, "disconnected while connecting");
-            ConnectionClose(source);
-        } else {
-            Log(c->thread, ERROR, "connecting: %d: %s", errno, strerror(errno));
-            ConnectionClose(source);
-        }
-    }
 }
 
 void onConnect(Event event, Connection* source, Client* c) {
     Log(c->thread, INFO, "connected");
-    ReaderManageConnection(c->thread, c->reader, source);
 }
 
 void onRead(Event event, Buffer* source, Client* c) {
     Log(c->thread, DEBUG, "read %d bytes", source->limit);
     LogBuffer(c->thread, DEBUG, source);
+    ConnectionEventHandle(c->conn, OUTBOUND_DATA_EVENT, c);
+}
+
+void onWrite(Event event, Buffer* source, Client* c) {
+    Log(c->thread, DEBUG, "writing");
+    memcpy(source->data, "HELLO\n", 7);
+    source->position += 7;
+    source->limit = 7;
 }
 
 void onClose(Event event, Connection* source, Client* c) {
@@ -65,7 +49,7 @@ void onClose(Event event, Connection* source, Client* c) {
     } else {
         Log(c->thread, WARN, "connection closed");
     }
-    ThreadCancel(c->thread, c->reader->thread, true);
+    ThreadCancel(c->reader->thread, true);
 }
 
 typedef struct s_Data {
@@ -98,15 +82,15 @@ void clientInit(Client* c) {
 
 aio4c_bool_t clientRun(Client* c) {
     ConnectionAddHandler(c->conn, INIT_EVENT, aio4c_connection_handler(onInit), aio4c_connection_handler_arg(c), true);
-    ConnectionAddHandler(c->conn, CONNECTING_EVENT, aio4c_connection_handler(onConnecting), aio4c_connection_handler_arg(c), true);
     ConnectionAddHandler(c->conn, CONNECTED_EVENT, aio4c_connection_handler(onConnect), aio4c_connection_handler_arg(c), true);
     ConnectionAddHandler(c->conn, INBOUND_DATA_EVENT, aio4c_connection_handler(onRead), aio4c_connection_handler_arg(c), false);
+    ConnectionAddHandler(c->conn, WRITE_EVENT, aio4c_connection_handler(onWrite), aio4c_connection_handler_arg(c), false);
     ConnectionAddHandler(c->conn, CLOSE_EVENT, aio4c_connection_handler(onClose), aio4c_connection_handler_arg(c), true);
     c->reader = NewReader(c->thread, "reader", 8192);
     Thread* readerT = c->reader->thread;
     ConnectionInit(c->conn);
-    ThreadJoin(c->thread, readerT);
-    FreeThread(c->thread, &readerT);
+    ThreadJoin(readerT);
+    FreeThread(&readerT);
     FreeConnection(&c->conn);
     return false;
 }
@@ -127,18 +111,18 @@ int main (int argc, char** argv) {
     data->thread = NULL;
     data->counter = 0;
 
-    Thread* mainThread = ThreadMain("client");
-    LogInit(mainThread, WARN, "client.log");
+    Thread* mainThread = ThreadMain("main");
+    LogInit(mainThread, DEBUG, "client.log");
 
-    Thread* testThread = data->thread = NewThread(mainThread, "test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);
-    Thread* clientThread = client->thread = NewThread(mainThread, "client", aio4c_thread_handler(clientInit), aio4c_thread_run(clientRun), aio4c_thread_handler(clientExit), aio4c_thread_arg(client));
+    Thread* testThread = data->thread = NewThread("test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);
+    Thread* clientThread = client->thread = NewThread("client", aio4c_thread_handler(clientInit), aio4c_thread_run(clientRun), aio4c_thread_handler(clientExit), aio4c_thread_arg(client));
 
-    ThreadJoin(mainThread, testThread);
-    ThreadJoin(mainThread, clientThread);
-    FreeThread(mainThread, &testThread);
-    FreeThread(mainThread, &clientThread);
+    ThreadJoin(testThread);
+    ThreadJoin(clientThread);
+    FreeThread(&testThread);
+    FreeThread(&clientThread);
     LogEnd(mainThread);
-    FreeThread(NULL, &mainThread);
+    FreeThread(&mainThread);
 
     return EXIT_SUCCESS;
 }

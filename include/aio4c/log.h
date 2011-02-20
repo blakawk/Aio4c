@@ -44,6 +44,7 @@ typedef struct s_LogMessageQueue {
     aio4c_size_t   maxItems;
     Lock*          lock;
     Condition*     condition;
+    aio4c_bool_t   isValid;
 } LogMessageQueue;
 
 typedef struct s_Logger {
@@ -51,6 +52,7 @@ typedef struct s_Logger {
     aio4c_file_t*     file;
     LogMessageQueue*  queue;
     Thread*           thread;
+    Lock*             lock;
 } Logger;
 
 extern void LogInit(Thread* parent, LogLevel level, char* filename);

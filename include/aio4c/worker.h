@@ -24,6 +24,7 @@
 #include <aio4c/connection.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
+#include <aio4c/writer.h>
 
 typedef struct s_Worker {
     Thread*      thread;
@@ -34,6 +35,7 @@ typedef struct s_Worker {
     aio4c_size_t bufferSize;
     Condition*   condition;
     Lock*        lock;
+    Writer*      writer;
 } Worker;
 
 extern Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize);

@@ -31,7 +31,13 @@
 #include <sys/time.h>
 #include <time.h>
 
-static Logger* _logger = NULL;
+static Logger _logger = {
+    .level = FATAL,
+    .file = NULL,
+    .queue = NULL,
+    .thread = NULL,
+    .lock = NULL
+};
 
 static LogMessageQueue* _NewLogMessageQueue(void) {
     LogMessageQueue* queue = NULL;
@@ -45,6 +51,7 @@ static LogMessageQueue* _NewLogMessageQueue(void) {
     queue->maxItems = 0;
     queue->lock = NewLock();
     queue->condition = NewCondition();
+    queue->isValid = true;
 
     return queue;
 }
@@ -54,7 +61,7 @@ static aio4c_bool_t _LogMessageDequeue(Logger* logger, LogMessageQueue* queue, c
     aio4c_bool_t more = true;
 
     while (queue->itemsCount <= 0) {
-        WaitCondition(logger->thread, queue->condition, queue->lock);
+        WaitCondition(queue->condition, queue->lock);
     }
 
     *message = queue->queue[0];
@@ -76,7 +83,7 @@ static void _LogPrintMessage(Logger* logger, char* message) {
         return;
     }
 
-    if (logger != NULL && logger->file != NULL) {
+    if (logger != NULL && logger->file != NULL && fileno(logger->file) >= 0) {
         log = logger->file;
     } else {
         log = stderr;
@@ -121,12 +128,12 @@ static void _FreeLogMessageQueue(LogMessageQueue** queue) {
 static void _LogMessageQueue(Thread* client, Logger* logger, char* message) {
     LogMessageQueue* queue = NULL;
 
-    if (logger == NULL || (queue = logger->queue) == NULL) {
+    if (logger == NULL || (queue = logger->queue) == NULL || !queue->isValid) {
         _LogPrintMessage(logger, message);
         return;
     }
 
-    TakeLock(client, queue->lock);
+    TakeLock(queue->lock);
 
     if (queue->itemsCount == queue->maxItems) {
         if ((queue->queue = realloc(queue->queue, (queue->maxItems + 1) * sizeof(char*))) == NULL) {
@@ -137,7 +144,7 @@ static void _LogMessageQueue(Thread* client, Logger* logger, char* message) {
 
     queue->queue[queue->itemsCount++] = message;
 
-    NotifyCondition(client, queue->condition, queue->lock);
+    NotifyCondition(queue->condition, queue->lock);
 
     ReleaseLock(queue->lock);
 }
@@ -149,7 +156,7 @@ static void _LogInit(Logger* logger) {
 static aio4c_bool_t _LogRun(Logger* logger) {
     char* message = NULL;
 
-    TakeLock(logger->thread, logger->queue->lock);
+    TakeLock(logger->queue->lock);
 
     while (_LogMessageDequeue(logger, logger->queue, &message)) {
         _LogPrintMessage(logger, message);
@@ -167,16 +174,17 @@ static void _FreeLogger(Logger** logger) {
     Logger* pLogger = NULL;
 
     if (logger != NULL && (pLogger = *logger) != NULL) {
-        if (pLogger->queue != NULL) {
-            _FreeLogMessageQueue(&pLogger->queue);
-        }
-
         if (pLogger->file != NULL) {
             fclose(pLogger->file);
             pLogger->file = NULL;
         }
 
-        free(pLogger);
+        if (pLogger->queue != NULL) {
+            pLogger->queue->isValid = false;
+            _FreeLogMessageQueue(&pLogger->queue);
+        }
+
+        FreeLock(&pLogger->lock);
         *logger = NULL;
     }
 }
@@ -191,31 +199,30 @@ static void _LogExit(Logger* logger) {
 }
 
 void LogInit(Thread* parent, LogLevel level, char* filename) {
-    if ((_logger = malloc(sizeof(Logger))) == NULL) {
-        perror("FATAL ERROR: logger initialization failed");
-        exit (EXIT_FAILURE);
-    }
+    tzset();
 
-    _logger->level = level;
-    _logger->thread = NULL;
+    _logger.level = level;
+    _logger.thread = NULL;
 
     if (filename != NULL) {
-        if ((_logger->file = fopen(filename, "a")) == NULL) {
-            _logger->file = stderr;
+        if ((_logger.file = fopen(filename, "a")) == NULL) {
+            _logger.file = stderr;
             Log(parent, WARN, "open %s: %s, therefore logging will be performed on console instead", filename, strerror(errno));
         }
     } else {
-        _logger->file = stderr;
+        _logger.file = stderr;
     }
 
-    if ((_logger->queue = _NewLogMessageQueue()) == NULL) {
+    if ((_logger.queue = _NewLogMessageQueue()) == NULL) {
         Log(parent, WARN, "cannot create log messages queue: %s, therefore no thread will be used", strerror(errno));
     } else {
-        _logger->thread = NewThread(parent, "logger", (void(*)(void*))_LogInit, (aio4c_bool_t(*)(void*))_LogRun, (void(*)(void*))_LogExit, (void*)_logger);
-        if (_logger->thread == NULL) {
+        _logger.thread = NewThread("logger", (void(*)(void*))_LogInit, (aio4c_bool_t(*)(void*))_LogRun, (void(*)(void*))_LogExit, (void*)&_logger);
+        if (_logger.thread == NULL) {
             Log(parent, WARN, "cannot create logging thread, logging may slow down performances");
         }
     }
+
+    _logger.lock = NewLock();
 }
 
 static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
@@ -270,13 +277,15 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
 
 void Log(Thread* from, LogLevel level, char* message, ...) {
     va_list args;
-    Logger* logger = _logger;
+    Logger* logger = &_logger;
     char* pMessage = NULL;
     aio4c_size_t messageLen = 0, prefixLen = 0;
 
     if (logger != NULL && level > logger->level) {
         return;
     }
+
+    TakeLock(logger->lock);
 
     prefixLen = _LogPrefix(from, level, &pMessage);
     if (pMessage == NULL) {
@@ -305,30 +314,32 @@ void Log(Thread* from, LogLevel level, char* message, ...) {
     } else {
         _LogPrintMessage(logger, pMessage);
     }
+
+    ReleaseLock(logger->lock);
 }
 
 void LogEnd(Thread* from) {
     Thread* thread = NULL;
-    if (_logger != NULL) {
-        if ((thread = _logger->thread) != NULL) {
-            ThreadCancel(from, thread, true);
-            ThreadJoin(from, thread);
-            FreeThread(from, &thread);
-        } else {
-            if (_logger->file != NULL) {
-                fclose(_logger->file);
-                _logger->file = NULL;
-            }
-
-            _FreeLogger(&_logger);
+    Logger* logger = &_logger;
+    if ((thread = _logger.thread) != NULL) {
+        _logger.thread = NULL;
+        ThreadCancel(thread, true);
+        ThreadJoin(thread);
+        FreeThread(&thread);
+    } else {
+        if (_logger.file != NULL) {
+            fclose(_logger.file);
+            _logger.file = NULL;
         }
+
+        _FreeLogger(&logger);
     }
 }
 
 void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     int i = 0, j = 0;
     char c = '.';
-    Logger* logger = _logger;
+    Logger* logger = &_logger;
     aio4c_size_t prefixLen = 0;
     char* message = NULL;
 
@@ -337,6 +348,8 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     }
 
     Log(from, level, "dumping buffer %p [pos: %u, lim: %u, cap: %u]", buffer, buffer->position, buffer->limit, buffer->size);
+
+    TakeLock(logger->lock);
 
     if (buffer->limit >= 16) {
         for (i = buffer->position; i < buffer->limit; i += 16) {
@@ -393,5 +406,7 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     } else {
         _LogPrintMessage(logger, message);
     }
+
+    ReleaseLock(logger->lock);
 }
 

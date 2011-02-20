@@ -17,30 +17,31 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-#ifndef __AIO4C_BUFFER_H__
-#define __AIO4C_BUFFER_H__
+#ifndef __AIO4C_WRITER_H__
+#define __AIO4C_WRITER_H__
 
+#include <aio4c/buffer.h>
+#include <aio4c/connection.h>
+#include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-typedef struct s_Buffer {
-    aio4c_size_t     size;
-    aio4c_byte_t*    data;
-    aio4c_position_t position;
-    aio4c_position_t limit;
-} Buffer;
+typedef struct s_Writer {
+    Thread*       thread;
+    Lock*         lock;
+    Condition*    condition;
+    aio4c_pipe_t  selector;
+    Connection**  connections;
+    aio4c_poll_t* polling;
+    Buffer**      buffers;
+    aio4c_size_t  numConnections;
+    aio4c_size_t  maxConnections;
+    aio4c_size_t  bufferSize;
+} Writer;
 
-extern Buffer* NewBuffer(aio4c_size_t size);
+extern Writer* NewWriter(Thread* parent, char* name, aio4c_size_t bufferSize);
 
-extern void FreeBuffer(Buffer** buffer);
+extern void WriterManageConnection(Writer* writer, Connection* connection);
 
-extern Buffer* BufferFlip(Buffer* buffer);
-
-extern Buffer* BufferPosition(Buffer* buffer, aio4c_position_t position);
-
-extern Buffer* BufferLimit(Buffer* buffer, aio4c_position_t limit);
-
-extern Buffer* BufferReset(Buffer* buffer);
-
-extern Buffer* BufferCopy(Buffer* dst, Buffer* src);
+extern void FreeWriter(Thread* parent, Writer** writer);
 
 #endif

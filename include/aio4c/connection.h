@@ -23,6 +23,7 @@
 #include <aio4c/address.h>
 #include <aio4c/buffer.h>
 #include <aio4c/event.h>
+#include <aio4c/thread.h>
 #include <aio4c/types.h>
 
 typedef enum e_ConnectionState {
@@ -33,6 +34,14 @@ typedef enum e_ConnectionState {
     CLOSED = 4
 } ConnectionState;
 
+#define MAX_PRIORITY 2
+
+typedef enum e_ConnectionEventPriority {
+    LOW_PRIORITY = 0,
+    HIGH_PRIORITY = 1
+} ConnectionEventPriority;
+
+
 typedef enum e_ConnectionCloseCauseType {
     UNKNOWN,
     INVALID_STATE,
@@ -40,8 +49,10 @@ typedef enum e_ConnectionCloseCauseType {
     SOCKET_NONBLOCK,
     GETSOCKOPT,
     CONNECTING_ERROR,
+    BUFFER_UNDERFLOW,
     BUFFER_OVERFLOW,
     READING,
+    WRITING,
     REMOTE_CLOSED,
     EVENT_HANDLER,
     NO_ERROR
@@ -53,7 +64,9 @@ typedef struct s_Connection {
     aio4c_socket_t       socket;
     Address*             address;
     ConnectionState      state;
-    EventQueue*          handlers;
+    EventQueue*          systemHandlers;
+    EventQueue*          userHandlers;
+    Lock*                lock;
     ConnectionCloseCause closeCause;
     int                  closeCode;
     char*                string;
@@ -75,11 +88,15 @@ extern Connection* ConnectionFinishConnect(Connection* connection);
 
 extern Connection* ConnectionRead(Connection* connection);
 
-extern Connection* ConnectionWrite(Connection* connection);
+extern Connection* ConnectionWrite(Connection* connection, Buffer* buffer);
 
 extern Connection* ConnectionClose(Connection* connection);
 
 extern Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
+
+extern Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
+
+extern Connection* ConnectionEventHandle(Connection* connection, Event event, void* source);
 
 extern void FreeConnection(Connection** connection);
 

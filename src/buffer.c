@@ -92,3 +92,11 @@ Buffer* BufferReset(Buffer* buffer) {
     return buffer;
 }
 
+Buffer* BufferCopy(Buffer* dst, Buffer* src) {
+    BufferReset(dst);
+    memcpy(dst->data, &src->data[src->position], src->limit - src->position);
+    BufferLimit(dst, src->limit - src->position);
+
+    return dst;
+}
+

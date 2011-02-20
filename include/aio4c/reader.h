@@ -26,14 +26,9 @@
 #include <aio4c/worker.h>
 
 typedef struct s_Reader {
-    Connection**   connections;
-    aio4c_poll_t*  polling;
-    aio4c_size_t   numConnections;
-    aio4c_size_t   maxConnections;
-    aio4c_pipe_t   selector;
-    Lock*          lock;
-    Condition*     condition;
     Thread*        thread;
+    Queue*         queue;
+    Selector*      selector;
     Worker*        worker;
 } Reader;
 

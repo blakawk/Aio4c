@@ -22,6 +22,7 @@
 #include <aio4c/address.h>
 #include <aio4c/buffer.h>
 #include <aio4c/event.h>
+#include <aio4c/thread.h>
 #include <aio4c/types.h>
 
 #include <errno.h>
@@ -52,11 +53,13 @@ Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
 
     connection->socket = -1;
     connection->state = NONE;
-    connection->handlers = NewEventQueue();
+    connection->systemHandlers = NewEventQueue();
+    connection->userHandlers = NewEventQueue();
     connection->address = address;
     connection->closeCause = NO_ERROR;
     connection->closeCode = 0;
     connection->string = address->string;
+    connection->lock = NewLock();
 
     return connection;
 }
@@ -65,10 +68,14 @@ static Connection* _ConnectionHandleError(Connection* connection, ConnectionClos
     connection->closeCause = cause;
     connection->closeCode = closeCode;
 
+    ReleaseLock(connection->lock);
+
     return ConnectionClose(connection);
 }
 
 Connection* ConnectionInit(Connection* connection) {
+    TakeLock(connection->lock);
+
     if ((connection->socket = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
         return _ConnectionHandleError(connection, SOCKET_CREATION, errno);
     }
@@ -79,13 +86,17 @@ Connection* ConnectionInit(Connection* connection) {
 
     connection->state = INITIALIZED;
 
-    EventHandle(connection->handlers, INIT_EVENT, connection);
+    ReleaseLock(connection->lock);
+
+    ConnectionEventHandle(connection, INIT_EVENT, connection);
 
     return connection;
 }
 
 Connection* ConnectionConnect(Connection* connection) {
     Event eventToHandle = CONNECTING_EVENT;
+
+    TakeLock(connection->lock);
 
     if (connection->state != INITIALIZED) {
         return _ConnectionHandleError(connection, INVALID_STATE, INITIALIZED);
@@ -102,7 +113,9 @@ Connection* ConnectionConnect(Connection* connection) {
         eventToHandle = CONNECTED_EVENT;
     }
 
-    EventHandle(connection->handlers, eventToHandle, connection);
+    ReleaseLock(connection->lock);
+
+    ConnectionEventHandle(connection, eventToHandle, connection);
 
     return connection;
 }
@@ -110,6 +123,9 @@ Connection* ConnectionConnect(Connection* connection) {
 Connection* ConnectionFinishConnect(Connection* connection) {
     int soError = 0;
     socklen_t soSize = sizeof(int);
+
+    TakeLock(connection->lock);
+
     if (getsockopt(connection->socket, SOL_SOCKET, SO_ERROR, &soError, &soSize) != 0) {
         return _ConnectionHandleError(connection, GETSOCKOPT, errno);
     }
@@ -119,7 +135,10 @@ Connection* ConnectionFinishConnect(Connection* connection) {
     }
 
     connection->state = CONNECTED;
-    EventHandle(connection->handlers, CONNECTED_EVENT, connection);
+
+    ReleaseLock(connection->lock);
+
+    ConnectionEventHandle(connection, CONNECTED_EVENT, connection);
 
     return connection;
 }
@@ -127,6 +146,8 @@ Connection* ConnectionFinishConnect(Connection* connection) {
 Connection* ConnectionRead(Connection* connection) {
     Buffer* buffer = NULL;
     ssize_t nbRead = 0;
+
+    TakeLock(connection->lock);
 
     if (connection->state != CONNECTED) {
         return _ConnectionHandleError(connection, INVALID_STATE, CONNECTED);
@@ -148,13 +169,50 @@ Connection* ConnectionRead(Connection* connection) {
 
     buffer->position += nbRead;
 
-    EventHandle(connection->handlers, READ_EVENT, connection);
+    ReleaseLock(connection->lock);
+
+    ConnectionEventHandle(connection, READ_EVENT, connection);
+
+    return connection;
+}
+
+Connection* ConnectionWrite(Connection* connection, Buffer* buffer) {
+    ssize_t nbWrite = 0;
+
+    TakeLock(connection->lock);
+
+    if (connection->state != CONNECTED) {
+        return _ConnectionHandleError(connection, INVALID_STATE, CONNECTED);
+    }
+
+    if (buffer->limit - buffer->position <= 0) {
+        BufferReset(buffer);
+        ReleaseLock(connection->lock);
+        ConnectionEventHandle(connection, WRITE_EVENT, buffer);
+        TakeLock(connection->lock);
+        BufferFlip(buffer);
+    }
+
+    if (buffer->limit - buffer->position <= 0) {
+        return _ConnectionHandleError(connection, BUFFER_UNDERFLOW, buffer->position);
+    }
+
+    if ((nbWrite = write(connection->socket, &buffer->data[buffer->position], buffer->limit - buffer->position)) == -1) {
+        return _ConnectionHandleError(connection, WRITING, errno);
+    }
+
+    buffer->position += nbWrite;
+
+    ReleaseLock(connection->lock);
 
     return connection;
 }
 
 Connection* ConnectionClose(Connection* connection) {
+    TakeLock(connection->lock);
+
     if (connection->state == CLOSED) {
+        ReleaseLock(connection->lock);
         return connection;
     }
 
@@ -162,7 +220,9 @@ Connection* ConnectionClose(Connection* connection) {
 
     connection->state = CLOSED;
 
-    EventHandle(connection->handlers, CLOSE_EVENT, connection);
+    ReleaseLock(connection->lock);
+
+    ConnectionEventHandle(connection, CLOSE_EVENT, connection);
 
     return connection;
 }
@@ -173,12 +233,40 @@ Connection* ConnectionAddHandler(Connection* connection, Event event, void (*han
     eventHandler = NewEventHandler(event, aio4c_event_handler(handler), aio4c_event_handler_arg(arg), once);
 
     if (eventHandler != NULL) {
-        if (EventHandlerAdd(connection->handlers, eventHandler) != NULL) {
+        if (EventHandlerAdd(connection->userHandlers, eventHandler) != NULL) {
             return connection;
         }
     }
 
     return _ConnectionHandleError(connection, EVENT_HANDLER, 0);
+}
+
+Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once) {
+    EventHandler* eventHandler = NULL;
+
+    TakeLock(connection->lock);
+
+    eventHandler = NewEventHandler(event, aio4c_event_handler(handler), aio4c_event_handler_arg(arg), once);
+
+    if (eventHandler != NULL) {
+        if (EventHandlerAdd(connection->systemHandlers, eventHandler) != NULL) {
+            ReleaseLock(connection->lock);
+            return connection;
+        }
+    }
+
+    return _ConnectionHandleError(connection, EVENT_HANDLER, 0);
+}
+
+Connection* ConnectionEventHandle(Connection* connection, Event event, void* arg) {
+    TakeLock(connection->lock);
+
+    EventHandle(connection->systemHandlers, event, arg);
+    EventHandle(connection->userHandlers, event, arg);
+
+    ReleaseLock(connection->lock);
+
+    return connection;
 }
 
 void FreeConnection(Connection** connection) {
@@ -199,8 +287,16 @@ void FreeConnection(Connection** connection) {
             FreeAddress(&pConnection->address);
         }
 
-        if (pConnection->handlers != NULL) {
-            FreeEventQueue(&pConnection->handlers);
+        if (pConnection->userHandlers != NULL) {
+            FreeEventQueue(&pConnection->userHandlers);
+        }
+
+        if (pConnection->systemHandlers != NULL) {
+            FreeEventQueue(&pConnection->systemHandlers);
+        }
+
+        if (pConnection->lock != NULL) {
+            FreeLock(&pConnection->lock);
         }
 
         free(pConnection);
