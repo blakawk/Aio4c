@@ -56,6 +56,12 @@
 #define aio4c_thread_arg(arg) \
     (void*)arg
 
+#define aio4c_remove_callback(callback) \
+    (aio4c_bool_t(*)(QueueItem*,void*))callback
+
+#define aio4c_remove_discriminant(discriminant) \
+    (void*)discriminant
+
 #define AIO4C_MAX_THREADS 32
 
 #ifndef AIO4C_DEBUG_LOCKS
@@ -130,11 +136,12 @@ typedef struct s_QueueItem {
 
 typedef struct s_Queue {
     QueueItem**  items;
-    aio4c_size_t numItems;
-    aio4c_size_t maxItems;
+    int          numItems;
+    int          maxItems;
     Condition*   condition;
     Lock*        lock;
     aio4c_bool_t valid;
+    aio4c_bool_t exit;
     aio4c_bool_t emptied;
 } Queue;
 
@@ -145,23 +152,23 @@ typedef enum e_SelectionOperation {
 
 typedef struct s_SelectionKey {
     SelectionOperation operation;
-    aio4c_size_t       index;
+    int                index;
     aio4c_socket_t     fd;
     void*              attachment;
-    aio4c_size_t       poll;
+    int                poll;
     short              result;
 } SelectionKey;
 
 typedef struct s_Selector {
-    aio4c_pipe_t  pipe;
-    SelectionKey* keys;
-    aio4c_size_t  numKeys;
-    aio4c_size_t  maxKeys;
-    int           curKey;
-    aio4c_poll_t* polls;
-    aio4c_size_t  numPolls;
-    aio4c_size_t  maxPolls;
-    Lock*         lock;
+    aio4c_pipe_t   pipe;
+    SelectionKey** keys;
+    int            numKeys;
+    int            maxKeys;
+    int            curKey;
+    aio4c_poll_t*  polls;
+    int            numPolls;
+    int            maxPolls;
+    Lock*          lock;
 } Selector;
 
 extern Lock* NewLock(void);
@@ -176,7 +183,7 @@ extern Condition* NewCondition(void);
 
 extern aio4c_bool_t WaitCondition(Condition* condition, Lock* lock);
 
-extern void NotifyCondition(Condition* condition, Lock* lock);
+extern void NotifyCondition(Condition* condition);
 
 extern void FreeCondition(Condition** condition);
 
@@ -192,7 +199,9 @@ extern void FreeItem(QueueItem** item);
 
 extern aio4c_bool_t Dequeue(Queue* queue, QueueItem** item, aio4c_bool_t wait);
 
-extern aio4c_bool_t Enqueue(Queue* queue, QueueItem* item);
+extern aio4c_bool_t Enqueue(Queue* queue, QueueItem* item) __attribute__ ((warn_unused_result));
+
+extern aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,void*), void* discriminant);
 
 extern void FreeQueue(Queue** queue);
 

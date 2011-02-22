@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-Buffer* NewBuffer(aio4c_size_t size) {
+Buffer* NewBuffer(int size) {
     Buffer* buffer = NULL;
 
     if ((buffer = malloc(sizeof(Buffer))) == NULL) {
@@ -64,7 +64,7 @@ Buffer* BufferFlip(Buffer* buffer) {
     return buffer;
 }
 
-Buffer* BufferPosition(Buffer* buffer, aio4c_position_t position) {
+Buffer* BufferPosition(Buffer* buffer, int position) {
     if (position >= buffer->limit) {
         FreeBuffer(&buffer);
     } else {
@@ -74,7 +74,7 @@ Buffer* BufferPosition(Buffer* buffer, aio4c_position_t position) {
     return buffer;
 }
 
-Buffer* BufferLimit(Buffer* buffer, aio4c_position_t limit) {
+Buffer* BufferLimit(Buffer* buffer, int limit) {
     if (limit > buffer->size) {
         FreeBuffer(&buffer);
     } else {

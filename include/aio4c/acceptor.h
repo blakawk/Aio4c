@@ -17,25 +17,28 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-#ifndef __AIO4C_READER_H__
-#define __AIO4C_READER_H__
+#ifndef __AIO4C_ACCEPTOR_H__
+#define __AIO4C_ACCEPTOR_H__
 
+#include <aio4c/address.h>
 #include <aio4c/connection.h>
+#include <aio4c/reader.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
-#include <aio4c/worker.h>
 
-typedef struct s_Reader {
+typedef struct s_Acceptor {
     Thread*        thread;
-    Queue*         queue;
+    Address*       address;
+    aio4c_socket_t socket;
+    Reader*        reader;
     Selector*      selector;
-    Worker*        worker;
-} Reader;
+    SelectionKey*  key;
+    Connection*    factory;
+    Queue*         queue;
+} Acceptor;
 
-extern Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize);
+extern Acceptor* NewAcceptor(char* name, AddressType type, char* address, aio4c_port_t port, Connection* factory);
 
-extern void ReaderManageConnection(Reader* reader, Connection* connection);
-
-extern void ReaderEnd(Reader* reader);
+extern void AcceptorEnd(Acceptor* acceptor);
 
 #endif

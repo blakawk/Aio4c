@@ -50,12 +50,20 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                 return false;
             case DATA:
                 connection = (Connection*)item->content.data;
-                Log(reader->thread, DEBUG, "registering connection %s", connection->string);
-                Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
+                Log(reader->thread, DEBUG, "registering connection %p[%s]", connection, connection->string);
+                connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
                 break;
             case EVENT:
                 connection = (Connection*)item->content.event.source;
-                Log(reader->thread, DEBUG, "close for connection %s received", connection->string);
+                Log(reader->thread, DEBUG, "close for connection %p[%s] received", connection, connection->string);
+                if (connection->readKey != NULL) {
+                    Unregister(reader->selector, connection->readKey);
+                    connection->readKey = NULL;
+                }
+                if (ConnectionNoMoreUsed(connection, READER)) {
+                    Log(reader->thread, DEBUG, "freeing connection %s", connection->string);
+                    FreeConnection(&connection);
+                }
                 break;
         }
 
@@ -66,12 +74,11 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
 
     if (numConnectionsReady > 0) {
         while (SelectionKeyReady(reader->selector, &key)) {
-            Log(reader->thread, DEBUG, "connection %s ready", ((Connection*)key->attachment)->string);
-            if (key->result == key->operation) {
-                ConnectionRead((Connection*)key->attachment);
+            Log(reader->thread, DEBUG, "connection %p ready", key->attachment);
+            if (key->result == (int)key->operation) {
+                connection = ConnectionRead((Connection*)key->attachment);
             } else {
                 ConnectionClose((Connection*)key->attachment);
-                Unregister(reader->selector, key);
             }
         }
     }
@@ -80,11 +87,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
 }
 
 static void _ReaderExit(Reader* reader) {
-    Thread* worker = reader->worker->thread;
-
     WorkerEnd(reader->worker);
-    ThreadJoin(worker);
-    FreeThread(&worker);
 
     FreeQueue(&reader->queue);
     FreeSelector(&reader->selector);
@@ -107,21 +110,28 @@ Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize) {
     reader->thread = NULL;
     reader->thread = NewThread(name, aio4c_thread_handler(_ReaderInit), aio4c_thread_run(_ReaderRun), aio4c_thread_handler(_ReaderExit), aio4c_thread_arg(reader));
     reader->worker = NULL;
-    reader->worker = NewWorker(reader->thread, "worker", bufferSize);
+    reader->worker = NewWorker("worker", bufferSize);
 
     return reader;
 }
 
 static void _ReaderEventHandler(Event event, Connection* connection, Reader* reader) {
-    Enqueue(reader->queue, NewEventItem(event, connection));
+    QueueItem* item = NewEventItem(event, connection);
+    if (!Enqueue(reader->queue, item)) {
+        FreeItem(&item);
+        return;
+    }
 
     SelectorWakeUp(reader->selector);
 }
 
-void ReaderManageConnection(Thread* from, Reader* reader, Connection* connection) {
+void ReaderManageConnection(Reader* reader, Connection* connection) {
     QueueItem* item = NewDataItem((void*)connection);
 
-    Enqueue(reader->queue, item);
+    if (!Enqueue(reader->queue, item)) {
+        FreeItem(&item);
+        return;
+    }
 
     ConnectionAddSystemHandler(connection, CLOSE_EVENT, aio4c_connection_handler(_ReaderEventHandler), aio4c_connection_handler_arg(reader), true);
 
@@ -131,8 +141,18 @@ void ReaderManageConnection(Thread* from, Reader* reader, Connection* connection
 }
 
 void ReaderEnd(Reader* reader) {
-    Enqueue(reader->queue, NewExitItem());
+    Thread* th = reader->thread;
+    QueueItem* item = NewExitItem();
+
+    if (!Enqueue(reader->queue, item)) {
+        FreeItem(&item);
+        return;
+    }
 
     SelectorWakeUp(reader->selector);
+
+    ThreadJoin(th);
+
+    FreeThread(&th);
 }
 

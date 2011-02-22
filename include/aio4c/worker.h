@@ -38,7 +38,7 @@ typedef struct s_Worker {
     Queue*       queue;
 } Worker;
 
-extern Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize);
+extern Worker* NewWorker(char* name, aio4c_size_t bufferSize);
 
 extern void WorkerManageConnection(Worker* worker, Connection* connection);
 

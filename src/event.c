@@ -119,6 +119,20 @@ void EventHandlerRemove(EventQueue* queue, EventHandler* handler) {
     }
 }
 
+void CopyEventQueue(EventQueue* dst, EventQueue* src) {
+    int i = 0, j = 0;
+    EventHandler* handler = NULL;
+
+    for (i = 0; i < AIO_EVENTS_COUNT; i++) {
+        for (j = 0; j < src->handlersCount[i]; j++) {
+            handler = src->eventHandlers[i][j];
+            if (handler != NULL) {
+                EventHandlerAdd(dst, NewEventHandler(handler->event, handler->handler, handler->arg, handler->once));
+            }
+        }
+    }
+}
+
 void FreeEventQueue(EventQueue** queue) {
     EventQueue* pQueue = NULL;
     int i = 0, j = 0;

@@ -36,7 +36,7 @@ AddOption('--enable-profiling',
           help = 'Enable compilation with profiling information')
 
 env = Environment(LDFLAGS = '-i',
-                  CPPFLAGS = '-Werror -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L')
+                  CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L')
 
 if GetOption('DEBUG_LOCKS'):
     env.Append(CPPDEFINES = {"AIO4C_DEBUG_LOCKS" : 1})
@@ -49,4 +49,4 @@ if GetOption('PROFILING'):
 
 env.SharedLibrary('build/aio4c', Glob('build/src/*.c'), LIBS=['pthread'], CPPPATH=['include'])
 env.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])
-
+env.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])

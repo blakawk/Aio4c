@@ -43,20 +43,28 @@ typedef enum e_ConnectionEventPriority {
 
 
 typedef enum e_ConnectionCloseCauseType {
-    UNKNOWN,
-    INVALID_STATE,
-    SOCKET_CREATION,
-    SOCKET_NONBLOCK,
-    GETSOCKOPT,
-    CONNECTING_ERROR,
-    BUFFER_UNDERFLOW,
-    BUFFER_OVERFLOW,
-    READING,
-    WRITING,
-    REMOTE_CLOSED,
-    EVENT_HANDLER,
-    NO_ERROR
+    UNKNOWN = 0,
+    INVALID_STATE = 1,
+    SOCKET_CREATION = 2,
+    SOCKET_NONBLOCK = 3,
+    GETSOCKOPT = 4,
+    CONNECTING_ERROR = 5,
+    BUFFER_UNDERFLOW = 6,
+    BUFFER_OVERFLOW = 7,
+    READING = 8,
+    WRITING = 9,
+    REMOTE_CLOSED = 10,
+    EVENT_HANDLER = 11,
+    NO_ERROR = 12
 } ConnectionCloseCause;
+
+typedef enum e_ConnectionOwner {
+    READER = 0,
+    WORKER = 1,
+    WRITER = 2,
+    ACCEPTOR = 3,
+    AIO4C_MAX_OWNERS = 4
+} ConnectionOwner;
 
 typedef struct s_Connection {
     Buffer*              readBuffer;
@@ -70,6 +78,10 @@ typedef struct s_Connection {
     ConnectionCloseCause closeCause;
     int                  closeCode;
     char*                string;
+    aio4c_size_t         bufferSize;
+    aio4c_bool_t         closedBy[AIO4C_MAX_OWNERS];
+    SelectionKey*        readKey;
+    SelectionKey*        writeKey;
 } Connection;
 
 #define aio4c_connection_handler(handler) \
@@ -79,6 +91,10 @@ typedef struct s_Connection {
     (void*)arg
 
 extern Connection* NewConnection(aio4c_size_t bufferSize, Address* address);
+
+extern Connection* NewConnectionFactory(aio4c_size_t bufferSize);
+
+extern Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c_socket_t sock);
 
 extern Connection* ConnectionInit(Connection* connection);
 
@@ -91,6 +107,8 @@ extern Connection* ConnectionRead(Connection* connection);
 extern Connection* ConnectionWrite(Connection* connection, Buffer* buffer);
 
 extern Connection* ConnectionClose(Connection* connection);
+
+extern aio4c_bool_t ConnectionNoMoreUsed(Connection* connection, ConnectionOwner owner);
 
 extern Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
 

@@ -22,6 +22,7 @@
 #include <aio4c/address.h>
 #include <aio4c/buffer.h>
 #include <aio4c/event.h>
+#include <aio4c/log.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
@@ -60,6 +61,63 @@ Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
     connection->closeCode = 0;
     connection->string = address->string;
     connection->lock = NewLock();
+    connection->bufferSize = bufferSize;
+    memset(connection->closedBy, 0, AIO4C_MAX_OWNERS * sizeof(aio4c_bool_t));
+    connection->closedBy[ACCEPTOR] = true;
+    connection->readKey = NULL;
+    connection->writeKey = NULL;
+
+    return connection;
+}
+
+Connection* NewConnectionFactory(aio4c_size_t bufferSize) {
+    Connection* connection = NULL;
+
+    if ((connection = malloc(sizeof(Connection))) == NULL) {
+        return NULL;
+    }
+
+    connection->socket = -1;
+    connection->readBuffer = NULL;
+    connection->writeBuffer = NULL;
+    connection->state = CLOSED;
+    connection->systemHandlers = NewEventQueue();
+    connection->userHandlers = NewEventQueue();
+    connection->address = NULL;
+    connection->closeCause = NO_ERROR;
+    connection->closeCode = 0;
+    connection->string = "factory";
+    connection->lock = NewLock();
+    connection->bufferSize = bufferSize;
+    memset(connection->closedBy, 0, AIO4C_MAX_OWNERS * sizeof(aio4c_bool_t));
+    connection->readKey = NULL;
+    connection->writeKey = NULL;
+
+    return connection;
+}
+
+Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c_socket_t socket) {
+    Connection* connection = NULL;
+
+    connection = NewConnection(factory->bufferSize, address);
+
+    connection->socket = socket;
+
+    if (fcntl(connection->socket, F_SETFL, O_NONBLOCK) == -1) {
+        shutdown(connection->socket, SHUT_RDWR);
+        close(connection->socket);
+        free(connection);
+        return NULL;
+    }
+
+    CopyEventQueue(connection->userHandlers, factory->userHandlers);
+    CopyEventQueue(connection->systemHandlers, factory->systemHandlers);
+
+    connection->closedBy[ACCEPTOR] = false;
+
+    connection->state = CONNECTED;
+
+    ConnectionEventHandle(connection, CONNECTED_EVENT, connection);
 
     return connection;
 }
@@ -149,7 +207,7 @@ Connection* ConnectionRead(Connection* connection) {
 
     TakeLock(connection->lock);
 
-    if (connection->state != CONNECTED) {
+    if (connection->state != CONNECTED && connection->state != CONNECTING) {
         return _ConnectionHandleError(connection, INVALID_STATE, CONNECTED);
     }
 
@@ -216,6 +274,8 @@ Connection* ConnectionClose(Connection* connection) {
         return connection;
     }
 
+    Log(ThreadSelf(), INFO, "closing connection %s", connection->string);
+
     shutdown(connection->socket, SHUT_RDWR);
 
     connection->state = CLOSED;
@@ -225,6 +285,27 @@ Connection* ConnectionClose(Connection* connection) {
     ConnectionEventHandle(connection, CLOSE_EVENT, connection);
 
     return connection;
+}
+
+aio4c_bool_t ConnectionNoMoreUsed (Connection* connection, ConnectionOwner owner) {
+    aio4c_bool_t result = true;
+    int i = 0;
+
+    TakeLock(connection->lock);
+
+    connection->closedBy[owner] = true;
+
+    for (i = 0; i < AIO4C_MAX_OWNERS && result; i++) {
+        result = (result && connection->closedBy[i]);
+    }
+
+    if (result) {
+        memset(connection->closedBy, 0, AIO4C_MAX_OWNERS * sizeof(aio4c_bool_t));
+    }
+
+    ReleaseLock(connection->lock);
+
+    return result;
 }
 
 Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once) {

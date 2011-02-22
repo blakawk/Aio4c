@@ -36,6 +36,7 @@ static Logger _logger = {
     .file = NULL,
     .queue = NULL,
     .thread = NULL,
+    .exiting = false
 };
 
 static void _LogPrintMessage(Logger* logger, char* message) {
@@ -45,7 +46,7 @@ static void _LogPrintMessage(Logger* logger, char* message) {
         return;
     }
 
-    if (logger != NULL && logger->file != NULL && fileno(logger->file) >= 0) {
+    if (logger != NULL && !logger->exiting && logger->file != NULL && fileno(logger->file) >= 0) {
         log = logger->file;
     } else {
         log = stderr;
@@ -96,6 +97,7 @@ void LogInit(Thread* parent, LogLevel level, char* filename) {
 
     _logger.level = level;
     _logger.thread = NULL;
+    _logger.exiting = false;
 
     if (filename != NULL) {
         if ((_logger.file = fopen(filename, "a")) == NULL) {
@@ -171,6 +173,7 @@ void Log(Thread* from, LogLevel level, char* message, ...) {
     Logger* logger = &_logger;
     char* pMessage = NULL;
     aio4c_size_t messageLen = 0, prefixLen = 0;
+    QueueItem* item = NULL;
 
     if (logger != NULL && level > logger->level) {
         return;
@@ -199,18 +202,27 @@ void Log(Thread* from, LogLevel level, char* message, ...) {
     snprintf(&pMessage[messageLen + prefixLen], 2, "\n");
 
     if (logger != NULL && logger->queue != NULL) {
-        Enqueue(logger->queue, NewDataItem((void*)pMessage));
+
+        if (!Enqueue(logger->queue, item = NewDataItem((void*)pMessage))) {
+            FreeItem(&item);
+            _LogPrintMessage(logger, pMessage);
+        }
     } else {
         _LogPrintMessage(logger, pMessage);
     }
 }
 
-void LogEnd(Thread* from) {
+void LogEnd(void) {
     Logger* logger = &_logger;
+    QueueItem* item = NULL;
     if (logger->queue != NULL) {
-        Enqueue(logger->queue, NewExitItem());
-        ThreadJoin(logger->thread);
-        FreeThread(&logger->thread);
+        logger->exiting = true;
+        if (Enqueue(logger->queue, item = NewExitItem())) {
+            ThreadJoin(logger->thread);
+            FreeThread(&logger->thread);
+        } else {
+            FreeItem(&item);
+        }
     }
 }
 
@@ -220,6 +232,7 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     Logger* logger = &_logger;
     aio4c_size_t prefixLen = 0;
     char* message = NULL;
+    QueueItem* item = NULL;
 
     if (logger != NULL && level > logger->level) {
         return;
@@ -245,7 +258,10 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
             }
             snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "\n");
             if (logger != NULL && logger->queue != NULL) {
-                Enqueue(logger->queue, NewDataItem((void*)message));
+                if (!Enqueue(logger->queue, item = NewDataItem((void*)message))) {
+                    FreeItem(&item);
+                    _LogPrintMessage(logger, message);
+                }
             } else {
                 _LogPrintMessage(logger, message);
             }
@@ -278,7 +294,10 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "\n");
 
     if (logger != NULL && logger->queue != NULL) {
-        Enqueue(logger->queue, NewDataItem((void*)message));
+        if (!Enqueue(logger->queue, item = NewDataItem((void*)message))) {
+            FreeItem(&item);
+            _LogPrintMessage(logger, message);
+        }
     } else {
         _LogPrintMessage(logger, message);
     }

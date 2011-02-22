@@ -43,6 +43,7 @@ typedef struct s_Logger {
     aio4c_file_t*     file;
     Queue*            queue;
     Thread*           thread;
+    aio4c_bool_t      exiting;
 } Logger;
 
 extern void LogInit(Thread* parent, LogLevel level, char* filename);
@@ -51,6 +52,6 @@ extern void Log(Thread* from, LogLevel level, char* message, ...);
 
 extern void LogBuffer(Thread* from, LogLevel level, Buffer* buffer);
 
-extern void LogEnd(Thread* from);
+extern void LogEnd(void);
 
 #endif

@@ -57,8 +57,8 @@ typedef struct pollfd aio4c_poll_t;
 
 typedef int aio4c_pipe_t[2];
 
-#define AIO4C_PIPE_READ 0
+#define AIO4C_PIPE_READ (short)0
 
-#define AIO4C_PIPE_WRITE 1
+#define AIO4C_PIPE_WRITE (short)1
 
 #endif

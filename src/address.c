@@ -142,13 +142,13 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
 
     if (addPort) {
         if (type == IPV4) {
-            stringLen = snprintf(&pAddress->string[addrLen], 1, ":%u", port);
-            pAddress->string = realloc(pAddress->string, (addrLen + stringLen) * sizeof(char));
-            snprintf(&pAddress->string[addrLen], stringLen, ":%u", port);
+            stringLen = snprintf(&pAddress->string[addrLen], 0, ":%u.", port);
+            pAddress->string = realloc(pAddress->string, (addrLen + stringLen + 1) * sizeof(char));
+            snprintf(&pAddress->string[addrLen], stringLen + 1, ":%u.", port);
         } else if (type == IPV6) {
-            stringLen = snprintf(&pAddress->string[addrLen], 1, "]:%u", port);
-            pAddress->string = realloc(pAddress->string, (addrLen + stringLen) * sizeof(char));
-            snprintf(&pAddress->string[addrLen], stringLen, "]:%u", port);
+            stringLen = snprintf(&pAddress->string[addrLen], 0, "]:%u.", port);
+            pAddress->string = realloc(pAddress->string, (addrLen + stringLen + 1) * sizeof(char));
+            snprintf(&pAddress->string[addrLen], stringLen + 1, "]:%u.", port);
         }
     }
 

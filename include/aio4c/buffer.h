@@ -23,21 +23,21 @@
 #include <aio4c/types.h>
 
 typedef struct s_Buffer {
-    aio4c_size_t     size;
-    aio4c_byte_t*    data;
-    aio4c_position_t position;
-    aio4c_position_t limit;
+    int           size;
+    aio4c_byte_t* data;
+    int           position;
+    int           limit;
 } Buffer;
 
-extern Buffer* NewBuffer(aio4c_size_t size);
+extern Buffer* NewBuffer(int size);
 
 extern void FreeBuffer(Buffer** buffer);
 
 extern Buffer* BufferFlip(Buffer* buffer);
 
-extern Buffer* BufferPosition(Buffer* buffer, aio4c_position_t position);
+extern Buffer* BufferPosition(Buffer* buffer, int position);
 
-extern Buffer* BufferLimit(Buffer* buffer, aio4c_position_t limit);
+extern Buffer* BufferLimit(Buffer* buffer, int limit);
 
 extern Buffer* BufferReset(Buffer* buffer);
 

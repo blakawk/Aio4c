@@ -49,8 +49,8 @@ typedef struct s_EventHandler {
     (void*)arg
 
 typedef struct s_EventQueue {
-    aio4c_size_t handlersCount[AIO_EVENTS_COUNT];
-    aio4c_size_t maxHandlers[AIO_EVENTS_COUNT];
+    int handlersCount[AIO_EVENTS_COUNT];
+    int maxHandlers[AIO_EVENTS_COUNT];
     EventHandler** eventHandlers[AIO_EVENTS_COUNT];
 } EventQueue;
 
@@ -63,6 +63,8 @@ extern EventQueue* EventHandlerAdd(EventQueue* queue, EventHandler* handler);
 extern void EventHandle(EventQueue* queue, Event event, void* source);
 
 extern void EventHandlerRemove(EventQueue* queue, EventHandler* handler);
+
+extern void CopyEventQueue(EventQueue* dst, EventQueue* src);
 
 extern void FreeEventQueue(EventQueue** queue);
 

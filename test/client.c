@@ -18,25 +18,41 @@ typedef struct s_Client {
     Thread* thread;
     Connection* conn;
     Reader* reader;
+    Queue* queue;
 } Client;
 
 void onInit(Event event, Connection* source, Client* c) {
+    if (event != INIT_EVENT) {
+        return;
+    }
     Log(c->thread, INFO, "connection initialized");
-    ReaderManageConnection(c->thread, c->reader, source);
+    ReaderManageConnection(c->reader, source);
     ConnectionConnect(source);
 }
 
 void onConnect(Event event, Connection* source, Client* c) {
-    Log(c->thread, INFO, "connected");
+    if (event != CONNECTED_EVENT) {
+        return;
+    }
+
+    Log(c->thread, INFO, "%s connected", source->string);
 }
 
 void onRead(Event event, Buffer* source, Client* c) {
+    if (event != INBOUND_DATA_EVENT) {
+        return;
+    }
+
     Log(c->thread, DEBUG, "read %d bytes", source->limit);
     LogBuffer(c->thread, DEBUG, source);
     ConnectionEventHandle(c->conn, OUTBOUND_DATA_EVENT, c->conn);
 }
 
 void onWrite(Event event, Buffer* source, Client* c) {
+    if (event != WRITE_EVENT) {
+        return;
+    }
+
     Log(c->thread, DEBUG, "writing");
     memcpy(source->data, "HELLO\n", 7);
     source->position += 7;
@@ -44,12 +60,18 @@ void onWrite(Event event, Buffer* source, Client* c) {
 }
 
 void onClose(Event event, Connection* source, Client* c) {
+    if (event != CLOSE_EVENT) {
+        return;
+    }
+
     if (source->closeCause != NO_ERROR) {
         Log(c->thread, ERROR, "connection unexpectedly closed for reason %d with code %d", source->closeCause, source->closeCode);
     } else {
         Log(c->thread, WARN, "connection closed");
     }
-    ReaderEnd(c->reader);
+    if (!Enqueue(c->queue, NewExitItem())) {
+        return;
+    }
 }
 
 typedef struct s_Data {
@@ -81,26 +103,27 @@ void clientInit(Client* c) {
 }
 
 aio4c_bool_t clientRun(Client* c) {
+    QueueItem* item = NULL;
     ConnectionAddHandler(c->conn, INIT_EVENT, aio4c_connection_handler(onInit), aio4c_connection_handler_arg(c), true);
     ConnectionAddHandler(c->conn, CONNECTED_EVENT, aio4c_connection_handler(onConnect), aio4c_connection_handler_arg(c), true);
     ConnectionAddHandler(c->conn, INBOUND_DATA_EVENT, aio4c_connection_handler(onRead), aio4c_connection_handler_arg(c), false);
     ConnectionAddHandler(c->conn, WRITE_EVENT, aio4c_connection_handler(onWrite), aio4c_connection_handler_arg(c), false);
     ConnectionAddHandler(c->conn, CLOSE_EVENT, aio4c_connection_handler(onClose), aio4c_connection_handler_arg(c), true);
     c->reader = NewReader(c->thread, "reader", 8192);
-    Thread* readerT = c->reader->thread;
     ConnectionInit(c->conn);
-    ThreadJoin(readerT);
-    FreeThread(&readerT);
-    FreeConnection(&c->conn);
+    Dequeue(c->queue, &item, true);
+    FreeItem(&item);
+    ReaderEnd(c->reader);
     return false;
 }
 
 void clientExit(Client* c) {
     Log(c->thread, INFO, "exited");
+    FreeQueue(&c->queue);
     free(c);
 }
 
-int main (int argc, char** argv) {
+int main (void) {
     Address* addr = NewAddress(IPV4, "localhost", 11111);
     Connection* conn = NewConnection(8192, addr);
     Data* data = malloc(sizeof(Data));
@@ -112,8 +135,9 @@ int main (int argc, char** argv) {
     data->counter = 0;
 
     Thread* mainThread = ThreadMain("main");
-    LogInit(mainThread, ERROR, "client.log");
+    LogInit(mainThread, DEBUG, "client.log");
 
+    client->queue = NewQueue();
     Thread* testThread = data->thread = NewThread("test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);
     Thread* clientThread = client->thread = NewThread("client", aio4c_thread_handler(clientInit), aio4c_thread_run(clientRun), aio4c_thread_handler(clientExit), aio4c_thread_arg(client));
 
@@ -121,7 +145,7 @@ int main (int argc, char** argv) {
     ThreadJoin(clientThread);
     FreeThread(&testThread);
     FreeThread(&clientThread);
-    LogEnd(mainThread);
+    LogEnd();
     FreeThread(&mainThread);
 
     return EXIT_SUCCESS;

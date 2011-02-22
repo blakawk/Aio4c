@@ -35,9 +35,22 @@ static void _WorkerInit(Worker* worker) {
     Log(worker->thread, INFO, "initialized");
 }
 
+static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
+    Task* task = NULL;
+    if (item->type == DATA) {
+        task = (Task*)item->content.data;
+        if (task->connection == discriminant) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static aio4c_bool_t _WorkerRun(Worker* worker) {
     QueueItem* item = NULL;
     Task* task = NULL;
+    Connection* connection = NULL;
 
     while (Dequeue(worker->queue, &item, true)) {
         switch (item->type) {
@@ -52,7 +65,13 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
                 free(task);
                 break;
             case EVENT:
-                ConnectionEventHandle(item->content.event.source, item->content.event.type, item->content.event.source);
+                connection = (Connection*)item->content.event.source;
+                Log(worker->thread, DEBUG, "close for connection %s received", connection->string);
+                RemoveAll(worker->queue, aio4c_remove_callback(_removeCallback), aio4c_remove_discriminant(connection));
+                if (ConnectionNoMoreUsed(connection, WORKER)) {
+                    Log(worker->thread, DEBUG, "freeing connection %s", connection->string);
+                    FreeConnection(&connection);
+                }
                 break;
         }
         FreeItem(&item);
@@ -62,20 +81,16 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
 }
 
 static void _WorkerExit(Worker* worker) {
-    Thread* writer = worker->writer->thread;
-
     FreeQueue(&worker->queue);
 
     WriterEnd(worker->writer);
-    ThreadJoin(writer);
-    FreeThread(&writer);
 
     Log(worker->thread, INFO, "exited");
 
     free(worker);
 }
 
-Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize) {
+Worker* NewWorker(char* name, aio4c_size_t bufferSize) {
     Worker* worker = NULL;
 
     if ((worker = malloc(sizeof(Worker))) == NULL) {
@@ -92,10 +107,23 @@ Worker* NewWorker(Thread* parent, char* name, aio4c_size_t bufferSize) {
     return worker;
 }
 
+static void _WorkerCloseHandler(Event event, Connection* source, Worker* worker) {
+    QueueItem* item = NULL;
+
+    if (!Enqueue(worker->queue, item = NewEventItem(event, source))) {
+        FreeItem(&item);
+        return;
+    }
+}
+
 static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) {
     Buffer* bufferCopy = NULL;
     Task* task = NULL;
     QueueItem* item = NULL;
+
+    if (event != READ_EVENT) {
+        return;
+    }
 
     if ((task = malloc(sizeof(Task))) == NULL) {
         return;
@@ -114,17 +142,31 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
 
     item = NewDataItem((void*)task);
 
-    Enqueue(worker->queue, item);
+    if (!Enqueue(worker->queue, item)) {
+        FreeItem(&item);
+        FreeBuffer(&bufferCopy);
+        free(task);
+        return;
+    }
 }
 
 void WorkerManageConnection(Worker* worker, Connection* connection) {
     ConnectionAddSystemHandler(connection, READ_EVENT, aio4c_connection_handler(_WorkerReadHandler), aio4c_connection_handler_arg(worker), false);
+    ConnectionAddSystemHandler(connection, CLOSE_EVENT, aio4c_connection_handler(_WorkerCloseHandler), aio4c_connection_handler_arg(worker), true);
     WriterManageConnection(worker->writer, connection);
 }
 
 void WorkerEnd(Worker* worker) {
+    Thread* th = worker->thread;
+
     QueueItem* item = NewExitItem();
 
-    Enqueue(worker->queue, item);
+    if (!Enqueue(worker->queue, item)) {
+        FreeItem(&item);
+        return;
+    }
+
+    ThreadJoin(th);
+    FreeThread(&th);
 }
 
