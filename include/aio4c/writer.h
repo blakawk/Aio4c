@@ -26,17 +26,12 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-typedef struct s_WriterEvent {
-    Event type;
-    Connection* connection;
-    Buffer* buffer;
-} WriterEvent;
-
 typedef struct s_Writer {
     Thread*       thread;
     aio4c_size_t  bufferSize;
     Selector*     selector;
     Queue*        queue;
+    Queue*        toUnregister;
 } Writer;
 
 extern Writer* NewWriter(Thread* parent, char* name, aio4c_size_t bufferSize);

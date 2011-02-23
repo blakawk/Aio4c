@@ -37,10 +37,10 @@ static void _WriterInit(Writer* writer) {
 
 static aio4c_bool_t _WriterRun(Writer* writer) {
     QueueItem* item = NULL;
-    WriterEvent* event = NULL;
     SelectionKey* key = NULL;
     int numConnectionsReady = 0;
     Connection* connection = NULL;
+    aio4c_bool_t unregister = false;
 
     while (Dequeue(writer->queue, &item, false)) {
         switch(item->type) {
@@ -49,21 +49,18 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
                 return false;
             case DATA:
                 connection = (Connection*)item->content.data;
-                Log(writer->thread, DEBUG, "close received for connection %s", connection->string);
                 if (connection->writeKey != NULL) {
-                    event = (WriterEvent*)connection->writeKey->attachment;
-                    FreeBuffer(&event->buffer);
-                    free(event);
-                    Unregister(writer->selector, connection->writeKey);
+                    Unregister(writer->selector, connection->writeKey, true);
                 }
+                Log(writer->thread, DEBUG, "close received for connection %s", connection->string);
                 if (ConnectionNoMoreUsed(connection, WRITER)) {
                     Log(writer->thread, DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
                 }
                 break;
             case EVENT:
-                event = (WriterEvent*)item->content.event.source;
-                event->connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, event->connection->socket, (void*)event);
+                connection = (Connection*)item->content.event.source;
+                connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
                 break;
         }
         FreeItem(&item);
@@ -73,69 +70,27 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
 
     if (numConnectionsReady > 0) {
         while (SelectionKeyReady(writer->selector, &key)) {
-            connection = ((WriterEvent*)key->attachment)->connection;
-            if (key->result == (int)key->operation) {
-                event = (WriterEvent*)key->attachment;
-                switch (event->type) {
-                    case CONNECTING_EVENT:
-                        Log(writer->thread, DEBUG, "finish connect for %s", event->connection->string);
-                        connection = ConnectionFinishConnect(event->connection);
-                        FreeBuffer(&event->buffer);
-                        free(event);
-                        break;
-                    case OUTBOUND_DATA_EVENT:
-                        Log(writer->thread, DEBUG, "about to write to %s", event->connection->string);
-                        connection = ConnectionWrite(event->connection, event->buffer);
+            connection = (Connection*)key->attachment;
+            unregister = true;
 
-                        if (BufferHasRemaining(event->buffer) && connection->state != CLOSED) {
-                            if (!Enqueue(writer->queue, NewEventItem(OUTBOUND_DATA_EVENT, event))) {
-                                FreeBuffer(&event->buffer);
-                                free(event);
-                            }
-                        } else {
-                            FreeBuffer(&event->buffer);
-                            free(event);
-                        }
-                        break;
-                   default:
-                        Log(writer->thread, DEBUG, "unknown event %d", event->type);
-                        FreeBuffer(&event->buffer);
-                        free(event);
-                        break;
-                }
+            if (key->result & (int)key->operation) {
+                ConnectionWrite(connection);
 
-                if (connection != NULL && connection->state == CLOSED) {
-                    Log(writer->thread, DEBUG, "connection closed with reason %d, code %d", connection->closeCause, connection->closeCode);
+                if (BufferHasRemaining(connection->writeBuffer) && connection->state != CLOSED) {
+                    unregister = false;
                 }
-            } else {
-                Log(writer->thread, DEBUG, "invalid result %d", key->result);
-                if (key->result & POLLOUT) {
-                    Log(writer->thread, DEBUG, "write available");
-                }
-
-                if (key->result & POLLERR) {
-                    Log(writer->thread, DEBUG, "poll error");
-                }
-
-                if (key->result & POLLIN) {
-                    Log(writer->thread, DEBUG, "read available");
-                }
-
-                if (key->result & POLLHUP) {
-                    Log(writer->thread, DEBUG, "disconnected");
-                }
-
-                if (key->result & POLLNVAL) {
-                    Log(writer->thread, DEBUG, "invalid descriptor %d", key->fd);
-                }
-
-                event = (WriterEvent*)key->attachment;
-                FreeBuffer(&event->buffer);
-                free(event);
             }
 
-            Unregister(writer->selector, key);
-            connection->writeKey = NULL;
+            if (unregister) {
+                if (!Enqueue(writer->toUnregister, item = NewDataItem(key))) {
+                    FreeItem(&item);
+                }
+            }
+        }
+
+        while (Dequeue(writer->toUnregister, &item, false)) {
+            Unregister(writer->selector, (SelectionKey*)item->content.data, false);
+            FreeItem(&item);
         }
     }
 
@@ -145,6 +100,7 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
 static void _WriterExit(Writer* writer) {
     FreeSelector(&writer->selector);
     FreeQueue(&writer->queue);
+    FreeQueue(&writer->toUnregister);
 
     Log(writer->thread, INFO, "exited");
 
@@ -161,6 +117,7 @@ Writer* NewWriter(Thread* parent, char* name, aio4c_size_t bufferSize) {
 
     writer->selector = NewSelector();
     writer->queue = NewQueue();
+    writer->toUnregister = NewQueue();
     writer->bufferSize = bufferSize;
 
     writer->thread = NULL;
@@ -201,22 +158,10 @@ static void _WriterCloseHandler(Event event, Connection* source, Writer* writer)
 }
 
 static void _WriterEventHandler(Event event, Connection* source, Writer* writer) {
-    WriterEvent* ev = NULL;
     QueueItem* item = NULL;
 
-    if ((ev = malloc(sizeof(WriterEvent))) == NULL) {
-        return;
-    }
-
-    ev->connection = source;
-    ev->buffer = NewBuffer(writer->bufferSize);
-    BufferLimit(ev->buffer, 0);
-    ev->type = event;
-
-    if (!Enqueue(writer->queue, item = NewEventItem(event, ev))) {
+    if (!Enqueue(writer->queue, item = NewEventItem(event, source))) {
         FreeItem(&item);
-        FreeBuffer(&ev->buffer);
-        free(ev);
         return;
     }
 
@@ -224,7 +169,6 @@ static void _WriterEventHandler(Event event, Connection* source, Writer* writer)
 }
 
 void WriterManageConnection(Writer* writer, Connection* connection) {
-    ConnectionAddSystemHandler(connection, CONNECTING_EVENT, aio4c_connection_handler(_WriterEventHandler), aio4c_connection_handler_arg(writer), false);
     ConnectionAddSystemHandler(connection, OUTBOUND_DATA_EVENT, aio4c_connection_handler(_WriterEventHandler), aio4c_connection_handler_arg(writer), false);
     ConnectionAddSystemHandler(connection, CLOSE_EVENT, aio4c_connection_handler(_WriterCloseHandler), aio4c_connection_handler_arg(writer), true);
 }

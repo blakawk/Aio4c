@@ -31,16 +31,11 @@ typedef enum e_ConnectionState {
     INITIALIZED = 1,
     CONNECTING = 2,
     CONNECTED = 3,
-    CLOSED = 4
+    CLOSED = 4,
+    MAX_CONNECTION_STATES = 5
 } ConnectionState;
 
-#define MAX_PRIORITY 2
-
-typedef enum e_ConnectionEventPriority {
-    LOW_PRIORITY = 0,
-    HIGH_PRIORITY = 1
-} ConnectionEventPriority;
-
+extern char* ConnectionStateString[MAX_CONNECTION_STATES];
 
 typedef enum e_ConnectionCloseCauseType {
     UNKNOWN = 0,
@@ -104,7 +99,7 @@ extern Connection* ConnectionFinishConnect(Connection* connection);
 
 extern Connection* ConnectionRead(Connection* connection);
 
-extern Connection* ConnectionWrite(Connection* connection, Buffer* buffer);
+extern Connection* ConnectionWrite(Connection* connection);
 
 extern Connection* ConnectionClose(Connection* connection);
 

@@ -101,7 +101,7 @@ static void _AcceptorExit(Acceptor* acceptor) {
     QueueItem* item = NULL;
     Connection* connection = NULL;
 
-    Unregister(acceptor->selector, acceptor->key);
+    Unregister(acceptor->selector, acceptor->key, true);
     close(acceptor->socket);
 
     while (Dequeue(acceptor->queue, &item, false)) {

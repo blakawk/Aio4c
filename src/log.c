@@ -238,7 +238,7 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
         return;
     }
 
-    Log(from, level, "dumping buffer %p [pos: %u, lim: %u, cap: %u]", buffer, buffer->position, buffer->limit, buffer->size);
+    Log(from, level, "dumping buffer %p [pos: %u, lim: %u, cap: %u]", (void*)buffer, buffer->position, buffer->limit, buffer->size);
 
     if (buffer->limit >= 16) {
         for (i = buffer->position; i < buffer->limit; i += 16) {

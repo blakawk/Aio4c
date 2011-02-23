@@ -48,7 +48,7 @@ typedef struct s_Logger {
 
 extern void LogInit(Thread* parent, LogLevel level, char* filename);
 
-extern void Log(Thread* from, LogLevel level, char* message, ...);
+extern void Log(Thread* from, LogLevel level, char* message, ...) __attribute__((format(printf, 3, 4)));
 
 extern void LogBuffer(Thread* from, LogLevel level, Buffer* buffer);
 

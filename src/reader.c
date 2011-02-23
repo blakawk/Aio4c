@@ -45,21 +45,19 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
     while(Dequeue(reader->queue, &item, false)) {
         switch(item->type) {
             case EXIT:
-                Log(reader->thread, DEBUG, "read EXIT message");
                 FreeItem(&item);
                 return false;
             case DATA:
                 connection = (Connection*)item->content.data;
-                Log(reader->thread, DEBUG, "registering connection %p[%s]", connection, connection->string);
                 connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
                 break;
             case EVENT:
                 connection = (Connection*)item->content.event.source;
-                Log(reader->thread, DEBUG, "close for connection %p[%s] received", connection, connection->string);
                 if (connection->readKey != NULL) {
-                    Unregister(reader->selector, connection->readKey);
+                    Unregister(reader->selector, connection->readKey, true);
                     connection->readKey = NULL;
                 }
+                Log(reader->thread, DEBUG, "close received for connection %s", connection->string);
                 if (ConnectionNoMoreUsed(connection, READER)) {
                     Log(reader->thread, DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
@@ -74,8 +72,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
 
     if (numConnectionsReady > 0) {
         while (SelectionKeyReady(reader->selector, &key)) {
-            Log(reader->thread, DEBUG, "connection %p ready", key->attachment);
-            if (key->result == (int)key->operation) {
+            if (key->result & (int)key->operation) {
                 connection = ConnectionRead((Connection*)key->attachment);
             } else {
                 ConnectionClose((Connection*)key->attachment);

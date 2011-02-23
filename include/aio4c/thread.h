@@ -156,6 +156,7 @@ typedef struct s_SelectionKey {
     aio4c_socket_t     fd;
     void*              attachment;
     int                poll;
+    int                count;
     short              result;
 } SelectionKey;
 
@@ -209,7 +210,7 @@ extern Selector* NewSelector(void);
 
 extern SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_socket_t fd, void* attachment);
 
-extern void Unregister(Selector* selector, SelectionKey* key);
+extern void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAll);
 
 extern aio4c_size_t Select(Selector* selector);
 

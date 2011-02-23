@@ -373,34 +373,34 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
     SelectionKey** keys = NULL;
     aio4c_poll_t* polls = NULL;
     SelectionKey* key = NULL;
-    int pollPresent = -1;
+    int keyPresent = -1;
     int i = 0;
 
     TakeLock(selector->lock);
 
     SelectorWakeUp(selector);
 
-    if (selector->numKeys == selector->maxKeys) {
-        if ((keys = realloc(selector->keys, (selector->maxKeys + 1) * sizeof(SelectionKey*))) == NULL) {
-            ReleaseLock(selector->lock);
-            return NULL;
-        }
-
-        selector->keys = keys;
-
-        selector->keys[selector->maxKeys] = _NewSelectionKey();
-
-        selector->maxKeys++;
-    }
-
-    for (i = 0; i < selector->numPolls; i++) {
-        if (selector->polls[i].fd == fd) {
-            pollPresent = i;
+    for (i = 0; i < selector->numKeys; i++) {
+        if (selector->keys[i]->fd == fd) {
+            keyPresent = i;
             break;
         }
     }
 
-    if (pollPresent == -1) {
+    if (keyPresent == -1) {
+        if (selector->numKeys == selector->maxKeys) {
+            if ((keys = realloc(selector->keys, (selector->maxKeys + 1) * sizeof(SelectionKey*))) == NULL) {
+                ReleaseLock(selector->lock);
+                return NULL;
+            }
+
+            selector->keys = keys;
+
+            selector->keys[selector->maxKeys] = _NewSelectionKey();
+
+            selector->maxKeys++;
+        }
+
         if (selector->numPolls == selector->maxPolls) {
             if ((polls = realloc(selector->polls, (selector->maxPolls + 1) * sizeof(aio4c_poll_t))) == NULL) {
                 ReleaseLock(selector->lock);
@@ -413,42 +413,53 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
 
             selector->maxPolls++;
         }
-    }
 
-    memset(selector->keys[selector->numKeys], 0, sizeof(SelectionKey));
+        memset(selector->keys[selector->numKeys], 0, sizeof(SelectionKey));
 
-    selector->keys[selector->numKeys]->index = selector->numKeys;
-    selector->keys[selector->numKeys]->operation = operation;
-    selector->keys[selector->numKeys]->fd = fd;
-    selector->keys[selector->numKeys]->attachment = attachment;
-    key = selector->keys[selector->numKeys];
+        selector->keys[selector->numKeys]->index = selector->numKeys;
+        selector->keys[selector->numKeys]->operation = operation;
+        selector->keys[selector->numKeys]->fd = fd;
+        selector->keys[selector->numKeys]->attachment = attachment;
+        keyPresent = selector->numKeys;
 
-    if (pollPresent == -1) {
         memset(&selector->polls[selector->numPolls], 0, sizeof(aio4c_poll_t));
         selector->polls[selector->numPolls].fd = fd;
         selector->polls[selector->numPolls].events = operation;
         selector->keys[selector->numKeys]->poll = selector->numPolls;
         selector->numPolls++;
-    } else {
-        selector->keys[selector->numKeys]->poll = pollPresent;
+
+        selector->numKeys++;
     }
 
-    selector->numKeys++;
+    key = selector->keys[keyPresent];
+    selector->keys[keyPresent]->count++;
 
     ReleaseLock(selector->lock);
 
     return key;
 }
 
-void Unregister(Selector* selector, SelectionKey* key) {
+void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAll) {
     int i = 0, j = 0;
-    aio4c_socket_t sock = key->fd;
-    aio4c_bool_t stillPresent = false;
     aio4c_size_t pollIndex = key->poll;
 
     TakeLock(selector->lock);
 
     SelectorWakeUp(selector);
+
+    if (key->index == -1) {
+        ReleaseLock(selector->lock);
+        return;
+    }
+
+    if (!unregisterAll) {
+        key->count--;
+
+        if (key->count > 0) {
+            ReleaseLock(selector->lock);
+            return;
+        }
+    }
 
     for (i = key->index; i < selector->numKeys - 1; i++) {
         memcpy(&selector->keys[i], &selector->keys[i + 1], sizeof(SelectionKey*));
@@ -457,31 +468,23 @@ void Unregister(Selector* selector, SelectionKey* key) {
 
     selector->keys[i] = key;
     memset(selector->keys[i], 0, sizeof(SelectionKey));
+    selector->keys[i]->index = -1;
 
     selector->numKeys--;
 
-    for (i = 0; i < selector->numKeys; i++) {
-        if (selector->keys[i]->fd == sock) {
-            stillPresent = true;
-            break;
-        }
-    }
-
-    if (!stillPresent) {
-        for (i = pollIndex; i < selector->numPolls - 1; i++) {
-            for (j = 0; j < selector->numKeys; j++) {
-                if (selector->keys[j]->poll == i + 1) {
-                    selector->keys[j]->poll--;
-                }
+    for (i = pollIndex; i < selector->numPolls - 1; i++) {
+        for (j = 0; j < selector->numKeys; j++) {
+            if (selector->keys[j]->poll == i + 1) {
+                selector->keys[j]->poll--;
             }
-
-            memcpy(&selector->polls[i], &selector->polls[i + 1], sizeof(aio4c_poll_t));
         }
 
-        memset(&selector->polls[i], 0, sizeof(aio4c_poll_t));
-
-        selector->numPolls--;
+        memcpy(&selector->polls[i], &selector->polls[i + 1], sizeof(aio4c_poll_t));
     }
+
+    memset(&selector->polls[i], 0, sizeof(aio4c_poll_t));
+
+    selector->numPolls--;
 
     ReleaseLock(selector->lock);
 }
@@ -489,23 +492,17 @@ void Unregister(Selector* selector, SelectionKey* key) {
 aio4c_size_t Select(Selector* selector) {
     int nbPolls = 0;
     unsigned char dummy = 0;
-    Thread* owner = ThreadSelf();
-
-    Log(owner, DEBUG, "about to poll %d connections", selector->numPolls);
 
     while ((nbPolls = poll(selector->polls, selector->numPolls, -1)) < 0) {
         if (errno != EINTR) {
-            Log(owner, WARN, "poll failed with %s", strerror(errno));
+            Log(ThreadSelf(), WARN, "poll failed with %s", strerror(errno));
             return 0;
         }
     }
 
-    Log(owner, DEBUG, "poll resulted in %d connections ready", nbPolls);
-
     TakeLock(selector->lock);
 
     if (selector->polls[0].revents == POLLIN) {
-        Log(owner, DEBUG, "woken up on selector");
         read(selector->pipe[AIO4C_PIPE_READ], &dummy, sizeof(unsigned char));
         selector->polls[0].revents = 0;
         nbPolls--;
@@ -569,6 +566,7 @@ aio4c_bool_t SelectionKeyReady (Selector* selector, SelectionKey** key) {
                 selector->keys[i]->result = selector->polls[selector->keys[i]->poll].revents;
                 *key = selector->keys[i];
                 selector->curKey = i + 1;
+                selector->polls[selector->keys[i]->poll].revents = 0;
                 break;
             }
         }
@@ -729,17 +727,13 @@ aio4c_bool_t ThreadRunning(Thread* thread) {
 }
 
 Thread* ThreadCancel(Thread* thread, aio4c_bool_t force) {
-    Thread* parent = ThreadSelf();
-
     TakeLock(thread->lock);
 
     if (ThreadRunning(thread)) {
         if (force) {
-            Log(parent, DEBUG, "cancelling thread %s", thread->name);
             aio4c_thread_cancel(thread->id);
             thread->state = STOPPED;
         } else {
-            Log(parent, DEBUG, "stopping thread %s", thread->name);
             thread->state = STOPPED;
         }
     }
@@ -751,13 +745,10 @@ Thread* ThreadCancel(Thread* thread, aio4c_bool_t force) {
 
 Thread* ThreadJoin(Thread* thread) {
     void* returnValue = NULL;
-    Thread* parent = ThreadSelf();
 
     if (thread->state == JOINED) {
         return thread;
     }
-
-    Log(parent, DEBUG, "joining thread %s", thread->name);
 
     aio4c_thread_join(thread->id, &returnValue);
 

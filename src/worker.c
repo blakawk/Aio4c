@@ -55,7 +55,6 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
     while (Dequeue(worker->queue, &item, true)) {
         switch (item->type) {
             case EXIT:
-                Log(worker->thread, DEBUG, "read EXIT message");
                 FreeItem(&item);
                 return false;
             case DATA:
@@ -66,8 +65,8 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
                 break;
             case EVENT:
                 connection = (Connection*)item->content.event.source;
-                Log(worker->thread, DEBUG, "close for connection %s received", connection->string);
                 RemoveAll(worker->queue, aio4c_remove_callback(_removeCallback), aio4c_remove_discriminant(connection));
+                Log(worker->thread, DEBUG, "close received for connection %s", connection->string);
                 if (ConnectionNoMoreUsed(connection, WORKER)) {
                     Log(worker->thread, DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);

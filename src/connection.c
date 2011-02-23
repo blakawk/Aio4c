@@ -28,12 +28,21 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+
+char* ConnectionStateString[MAX_CONNECTION_STATES] = {
+    "NONE",
+    "INITIALIZED",
+    "CONNECTING",
+    "CONNECTED",
+    "CLOSED"
+};
 
 Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
     Connection* connection = NULL;
@@ -52,6 +61,7 @@ Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
         return NULL;
     }
 
+    BufferLimit(connection->writeBuffer, 0);
     connection->socket = -1;
     connection->state = NONE;
     connection->systemHandlers = NewEventQueue();
@@ -126,6 +136,38 @@ static Connection* _ConnectionHandleError(Connection* connection, ConnectionClos
     connection->closeCause = cause;
     connection->closeCode = closeCode;
 
+    switch(connection->closeCause) {
+        case SOCKET_CREATION:
+        case SOCKET_NONBLOCK:
+        case GETSOCKOPT:
+        case CONNECTING_ERROR:
+        case READING:
+        case WRITING:
+            Log(ThreadSelf(), ERROR, "error on connection %s [%s]: %s", connection->string, ConnectionStateString[connection->state], strerror(connection->closeCode));
+            break;
+        case BUFFER_UNDERFLOW:
+            Log(ThreadSelf(), ERROR, "buffer underflow on connection %s [%s] (buffer position = %d)", connection->string, ConnectionStateString[connection->state], connection->closeCode);
+            break;
+        case BUFFER_OVERFLOW:
+            Log(ThreadSelf(), ERROR, "buffer overflow on connection %s [%s] (buffer position = %d)", connection->string, ConnectionStateString[connection->state], connection->closeCode);
+            break;
+        case INVALID_STATE:
+            Log(ThreadSelf(), ERROR, "connection %s state %s invalid, expected %s", connection->string, ConnectionStateString[connection->state], ConnectionStateString[connection->closeCode]);
+            break;
+        case REMOTE_CLOSED:
+            Log(ThreadSelf(), INFO, "connection %s remote closed", connection->string);
+            break;
+        case EVENT_HANDLER:
+            Log(ThreadSelf(), ERROR, "cannot add event handler to connection %s", connection->string);
+            break;
+        case NO_ERROR:
+            Log(ThreadSelf(), INFO, "connection %s closed", connection->string);
+            break;
+        case UNKNOWN:
+            Log(ThreadSelf(), ERROR, "unknown error on connection %s", connection->string);
+            break;
+    }
+
     ReleaseLock(connection->lock);
 
     return ConnectionClose(connection);
@@ -181,22 +223,29 @@ Connection* ConnectionConnect(Connection* connection) {
 Connection* ConnectionFinishConnect(Connection* connection) {
     int soError = 0;
     socklen_t soSize = sizeof(int);
+    aio4c_poll_t polls[1] = { { .fd = connection->socket, .events = POLLOUT, .revents = 0 } };
 
     TakeLock(connection->lock);
 
-    if (getsockopt(connection->socket, SOL_SOCKET, SO_ERROR, &soError, &soSize) != 0) {
-        return _ConnectionHandleError(connection, GETSOCKOPT, errno);
-    }
-
-    if (soError != 0) {
+    if (poll(polls, 1, -1) == -1) {
         return _ConnectionHandleError(connection, CONNECTING_ERROR, errno);
     }
 
-    connection->state = CONNECTED;
+    if (polls[0].revents > 0) {
+        if (getsockopt(connection->socket, SOL_SOCKET, SO_ERROR, &soError, &soSize) != 0) {
+            return _ConnectionHandleError(connection, GETSOCKOPT, errno);
+        }
 
-    ReleaseLock(connection->lock);
+        if (soError != 0) {
+            return _ConnectionHandleError(connection, CONNECTING_ERROR, soError);
+        }
 
-    ConnectionEventHandle(connection, CONNECTED_EVENT, connection);
+        connection->state = CONNECTED;
+
+        ReleaseLock(connection->lock);
+
+        ConnectionEventHandle(connection, CONNECTED_EVENT, connection);
+    }
 
     return connection;
 }
@@ -213,7 +262,7 @@ Connection* ConnectionRead(Connection* connection) {
 
     buffer = connection->readBuffer;
 
-    if (buffer->limit - buffer->position <= 0) {
+    if (!BufferHasRemaining(buffer)) {
         return _ConnectionHandleError(connection, BUFFER_OVERFLOW, buffer->position);
     }
 
@@ -234,8 +283,9 @@ Connection* ConnectionRead(Connection* connection) {
     return connection;
 }
 
-Connection* ConnectionWrite(Connection* connection, Buffer* buffer) {
+Connection* ConnectionWrite(Connection* connection) {
     ssize_t nbWrite = 0;
+    Buffer* buffer = connection->writeBuffer;
 
     TakeLock(connection->lock);
 
@@ -243,15 +293,15 @@ Connection* ConnectionWrite(Connection* connection, Buffer* buffer) {
         return _ConnectionHandleError(connection, INVALID_STATE, CONNECTED);
     }
 
-    if (buffer->limit - buffer->position <= 0) {
+    if (!BufferHasRemaining(buffer)) {
         BufferReset(buffer);
         ReleaseLock(connection->lock);
-        ConnectionEventHandle(connection, WRITE_EVENT, buffer);
+        ConnectionEventHandle(connection, WRITE_EVENT, connection);
         TakeLock(connection->lock);
         BufferFlip(buffer);
     }
 
-    if (buffer->limit - buffer->position <= 0) {
+    if (buffer->limit - buffer->position < 0) {
         return _ConnectionHandleError(connection, BUFFER_UNDERFLOW, buffer->position);
     }
 
@@ -274,7 +324,7 @@ Connection* ConnectionClose(Connection* connection) {
         return connection;
     }
 
-    Log(ThreadSelf(), INFO, "closing connection %s", connection->string);
+    Log(ThreadSelf(), DEBUG, "closing connection %s", connection->string);
 
     shutdown(connection->socket, SHUT_RDWR);
 
@@ -283,6 +333,10 @@ Connection* ConnectionClose(Connection* connection) {
     ReleaseLock(connection->lock);
 
     ConnectionEventHandle(connection, CLOSE_EVENT, connection);
+
+    if (connection->closeCause == NO_ERROR) {
+        _ConnectionHandleError(connection, NO_ERROR, 0);
+    }
 
     return connection;
 }
