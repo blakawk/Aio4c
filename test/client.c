@@ -1,4 +1,5 @@
 #include <aio4c/address.h>
+#include <aio4c/alloc.h>
 #include <aio4c/connection.h>
 #include <aio4c/log.h>
 #include <aio4c/reader.h>
@@ -41,14 +42,15 @@ void onConnect(Event event, Connection* source, Client* c) {
     ReaderManageConnection(c->reader, source);
 }
 
-void onRead(Event event, Buffer* source, Client* c) {
+void onRead(Event event, Connection* source, Client* c) {
     if (event != INBOUND_DATA_EVENT) {
         return;
     }
 
-    Log(c->thread, DEBUG, "read %d bytes", source->limit);
-    LogBuffer(c->thread, DEBUG, source);
-    ConnectionEventHandle(c->conn, OUTBOUND_DATA_EVENT, c->conn);
+    Log(c->thread, DEBUG, "read %d bytes", source->dataBuffer->limit);
+    LogBuffer(c->thread, DEBUG, source->dataBuffer);
+    source->dataBuffer->position = source->dataBuffer->limit;
+    ConnectionEventHandle(source, OUTBOUND_DATA_EVENT, source);
 }
 
 void onWrite(Event event, Connection* source, Client* c) {
@@ -68,7 +70,7 @@ void onClose(Event event, Connection* source, Client* c) {
         return;
     }
 
-    if (!Enqueue(c->queue, NewExitItem())) {
+    if (!EnqueueExitItem(c->queue)) {
         return;
     }
 }
@@ -94,7 +96,6 @@ aio4c_bool_t testRun(Data* arg) {
 
 void testExit(Data* arg) {
     Log(arg->thread, INFO, "test exiting %d", arg->counter);
-    free(arg);
 }
 
 void clientInit(Client* c) {
@@ -102,7 +103,8 @@ void clientInit(Client* c) {
 }
 
 aio4c_bool_t clientRun(Client* c) {
-    QueueItem* item = NULL;
+    QueueItem item;
+    memset(&item, 0, sizeof(QueueItem));
     ConnectionAddHandler(c->conn, INIT_EVENT, aio4c_connection_handler(onInit), aio4c_connection_handler_arg(c), true);
     ConnectionAddHandler(c->conn, CONNECTING_EVENT, aio4c_connection_handler(onConnect), aio4c_connection_handler_arg(c), true);
     ConnectionAddHandler(c->conn, CONNECTED_EVENT, aio4c_connection_handler(onConnect), aio4c_connection_handler_arg(c), true);
@@ -116,7 +118,6 @@ aio4c_bool_t clientRun(Client* c) {
     if (c->freeOnClose) {
         FreeConnection(&c->conn);
     }
-    FreeItem(&item);
     ReaderEnd(c->reader);
     return false;
 }
@@ -124,14 +125,13 @@ aio4c_bool_t clientRun(Client* c) {
 void clientExit(Client* c) {
     Log(c->thread, INFO, "exited");
     FreeQueue(&c->queue);
-    free(c);
 }
 
 int main (void) {
     Address* addr = NewAddress(IPV4, "localhost", 11111);
     Connection* conn = NewConnection(8192, addr);
-    Data* data = malloc(sizeof(Data));
-    Client* client = malloc(sizeof(Client));
+    Data* data = aio4c_malloc(sizeof(Data));
+    Client* client = aio4c_malloc(sizeof(Client));
     client->conn = conn;
     client->thread = NULL;
     client->reader = NULL;
@@ -139,16 +139,18 @@ int main (void) {
     data->counter = 0;
 
     Thread* mainThread = ThreadMain("main");
-    LogInit(mainThread, INFO, "client.log");
+    LogInit(mainThread, DEBUG, "client.log");
 
     client->queue = NewQueue();
-    Thread* testThread = data->thread = NewThread("test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);
-    Thread* clientThread = client->thread = NewThread("client", aio4c_thread_handler(clientInit), aio4c_thread_run(clientRun), aio4c_thread_handler(clientExit), aio4c_thread_arg(client));
+    data->thread = NewThread("test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);
+    client->thread = NewThread("client", aio4c_thread_handler(clientInit), aio4c_thread_run(clientRun), aio4c_thread_handler(clientExit), aio4c_thread_arg(client));
 
-    ThreadJoin(testThread);
-    ThreadJoin(clientThread);
-    FreeThread(&testThread);
-    FreeThread(&clientThread);
+    ThreadJoin(data->thread);
+    FreeThread(&data->thread);
+    aio4c_free(data);
+    ThreadJoin(client->thread);
+    FreeThread(&client->thread);
+    aio4c_free(client);
     LogEnd();
     FreeThread(&mainThread);
 

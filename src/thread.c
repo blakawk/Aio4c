@@ -19,7 +19,9 @@
  **/
 #include <aio4c/thread.h>
 
+#include <aio4c/alloc.h>
 #include <aio4c/log.h>
+#include <aio4c/stats.h>
 #include <aio4c/types.h>
 
 #include <errno.h>
@@ -33,11 +35,14 @@ static Thread*      _threads[AIO4C_MAX_THREADS];
 static aio4c_bool_t _threadsInitialized = false;
 static int          _numThreads = 0;
 
+int GetNumThreads(void) {
+    return _numThreads;
+}
+
 Lock* NewLock(void) {
     Lock* pLock = NULL;
 
-    if ((pLock = malloc(sizeof(Lock))) == NULL) {
-        debugLock("cannot allocate lock: %s\n", strerror(errno));
+    if ((pLock = aio4c_malloc(sizeof(Lock))) == NULL) {
         return NULL;
     }
 
@@ -45,8 +50,7 @@ Lock* NewLock(void) {
     pLock->owner = NULL;
 
     if ((errno = aio4c_mutex_init(&pLock->mutex, NULL)) != 0) {
-        debugLock("cannot initialize lock: %s\n", strerror(errno));
-        free(pLock);
+        aio4c_free(pLock);
         return NULL;
     }
 
@@ -56,9 +60,11 @@ Lock* NewLock(void) {
 }
 
 Lock* TakeLock(Lock* lock) {
+    ProbeTimeStart(TIME_PROBE_BLOCK);
     if ((errno = aio4c_mutex_lock(&lock->mutex)) != 0) {
-        return lock;
+        return NULL;
     }
+    ProbeTimeEnd(TIME_PROBE_BLOCK);
 
     return lock;
 }
@@ -78,7 +84,7 @@ void FreeLock(Lock** lock) {
 
         aio4c_mutex_destroy(&pLock->mutex);
 
-        free(pLock);
+        aio4c_free(pLock);
         *lock = NULL;
     }
 }
@@ -86,14 +92,14 @@ void FreeLock(Lock** lock) {
 Condition* NewCondition(void) {
     Condition* condition = NULL;
 
-    if ((condition = malloc(sizeof(Condition))) == NULL) {
+    if ((condition = aio4c_malloc(sizeof(Condition))) == NULL) {
         return NULL;
     }
 
     condition->owner = NULL;
 
     if (aio4c_cond_init(&condition->condition, NULL) != 0) {
-        free(condition);
+        aio4c_free(condition);
         return NULL;
     }
 
@@ -101,9 +107,11 @@ Condition* NewCondition(void) {
 }
 
 aio4c_bool_t WaitCondition(Condition* condition, Lock* lock) {
+    ProbeTimeStart(TIME_PROBE_IDLE);
     if (aio4c_cond_wait(&condition->condition, &lock->mutex) != 0) {
         return false;
     }
+    ProbeTimeEnd(TIME_PROBE_IDLE);
 
     return true;
 }
@@ -118,7 +126,7 @@ void FreeCondition(Condition** condition) {
     if (condition != NULL && (pCondition = *condition) != NULL) {
         aio4c_cond_destroy(&pCondition->condition);
 
-        free(pCondition);
+        aio4c_free(pCondition);
         *condition = NULL;
     }
 }
@@ -126,7 +134,7 @@ void FreeCondition(Condition** condition) {
 Queue* NewQueue(void) {
     Queue* queue = NULL;
 
-    if ((queue = malloc(sizeof(Queue))) == NULL) {
+    if ((queue = aio4c_malloc(sizeof(Queue))) == NULL) {
         return NULL;
     }
 
@@ -142,56 +150,10 @@ Queue* NewQueue(void) {
     return queue;
 }
 
-QueueItem* NewDataItem(void* data) {
-    QueueItem* item = NULL;
-
-    if ((item = malloc(sizeof(QueueItem))) == NULL) {
-        return NULL;
-    }
-
-    item->type = DATA;
-    item->content.data = data;
-
-    return item;
-}
-
-QueueItem* NewEventItem(Event event, void* source) {
-    QueueItem* item = NULL;
-
-    if ((item = malloc(sizeof(QueueItem))) == NULL) {
-        return NULL;
-    }
-
-    item->type = EVENT;
-    item->content.event.type = event;
-    item->content.event.source = source;
-
-    return item;
-}
-
-QueueItem* NewExitItem(void) {
-    QueueItem* item = NULL;
-
-    if ((item = malloc(sizeof(QueueItem))) == NULL) {
-        return NULL;
-    }
-
-    item->type = EXIT;
-
-    return item;
-}
-
-
-void FreeItem(QueueItem** pItem) {
-    QueueItem* item = NULL;
-    if (pItem != NULL && (item = *pItem) != NULL) {
-        free(item);
-        *pItem = NULL;
-    }
-}
-
-aio4c_bool_t Dequeue(Queue* queue, QueueItem** item, aio4c_bool_t wait) {
+aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait) {
     int i = 0;
+    QueueItem* _item = NULL;
+    aio4c_bool_t dequeued = false;
 
     TakeLock(queue->lock);
 
@@ -208,25 +170,42 @@ aio4c_bool_t Dequeue(Queue* queue, QueueItem** item, aio4c_bool_t wait) {
     }
 
     if (queue->numItems > 0) {
-        *item = queue->items[0];
+        _item = queue->items[0];
+
+        memcpy(item, queue->items[0], sizeof(QueueItem));
 
         for (i = 0; i < queue->numItems - 1; i++) {
             queue->items[i] = queue->items[i + 1];
         }
 
-        queue->items[i] = NULL;
+        memset(_item, 0, sizeof(QueueItem));
+
+        queue->items[i] = _item;
         queue->numItems--;
         queue->emptied = (queue->numItems == 0);
+        dequeued = true;
     } else {
-        *item = NULL;
+        memset(item, 0, sizeof(QueueItem));
     }
 
     ReleaseLock(queue->lock);
 
-    return (*item != NULL);
+    return dequeued;
 }
 
-aio4c_bool_t Enqueue(Queue* queue, QueueItem* item) {
+static QueueItem* _NewItem(void) {
+    QueueItem* item = NULL;
+
+    if ((item = aio4c_malloc(sizeof(QueueItem))) == NULL) {
+        return NULL;
+    }
+
+    memset(item, 0, sizeof(QueueItem));
+
+    return item;
+}
+
+aio4c_bool_t _Enqueue(Queue* queue, QueueItem* item) {
     QueueItem** items = NULL;
     TakeLock(queue->lock);
 
@@ -236,15 +215,17 @@ aio4c_bool_t Enqueue(Queue* queue, QueueItem* item) {
     }
 
     if (queue->numItems == queue->maxItems) {
-        if ((items = realloc(queue->items, (queue->maxItems + 1) * sizeof(QueueItem*))) == NULL) {
+        if ((items = aio4c_realloc(queue->items, (queue->maxItems + 1) * sizeof(QueueItem*))) == NULL) {
             ReleaseLock(queue->lock);
             return false;
         }
         queue->items = items;
+        queue->items[queue->maxItems] = _NewItem();
         queue->maxItems++;
     }
 
-    queue->items[queue->numItems] = item;
+    memcpy(queue->items[queue->numItems], item, sizeof(QueueItem));
+
     queue->numItems++;
 
     if (item->type == EXIT) {
@@ -258,21 +239,60 @@ aio4c_bool_t Enqueue(Queue* queue, QueueItem* item) {
     return true;
 }
 
+aio4c_bool_t EnqueueDataItem(Queue* queue, void* data) {
+    QueueItem item;
+
+    memset(&item, 0, sizeof(QueueItem));
+
+    item.type = DATA;
+    item.content.data = data;
+
+    return _Enqueue(queue, &item);
+}
+
+aio4c_bool_t EnqueueExitItem(Queue* queue) {
+    QueueItem item;
+
+    memset(&item, 0, sizeof(QueueItem));
+
+    item.type = EXIT;
+
+    return _Enqueue(queue, &item);
+}
+
+aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, void* source) {
+    QueueItem item;
+
+    memset(&item, 0, sizeof(QueueItem));
+
+    item.type = EVENT;
+    item.content.event.type = type;
+    item.content.event.source = source;
+
+    return _Enqueue(queue, &item);
+}
+
 aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,void*), void* discriminant) {
-    int i = 0;
+    int i = 0, j = 0;
     aio4c_bool_t removed = false;
+    QueueItem* toRemove = NULL;
 
     TakeLock(queue->lock);
 
-    for (i = 0; i < queue->numItems;) {
+    NotifyCondition(queue->condition);
+
+    for (i = 0; i < queue->numItems; ) {
         if (removeCallback(queue->items[i], discriminant)) {
-            FreeItem(&queue->items[i]);
-            if (i < queue->numItems - 1) {
-                queue->items[i] = queue->items[i + 1];
-            } else {
-                queue->items[i] = NULL;
+            toRemove = queue->items[i];
+            memset(toRemove, 0, sizeof(QueueItem));
+
+            for (j = i; j < queue->numItems - 1; j++) {
+                queue->items[j] = queue->items[j + 1];
             }
+
+            queue->items[j] = toRemove;
             queue->numItems--;
+
             removed = true;
         } else {
             i++;
@@ -286,6 +306,7 @@ aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,v
 
 void FreeQueue(Queue** queue) {
     Queue* pQueue = NULL;
+    int i = 0;
 
     if (queue != NULL && (pQueue = *queue) != NULL) {
         TakeLock(pQueue->lock);
@@ -294,14 +315,24 @@ void FreeQueue(Queue** queue) {
 
         NotifyCondition(pQueue->condition);
 
-        free(pQueue->items);
+        if (pQueue->items != NULL) {
+            for (i = 0; i < pQueue->maxItems; i++) {
+                if (pQueue->items[i] != NULL) {
+                    aio4c_free(pQueue->items[i]);
+                    pQueue->items[i] = NULL;
+                }
+            }
+            aio4c_free(pQueue->items);
+            pQueue->items = NULL;
+        }
+
         pQueue->numItems = 0;
         pQueue->maxItems = 0;
 
         FreeCondition(&pQueue->condition);
         FreeLock(&pQueue->lock);
 
-        free(pQueue);
+        aio4c_free(pQueue);
         *queue = NULL;
     }
 }
@@ -309,26 +340,26 @@ void FreeQueue(Queue** queue) {
 Selector* NewSelector(void) {
     Selector* selector = NULL;
 
-    if ((selector = malloc(sizeof(Selector))) == NULL) {
+    if ((selector = aio4c_malloc(sizeof(Selector))) == NULL) {
         return NULL;
     }
 
     if (pipe(selector->pipe) != 0) {
-        free(selector);
+        aio4c_free(selector);
         return NULL;
     }
 
     if (fcntl(selector->pipe[AIO4C_PIPE_READ], F_SETFL, O_NONBLOCK) != 0) {
         close(selector->pipe[AIO4C_PIPE_READ]);
         close(selector->pipe[AIO4C_PIPE_WRITE]);
-        free(selector);
+        aio4c_free(selector);
         return NULL;
     }
 
     if (fcntl(selector->pipe[AIO4C_PIPE_WRITE], F_SETFL, O_NONBLOCK) != 0) {
         close(selector->pipe[AIO4C_PIPE_READ]);
         close(selector->pipe[AIO4C_PIPE_WRITE]);
-        free(selector);
+        aio4c_free(selector);
         return NULL;
     }
 
@@ -336,10 +367,10 @@ Selector* NewSelector(void) {
     selector->numKeys = 0;
     selector->maxKeys = 0;
 
-    if ((selector->polls = malloc(sizeof(aio4c_poll_t))) == NULL) {
+    if ((selector->polls = aio4c_malloc(sizeof(aio4c_poll_t))) == NULL) {
         close(selector->pipe[AIO4C_PIPE_READ]);
         close(selector->pipe[AIO4C_PIPE_WRITE]);
-        free(selector);
+        aio4c_free(selector);
         return NULL;
     }
 
@@ -360,7 +391,7 @@ Selector* NewSelector(void) {
 SelectionKey* _NewSelectionKey(void) {
     SelectionKey* key = NULL;
 
-    if ((key = malloc(sizeof(SelectionKey))) == NULL) {
+    if ((key = aio4c_malloc(sizeof(SelectionKey))) == NULL) {
         return NULL;
     }
 
@@ -389,7 +420,7 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
 
     if (keyPresent == -1) {
         if (selector->numKeys == selector->maxKeys) {
-            if ((keys = realloc(selector->keys, (selector->maxKeys + 1) * sizeof(SelectionKey*))) == NULL) {
+            if ((keys = aio4c_realloc(selector->keys, (selector->maxKeys + 1) * sizeof(SelectionKey*))) == NULL) {
                 ReleaseLock(selector->lock);
                 return NULL;
             }
@@ -402,7 +433,7 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
         }
 
         if (selector->numPolls == selector->maxPolls) {
-            if ((polls = realloc(selector->polls, (selector->maxPolls + 1) * sizeof(aio4c_poll_t))) == NULL) {
+            if ((polls = aio4c_realloc(selector->polls, (selector->maxPolls + 1) * sizeof(aio4c_poll_t))) == NULL) {
                 ReleaseLock(selector->lock);
                 return NULL;
             }
@@ -529,18 +560,24 @@ void FreeSelector(Selector** pSelector) {
     if (pSelector != NULL && (selector = *pSelector) != NULL) {
         close(selector->pipe[AIO4C_PIPE_WRITE]);
         close(selector->pipe[AIO4C_PIPE_READ]);
-        for (i = 0; i < selector->maxKeys; i++) {
-            free(selector->keys[i]);
+        if (selector->keys != NULL) {
+            for (i = 0; i < selector->maxKeys; i++) {
+                if (selector->keys[i] != NULL) {
+                    aio4c_free(selector->keys[i]);
+                }
+            }
+            aio4c_free(selector->keys);
         }
-        free(selector->keys);
         selector->numKeys = 0;
         selector->maxKeys = 0;
         selector->curKey = 0;
-        free(selector->polls);
+        if (selector->polls != NULL) {
+            aio4c_free(selector->polls);
+        }
         selector->numPolls = 0;
         selector->maxPolls = 0;
         FreeLock(&selector->lock);
-        free(selector);
+        aio4c_free(selector);
         *pSelector = NULL;
     }
 }
@@ -639,7 +676,7 @@ Thread* ThreadMain(char* name) {
     _threadsInitialized = true;
     memset(_threads, 0, AIO4C_MAX_THREADS * sizeof(Thread*));
 
-    if ((_MainThread = malloc(sizeof(Thread))) == NULL) {
+    if ((_MainThread = aio4c_malloc(sizeof(Thread))) == NULL) {
         return NULL;
     }
 
@@ -680,11 +717,12 @@ Thread* ThreadSelf(void) {
 Thread* NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg) {
     Thread* thread = NULL;
 
-    if ((thread = malloc(sizeof(Thread))) == NULL) {
+    if ((thread = aio4c_malloc(sizeof(Thread))) == NULL) {
         return NULL;
     }
 
     if (_numThreads >= AIO4C_MAX_THREADS) {
+        aio4c_free(thread);
         return NULL;
     }
 
@@ -702,7 +740,7 @@ Thread* NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), v
     if (aio4c_thread_create(&thread->id, NULL, (void*(*)(void*))_runThread, (void*)thread) != 0) {
         ReleaseLock(thread->lock);
         FreeLock(&thread->lock);
-        free(thread);
+        aio4c_free(thread);
         return NULL;
     }
 
@@ -765,13 +803,12 @@ Thread* ThreadJoin(Thread* thread) {
 
 void FreeThread(Thread** thread) {
     Thread* pThread = NULL;
-    Thread* parent = ThreadSelf();
 
     if (thread != NULL && (pThread = *thread) != NULL) {
         TakeLock(pThread->lock);
 
         if (pThread != _MainThread) {
-            if (pThread->state != JOINED && parent != NULL) {
+            if (pThread->state != JOINED) {
                 if (pThread->state != EXITED) {
                     ThreadCancel(pThread, true);
                 }
@@ -783,7 +820,7 @@ void FreeThread(Thread** thread) {
         }
 
         FreeLock(&pThread->lock);
-        free(pThread);
+        aio4c_free(pThread);
 
         *thread = NULL;
     }

@@ -20,11 +20,6 @@ import os
 VariantDir('build/src', 'src', duplicate=0)
 VariantDir('build/test', 'test', duplicate=0)
 
-AddOption('--enable-locks-debug',
-          dest = 'DEBUG_LOCKS',
-          action = 'store_true',
-          help = 'Enable locks debugging')
-
 AddOption('--enable-debug',
           dest = 'DEBUG',
           action = 'store_true',
@@ -35,10 +30,12 @@ AddOption('--enable-profiling',
           action = 'store_true',
           help = 'Enable compilation with profiling information')
 
-env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L')
+AddOption('--enable-statistics',
+          dest = 'STATISTICS',
+          action = 'store_true',
+          help = 'Enable compilation with statistics')
 
-if GetOption('DEBUG_LOCKS'):
-    env.Append(CPPDEFINES = {"AIO4C_DEBUG_LOCKS" : 1})
+env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L')
 
 if GetOption('DEBUG'):
     env.Append(CCFLAGS = '-ggdb3')
@@ -47,6 +44,9 @@ if GetOption('DEBUG'):
 if GetOption('PROFILING'):
     env.Append(CCFLAGS = '-pg')
     env.Append(LINKFLAGS = '-pg')
+
+if GetOption('STATISTICS'):
+    env.Append(CPPDEFINES = {"AIO4C_ENABLE_STATS" : 1})
 
 env.SharedLibrary('build/aio4c', Glob('build/src/*.c'), LIBS=['pthread'], CPPPATH=['include'])
 env.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])

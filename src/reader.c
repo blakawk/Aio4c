@@ -19,8 +19,10 @@
  **/
 #include <aio4c/reader.h>
 
+#include <aio4c/alloc.h>
 #include <aio4c/connection.h>
 #include <aio4c/log.h>
+#include <aio4c/stats.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
@@ -37,22 +39,21 @@ static void _ReaderInit(Reader* reader) {
 }
 
 static aio4c_bool_t _ReaderRun(Reader* reader) {
-    QueueItem* item = NULL;
+    QueueItem item;
     Connection* connection = NULL;
     SelectionKey* key = NULL;
     int numConnectionsReady = 0;
 
     while(Dequeue(reader->queue, &item, false)) {
-        switch(item->type) {
+        switch(item.type) {
             case EXIT:
-                FreeItem(&item);
                 return false;
             case DATA:
-                connection = (Connection*)item->content.data;
+                connection = (Connection*)item.content.data;
                 connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
                 break;
             case EVENT:
-                connection = (Connection*)item->content.event.source;
+                connection = (Connection*)item.content.event.source;
                 if (connection->readKey != NULL) {
                     Unregister(reader->selector, connection->readKey, true);
                     connection->readKey = NULL;
@@ -64,16 +65,18 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                 }
                 break;
         }
-
-        FreeItem(&item);
     }
 
+    ProbeTimeStart(TIME_PROBE_IDLE);
     numConnectionsReady = Select(reader->selector);
+    ProbeTimeEnd(TIME_PROBE_IDLE);
 
     if (numConnectionsReady > 0) {
         while (SelectionKeyReady(reader->selector, &key)) {
             if (key->result & (int)key->operation) {
+                ProbeTimeStart(TIME_PROBE_NETWORK_READ);
                 connection = ConnectionRead((Connection*)key->attachment);
+                ProbeTimeEnd(TIME_PROBE_NETWORK_READ);
             } else {
                 ConnectionClose((Connection*)key->attachment);
             }
@@ -91,31 +94,29 @@ static void _ReaderExit(Reader* reader) {
 
     Log(reader->thread, INFO, "exited");
 
-    free(reader);
+    aio4c_free(reader);
 }
 
 Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize) {
     Reader* reader = NULL;
 
-    if ((reader = malloc(sizeof(Reader))) == NULL) {
+    if ((reader = aio4c_malloc(sizeof(Reader))) == NULL) {
         Log(parent, ERROR, "reader allocation: %s", strerror(errno));
         return NULL;
     }
 
     reader->selector = NewSelector();
     reader->queue = NewQueue();
-    reader->thread = NULL;
-    reader->thread = NewThread(name, aio4c_thread_handler(_ReaderInit), aio4c_thread_run(_ReaderRun), aio4c_thread_handler(_ReaderExit), aio4c_thread_arg(reader));
     reader->worker = NULL;
     reader->worker = NewWorker("worker", bufferSize);
+    reader->thread = NULL;
+    reader->thread = NewThread(name, aio4c_thread_handler(_ReaderInit), aio4c_thread_run(_ReaderRun), aio4c_thread_handler(_ReaderExit), aio4c_thread_arg(reader));
 
     return reader;
 }
 
 static void _ReaderEventHandler(Event event, Connection* connection, Reader* reader) {
-    QueueItem* item = NewEventItem(event, connection);
-    if (!Enqueue(reader->queue, item)) {
-        FreeItem(&item);
+    if (!EnqueueEventItem(reader->queue, event, connection)) {
         return;
     }
 
@@ -123,10 +124,7 @@ static void _ReaderEventHandler(Event event, Connection* connection, Reader* rea
 }
 
 void ReaderManageConnection(Reader* reader, Connection* connection) {
-    QueueItem* item = NewDataItem((void*)connection);
-
-    if (!Enqueue(reader->queue, item)) {
-        FreeItem(&item);
+    if (!EnqueueDataItem(reader->queue, connection)) {
         return;
     }
 
@@ -139,10 +137,8 @@ void ReaderManageConnection(Reader* reader, Connection* connection) {
 
 void ReaderEnd(Reader* reader) {
     Thread* th = reader->thread;
-    QueueItem* item = NewExitItem();
 
-    if (!Enqueue(reader->queue, item)) {
-        FreeItem(&item);
+    if (!EnqueueExitItem(reader->queue)) {
         return;
     }
 

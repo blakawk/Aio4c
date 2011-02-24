@@ -19,6 +19,7 @@
  **/
 #include <aio4c/buffer.h>
 
+#include <aio4c/alloc.h>
 #include <aio4c/types.h>
 
 #include <stdlib.h>
@@ -27,12 +28,12 @@
 Buffer* NewBuffer(int size) {
     Buffer* buffer = NULL;
 
-    if ((buffer = malloc(sizeof(Buffer))) == NULL) {
+    if ((buffer = aio4c_malloc(sizeof(Buffer))) == NULL) {
         return NULL;
     }
 
-    if ((buffer->data = malloc(size * sizeof(aio4c_byte_t))) == NULL) {
-        free(buffer);
+    if ((buffer->data = aio4c_malloc(size * sizeof(aio4c_byte_t))) == NULL) {
+        aio4c_free(buffer);
         return NULL;
     }
 
@@ -48,11 +49,11 @@ void FreeBuffer(Buffer** buffer) {
 
     if (buffer != NULL && ((pBuffer = *buffer) != NULL)) {
         if (pBuffer->data != NULL) {
-            free(pBuffer->data);
+            aio4c_free(pBuffer->data);
             pBuffer->data = NULL;
         }
 
-        free(pBuffer);
+        aio4c_free(pBuffer);
         *buffer = NULL;
     }
 }

@@ -19,6 +19,7 @@
  **/
 #include <aio4c/event.h>
 
+#include <aio4c/alloc.h>
 #include <aio4c/connection.h>
 
 #include <stdlib.h>
@@ -28,7 +29,7 @@ EventQueue* NewEventQueue(void) {
     EventQueue* eventQueue = NULL;
     int i = 0;
 
-    if ((eventQueue = malloc(sizeof(EventQueue))) == NULL) {
+    if ((eventQueue = aio4c_malloc(sizeof(EventQueue))) == NULL) {
         return NULL;
     }
 
@@ -37,7 +38,7 @@ EventQueue* NewEventQueue(void) {
     memset(eventQueue->maxHandlers, 0, AIO_EVENTS_COUNT * sizeof(aio4c_size_t));
 
     for (i=0; i<AIO_EVENTS_COUNT; i++) {
-        if ((eventQueue->eventHandlers[i] = malloc(sizeof(EventHandler*))) == NULL) {
+        if ((eventQueue->eventHandlers[i] = aio4c_malloc(sizeof(EventHandler*))) == NULL) {
             break;
         }
 
@@ -47,9 +48,9 @@ EventQueue* NewEventQueue(void) {
 
     if (i < AIO_EVENTS_COUNT) {
         for (; i>=0; i--) {
-            free(eventQueue->eventHandlers[i]);
+            aio4c_free(eventQueue->eventHandlers[i]);
         }
-        free(eventQueue);
+        aio4c_free(eventQueue);
         eventQueue = NULL;
     }
 
@@ -59,7 +60,7 @@ EventQueue* NewEventQueue(void) {
 EventHandler* NewEventHandler(Event event, void (*handler)(Event,void*,void*), void* arg, aio4c_bool_t once) {
     EventHandler* eventHandler = NULL;
 
-    if ((eventHandler = malloc(sizeof(EventHandler))) == NULL) {
+    if ((eventHandler = aio4c_malloc(sizeof(EventHandler))) == NULL) {
         return NULL;
     }
 
@@ -79,7 +80,7 @@ EventQueue* EventHandlerAdd(EventQueue* queue, EventHandler* handler) {
         while (i<queue->maxHandlers[handler->event] && queue->eventHandlers[handler->event][i++] != NULL);
         handlerIndex = i - 1;
     } else {
-        if ((queue->eventHandlers[handler->event] = realloc(queue->eventHandlers[handler->event], (queue->handlersCount[handler->event] + 1) * sizeof(EventHandler*))) == NULL) {
+        if ((queue->eventHandlers[handler->event] = aio4c_realloc(queue->eventHandlers[handler->event], (queue->handlersCount[handler->event] + 1) * sizeof(EventHandler*))) == NULL) {
             FreeEventQueue(&queue);
             return NULL;
         }
@@ -145,10 +146,10 @@ void FreeEventQueue(EventQueue** queue) {
                         FreeEventHandler(&pQueue->eventHandlers[i][j]);
                     }
                 }
-                free(pQueue->eventHandlers[i]);
+                aio4c_free(pQueue->eventHandlers[i]);
             }
         }
-        free(pQueue);
+        aio4c_free(pQueue);
         *queue = NULL;
     }
 }
@@ -157,7 +158,7 @@ void FreeEventHandler(EventHandler** handler) {
     EventHandler* pHandler = NULL;
 
     if (handler != NULL && ((pHandler = *handler) != NULL)) {
-        free(pHandler);
+        aio4c_free(pHandler);
         *handler = NULL;
     }
 }

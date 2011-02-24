@@ -19,6 +19,7 @@
  **/
 #include <aio4c/log.h>
 
+#include <aio4c/alloc.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
@@ -53,8 +54,7 @@ static void _LogPrintMessage(Logger* logger, char* message) {
     }
 
     fprintf(log, "%s", message);
-    fflush(log);
-    free(message);
+    aio4c_free(message);
 }
 
 static void _LogInit(Logger* logger) {
@@ -62,20 +62,20 @@ static void _LogInit(Logger* logger) {
 }
 
 static aio4c_bool_t _LogRun(Logger* logger) {
-    QueueItem* item = NULL;
+    QueueItem item;
+
+    memset(&item, 0, sizeof(QueueItem));
 
     while (Dequeue(logger->queue, &item, true)) {
-        switch (item->type) {
+        switch (item.type) {
             case EXIT:
-                FreeItem(&item);
                 return false;
             case DATA:
-                _LogPrintMessage(logger, (char*)item->content.data);
+                _LogPrintMessage(logger, (char*)item.content.data);
                 break;
             default:
                 break;
         }
-        FreeItem(&item);
     }
 
     return true;
@@ -125,7 +125,7 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
     struct tm* tm = NULL;
     aio4c_size_t prefixLen = 0, fromLen = 0;
 
-    if ((pMessage = malloc(MAX_LOG_MESSAGE_SIZE * sizeof(char))) == NULL) {
+    if ((pMessage = aio4c_malloc(MAX_LOG_MESSAGE_SIZE * sizeof(char))) == NULL) {
         *message = NULL;
         return 0;
     }
@@ -173,7 +173,6 @@ void Log(Thread* from, LogLevel level, char* message, ...) {
     Logger* logger = &_logger;
     char* pMessage = NULL;
     aio4c_size_t messageLen = 0, prefixLen = 0;
-    QueueItem* item = NULL;
 
     if (logger != NULL && level > logger->level) {
         return;
@@ -189,8 +188,8 @@ void Log(Thread* from, LogLevel level, char* message, ...) {
     va_end(args);
 
     if (messageLen >= MAX_LOG_MESSAGE_SIZE - prefixLen) {
-        if ((pMessage = realloc(pMessage, prefixLen + messageLen + 2)) == NULL) {
-            free(pMessage);
+        if ((pMessage = aio4c_realloc(pMessage, prefixLen + messageLen + 2)) == NULL) {
+            aio4c_free(pMessage);
             return;
         }
 
@@ -203,8 +202,7 @@ void Log(Thread* from, LogLevel level, char* message, ...) {
 
     if (logger != NULL && logger->queue != NULL) {
 
-        if (!Enqueue(logger->queue, item = NewDataItem((void*)pMessage))) {
-            FreeItem(&item);
+        if (!EnqueueDataItem(logger->queue, pMessage)) {
             _LogPrintMessage(logger, pMessage);
         }
     } else {
@@ -214,14 +212,11 @@ void Log(Thread* from, LogLevel level, char* message, ...) {
 
 void LogEnd(void) {
     Logger* logger = &_logger;
-    QueueItem* item = NULL;
     if (logger->queue != NULL) {
         logger->exiting = true;
-        if (Enqueue(logger->queue, item = NewExitItem())) {
+        if (EnqueueExitItem(logger->queue)) {
             ThreadJoin(logger->thread);
             FreeThread(&logger->thread);
-        } else {
-            FreeItem(&item);
         }
     }
 }
@@ -232,7 +227,6 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     Logger* logger = &_logger;
     aio4c_size_t prefixLen = 0;
     char* message = NULL;
-    QueueItem* item = NULL;
 
     if (logger != NULL && level > logger->level) {
         return;
@@ -258,8 +252,7 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
             }
             snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "\n");
             if (logger != NULL && logger->queue != NULL) {
-                if (!Enqueue(logger->queue, item = NewDataItem((void*)message))) {
-                    FreeItem(&item);
+                if (!EnqueueDataItem(logger->queue, message)) {
                     _LogPrintMessage(logger, message);
                 }
             } else {
@@ -294,8 +287,7 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "\n");
 
     if (logger != NULL && logger->queue != NULL) {
-        if (!Enqueue(logger->queue, item = NewDataItem((void*)message))) {
-            FreeItem(&item);
+        if (!EnqueueDataItem(logger->queue, message)) {
             _LogPrintMessage(logger, message);
         }
     } else {

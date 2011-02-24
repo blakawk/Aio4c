@@ -20,9 +20,11 @@
 #include <aio4c/connection.h>
 
 #include <aio4c/address.h>
+#include <aio4c/alloc.h>
 #include <aio4c/buffer.h>
 #include <aio4c/event.h>
 #include <aio4c/log.h>
+#include <aio4c/stats.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
@@ -47,7 +49,7 @@ char* ConnectionStateString[MAX_CONNECTION_STATES] = {
 Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
     Connection* connection = NULL;
 
-    if ((connection = malloc(sizeof(Connection))) == NULL) {
+    if ((connection = aio4c_malloc(sizeof(Connection))) == NULL) {
         return NULL;
     }
 
@@ -62,6 +64,7 @@ Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
     }
 
     BufferLimit(connection->writeBuffer, 0);
+    connection->dataBuffer = NULL;
     connection->socket = -1;
     connection->state = NONE;
     connection->systemHandlers = NewEventQueue();
@@ -83,12 +86,13 @@ Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
 Connection* NewConnectionFactory(aio4c_size_t bufferSize) {
     Connection* connection = NULL;
 
-    if ((connection = malloc(sizeof(Connection))) == NULL) {
+    if ((connection = aio4c_malloc(sizeof(Connection))) == NULL) {
         return NULL;
     }
 
     connection->socket = -1;
     connection->readBuffer = NULL;
+    connection->dataBuffer = NULL;
     connection->writeBuffer = NULL;
     connection->state = CLOSED;
     connection->systemHandlers = NewEventQueue();
@@ -116,7 +120,7 @@ Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c
     if (fcntl(connection->socket, F_SETFL, O_NONBLOCK) == -1) {
         shutdown(connection->socket, SHUT_RDWR);
         close(connection->socket);
-        free(connection);
+        aio4c_free(connection);
         return NULL;
     }
 
@@ -270,6 +274,8 @@ Connection* ConnectionRead(Connection* connection) {
         return _ConnectionHandleError(connection, READING, errno);
     }
 
+    ProbeSize(PROBE_NETWORK_READ_SIZE, nbRead);
+
     if (nbRead == 0) {
         return _ConnectionHandleError(connection, REMOTE_CLOSED, 0);
     }
@@ -308,6 +314,8 @@ Connection* ConnectionWrite(Connection* connection) {
     if ((nbWrite = write(connection->socket, &buffer->data[buffer->position], buffer->limit - buffer->position)) == -1) {
         return _ConnectionHandleError(connection, WRITING, errno);
     }
+
+    ProbeSize(PROBE_NETWORK_WRITE_SIZE, nbWrite);
 
     buffer->position += nbWrite;
 
@@ -411,6 +419,10 @@ void FreeConnection(Connection** connection) {
             FreeBuffer(&pConnection->writeBuffer);
         }
 
+        if (pConnection->dataBuffer != NULL) {
+            FreeBuffer(&pConnection->dataBuffer);
+        }
+
         if (pConnection->address != NULL) {
             FreeAddress(&pConnection->address);
         }
@@ -427,7 +439,7 @@ void FreeConnection(Connection** connection) {
             FreeLock(&pConnection->lock);
         }
 
-        free(pConnection);
+        aio4c_free(pConnection);
         *connection = NULL;
     }
 }

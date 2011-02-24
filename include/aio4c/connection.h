@@ -64,6 +64,7 @@ typedef enum e_ConnectionOwner {
 typedef struct s_Connection {
     Buffer*              readBuffer;
     Buffer*              writeBuffer;
+    Buffer*              dataBuffer;
     aio4c_socket_t       socket;
     Address*             address;
     ConnectionState      state;

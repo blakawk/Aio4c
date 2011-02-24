@@ -19,10 +19,12 @@
  **/
 #include <aio4c/worker.h>
 
+#include <aio4c/alloc.h>
 #include <aio4c/buffer.h>
 #include <aio4c/connection.h>
 #include <aio4c/event.h>
 #include <aio4c/log.h>
+#include <aio4c/stats.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 #include <aio4c/writer.h>
@@ -40,6 +42,8 @@ static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
     if (item->type == DATA) {
         task = (Task*)item->content.data;
         if (task->connection == discriminant) {
+            FreeBuffer(&task->buffer);
+            aio4c_free(task);
             return true;
         }
     }
@@ -48,24 +52,27 @@ static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
 }
 
 static aio4c_bool_t _WorkerRun(Worker* worker) {
-    QueueItem* item = NULL;
+    QueueItem item;
     Task* task = NULL;
     Connection* connection = NULL;
 
     while (Dequeue(worker->queue, &item, true)) {
-        switch (item->type) {
+        switch (item.type) {
             case EXIT:
-                FreeItem(&item);
                 return false;
             case DATA:
-                task = (Task*)item->content.data;
-                ConnectionEventHandle(task->connection, INBOUND_DATA_EVENT, task->buffer);
+                task = (Task*)item.content.data;
+                ProbeTimeStart(TIME_PROBE_DATA_PROCESS);
+                task->connection->dataBuffer = task->buffer;
+                ConnectionEventHandle(task->connection, INBOUND_DATA_EVENT, task->connection);
+                task->connection->dataBuffer = NULL;
+                ProbeSize(PROBE_PROCESSED_DATA_SIZE,task->buffer->position);
+                ProbeTimeEnd(TIME_PROBE_DATA_PROCESS);
                 FreeBuffer(&task->buffer);
-                free(task);
+                aio4c_free(task);
                 break;
             case EVENT:
-                connection = (Connection*)item->content.event.source;
-                RemoveAll(worker->queue, aio4c_remove_callback(_removeCallback), aio4c_remove_discriminant(connection));
+                connection = (Connection*)item.content.event.source;
                 Log(worker->thread, DEBUG, "close received for connection %s", connection->string);
                 if (ConnectionNoMoreUsed(connection, WORKER)) {
                     Log(worker->thread, DEBUG, "freeing connection %s", connection->string);
@@ -73,7 +80,6 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
                 }
                 break;
         }
-        FreeItem(&item);
     }
 
     return true;
@@ -86,45 +92,41 @@ static void _WorkerExit(Worker* worker) {
 
     Log(worker->thread, INFO, "exited");
 
-    free(worker);
+    aio4c_free(worker);
 }
 
 Worker* NewWorker(char* name, aio4c_size_t bufferSize) {
     Worker* worker = NULL;
 
-    if ((worker = malloc(sizeof(Worker))) == NULL) {
+    if ((worker = aio4c_malloc(sizeof(Worker))) == NULL) {
         return NULL;
     }
 
     worker->queue = NewQueue();
     worker->bufferSize = bufferSize;
-    worker->thread = NULL;
-    worker->thread = NewThread(name, aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
     worker->writer = NULL;
     worker->writer = NewWriter(worker->thread, "writer", worker->bufferSize);
+    worker->thread = NULL;
+    worker->thread = NewThread(name, aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
 
     return worker;
 }
 
 static void _WorkerCloseHandler(Event event, Connection* source, Worker* worker) {
-    QueueItem* item = NULL;
+    RemoveAll(worker->queue, aio4c_remove_callback(_removeCallback), aio4c_remove_discriminant(source));
 
-    if (!Enqueue(worker->queue, item = NewEventItem(event, source))) {
-        FreeItem(&item);
-        return;
-    }
+    EnqueueEventItem(worker->queue, event, source);
 }
 
 static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) {
     Buffer* bufferCopy = NULL;
     Task* task = NULL;
-    QueueItem* item = NULL;
 
-    if (event != READ_EVENT) {
+    if (event != READ_EVENT || source->state == CLOSED) {
         return;
     }
 
-    if ((task = malloc(sizeof(Task))) == NULL) {
+    if ((task = aio4c_malloc(sizeof(Task))) == NULL) {
         return;
     }
 
@@ -139,12 +141,9 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
     task->connection = source;
     task->buffer = bufferCopy;
 
-    item = NewDataItem((void*)task);
-
-    if (!Enqueue(worker->queue, item)) {
-        FreeItem(&item);
+    if (!EnqueueDataItem(worker->queue, task)) {
         FreeBuffer(&bufferCopy);
-        free(task);
+        aio4c_free(task);
         return;
     }
 }
@@ -158,10 +157,7 @@ void WorkerManageConnection(Worker* worker, Connection* connection) {
 void WorkerEnd(Worker* worker) {
     Thread* th = worker->thread;
 
-    QueueItem* item = NewExitItem();
-
-    if (!Enqueue(worker->queue, item)) {
-        FreeItem(&item);
+    if (!EnqueueExitItem(worker->queue)) {
         return;
     }
 

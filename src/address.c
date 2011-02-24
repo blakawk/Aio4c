@@ -19,6 +19,7 @@
  **/
 #include <aio4c/address.h>
 
+#include <aio4c/alloc.h>
 #include <aio4c/types.h>
 
 #include <arpa/inet.h>
@@ -79,7 +80,7 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
     aio4c_bool_t addPort = false;
     aio4c_size_t addrLen = 0, stringLen = 0;
 
-    if ((pAddress = malloc(sizeof(Address))) == NULL) {
+    if ((pAddress = aio4c_malloc(sizeof(Address))) == NULL) {
         return NULL;
     }
 
@@ -97,7 +98,7 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             break;
     }
 
-    if ((pAddress->address = malloc(pAddress->size)) == NULL) {
+    if ((pAddress->address = aio4c_malloc(pAddress->size)) == NULL) {
         FreeAddress(&pAddress);
         return NULL;
     }
@@ -108,7 +109,7 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv4->sin_family = AF_INET;
             ipv4->sin_port = htons(port);
             ResolveIP(type, address, (struct sockaddr*)ipv4);
-            if ((pAddress->string = malloc(INET_ADDRSTRLEN * sizeof(char))) != NULL) {
+            if ((pAddress->string = aio4c_malloc(INET_ADDRSTRLEN * sizeof(char))) != NULL) {
                 if ((inet_ntop(AF_INET, &ipv4->sin_addr, pAddress->string, INET_ADDRSTRLEN)) != NULL) {
                     addrLen = strlen(pAddress->string);
                     addPort = true;
@@ -122,7 +123,7 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv6->sin6_flowinfo = 0;
             ipv6->sin6_scope_id = 0;
             ResolveIP(type, address, (struct sockaddr*)ipv6);
-            if ((pAddress->string = malloc((INET6_ADDRSTRLEN + 1) * sizeof(char))) != NULL) {
+            if ((pAddress->string = aio4c_malloc((INET6_ADDRSTRLEN + 1) * sizeof(char))) != NULL) {
                 if ((inet_ntop(AF_INET6, &ipv6->sin6_addr, &pAddress->string[1], INET6_ADDRSTRLEN)) != NULL) {
                     pAddress->string[0] = '[';
                     addrLen = strlen(pAddress->string);
@@ -143,11 +144,11 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
     if (addPort) {
         if (type == IPV4) {
             stringLen = snprintf(&pAddress->string[addrLen], 0, ":%u", port);
-            pAddress->string = realloc(pAddress->string, (addrLen + stringLen + 1) * sizeof(char));
+            pAddress->string = aio4c_realloc(pAddress->string, (addrLen + stringLen + 1) * sizeof(char));
             snprintf(&pAddress->string[addrLen], stringLen + 1, ":%u", port);
         } else if (type == IPV6) {
             stringLen = snprintf(&pAddress->string[addrLen], 0, "]:%u", port);
-            pAddress->string = realloc(pAddress->string, (addrLen + stringLen + 1) * sizeof(char));
+            pAddress->string = aio4c_realloc(pAddress->string, (addrLen + stringLen + 1) * sizeof(char));
             snprintf(&pAddress->string[addrLen], stringLen + 1, "]:%u", port);
         }
     }
@@ -160,14 +161,14 @@ void FreeAddress(Address** address) {
 
     if (address != NULL && (pAddress = *address) != NULL) {
         if (pAddress->address != NULL) {
-            free(pAddress->address);
+            aio4c_free(pAddress->address);
         }
 
         if (pAddress->string != NULL) {
-            free(pAddress->string);
+            aio4c_free(pAddress->string);
         }
 
-        free(pAddress);
+        aio4c_free(pAddress);
         *address = NULL;
     }
 }

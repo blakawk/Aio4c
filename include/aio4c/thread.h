@@ -172,6 +172,8 @@ typedef struct s_Selector {
     Lock*          lock;
 } Selector;
 
+extern int GetNumThreads(void);
+
 extern Lock* NewLock(void);
 
 extern Lock* TakeLock(Lock* lock);
@@ -190,17 +192,13 @@ extern void FreeCondition(Condition** condition);
 
 extern Queue* NewQueue(void);
 
-extern QueueItem* NewDataItem(void* data);
+extern aio4c_bool_t EnqueueDataItem(Queue* queue, void* data);
 
-extern QueueItem* NewEventItem(Event event, void* source);
+extern aio4c_bool_t EnqueueExitItem(Queue* queue);
 
-extern QueueItem* NewExitItem(void);
+extern aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, void* source);
 
-extern void FreeItem(QueueItem** item);
-
-extern aio4c_bool_t Dequeue(Queue* queue, QueueItem** item, aio4c_bool_t wait);
-
-extern aio4c_bool_t Enqueue(Queue* queue, QueueItem* item) __attribute__ ((warn_unused_result));
+extern aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait);
 
 extern aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,void*), void* discriminant);
 

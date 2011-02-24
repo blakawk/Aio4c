@@ -20,6 +20,7 @@
 #include <aio4c/acceptor.h>
 
 #include <aio4c/address.h>
+#include <aio4c/alloc.h>
 #include <aio4c/connection.h>
 #include <aio4c/log.h>
 #include <aio4c/reader.h>
@@ -50,7 +51,6 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
     char* host = NULL;
     Connection* connection = NULL;
     SelectionKey* key = NULL;
-    QueueItem* item = NULL;
 
     memset(&addr, 0, sizeof(struct sockaddr));
 
@@ -61,19 +61,19 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
             if ((sock = accept(acceptor->socket, &addr, &addrSize)) >= 0) {
                 switch(acceptor->address->type) {
                     case IPV4:
-                        if ((host = malloc(INET_ADDRSTRLEN * sizeof(char))) != NULL) {
+                        if ((host = aio4c_malloc(INET_ADDRSTRLEN * sizeof(char))) != NULL) {
                             if (inet_ntop(AF_INET, &(((struct sockaddr_in*)&addr)->sin_addr), host, INET_ADDRSTRLEN) != NULL) {
                                 address = NewAddress(IPV4, host, ntohs(((struct sockaddr_in*)&addr)->sin_port));
                             }
-                            free(host);
+                            aio4c_free(host);
                         }
                         break;
                     case IPV6:
-                        if ((host = malloc(INET6_ADDRSTRLEN * sizeof(char))) != NULL) {
+                        if ((host = aio4c_malloc(INET6_ADDRSTRLEN * sizeof(char))) != NULL) {
                             if (inet_ntop(AF_INET6, &(((struct sockaddr_in6*)&addr)->sin6_addr), host, INET6_ADDRSTRLEN) != NULL) {
                                 address = NewAddress(IPV6, host, ntohs(((struct sockaddr_in6*)&addr)->sin6_port));
                             }
-                            free(host);
+                            aio4c_free(host);
                         }
                         break;
                     case UNIX:
@@ -85,9 +85,7 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
 
                 connection = ConnectionFactoryCreate(acceptor->factory, address, sock);
 
-                if (!Enqueue(acceptor->queue, item = NewDataItem(connection))) {
-                    FreeItem(&item);
-                }
+                EnqueueDataItem(acceptor->queue, connection);
 
                 ReaderManageConnection(acceptor->reader, connection);
             }
@@ -98,16 +96,17 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
 }
 
 static void _AcceptorExit(Acceptor* acceptor) {
-    QueueItem* item = NULL;
+    QueueItem item;
     Connection* connection = NULL;
+
+    memset(&item, 0, sizeof(QueueItem));
 
     Unregister(acceptor->selector, acceptor->key, true);
     close(acceptor->socket);
 
     while (Dequeue(acceptor->queue, &item, false)) {
-        connection = (Connection*)item->content.data;
+        connection = (Connection*)item.content.data;
         ConnectionClose(connection);
-        FreeItem(&item);
     }
 
     FreeQueue(&acceptor->queue);
@@ -118,7 +117,7 @@ static void _AcceptorExit(Acceptor* acceptor) {
 
     Log(acceptor->thread, INFO, "exited");
 
-    free(acceptor);
+    aio4c_free(acceptor);
 }
 
 static aio4c_bool_t _AcceptorRemoveCallback(QueueItem* item, Connection* discriminant) {
@@ -150,7 +149,7 @@ Acceptor* NewAcceptor(char* name, AddressType type, char* address, aio4c_port_t 
     Acceptor* acceptor = NULL;
     int reuseaddr = 1;
 
-    if ((acceptor = malloc(sizeof(Acceptor))) == NULL) {
+    if ((acceptor = aio4c_malloc(sizeof(Acceptor))) == NULL) {
         return NULL;
     }
 
@@ -163,31 +162,31 @@ Acceptor* NewAcceptor(char* name, AddressType type, char* address, aio4c_port_t 
 
     if (acceptor->socket == -1) {
         FreeAddress(&acceptor->address);
-        free(acceptor);
+        aio4c_free(acceptor);
         return NULL;
     }
 
     if (fcntl(acceptor->socket, F_SETFL, O_NONBLOCK) == -1) {
         FreeAddress(&acceptor->address);
-        free(acceptor);
+        aio4c_free(acceptor);
         return NULL;
     }
 
     if (setsockopt(acceptor->socket, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr)) == -1) {
         FreeAddress(&acceptor->address);
-        free(acceptor);
+        aio4c_free(acceptor);
         return NULL;
     }
 
     if (bind(acceptor->socket, (struct sockaddr*)acceptor->address->address, acceptor->address->size) == -1) {
         FreeAddress(&acceptor->address);
-        free(acceptor);
+        aio4c_free(acceptor);
         return NULL;
     }
 
     if (listen(acceptor->socket, SOMAXCONN) == -1) {
         FreeAddress(&acceptor->address);
-        free(acceptor);
+        aio4c_free(acceptor);
         return NULL;
     }
 
