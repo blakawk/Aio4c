@@ -139,7 +139,7 @@ int main (void) {
     data->counter = 0;
 
     Thread* mainThread = ThreadMain("main");
-    LogInit(mainThread, DEBUG, "client.log");
+    LogInit(mainThread, INFO, "client.log");
 
     client->queue = NewQueue();
     data->thread = NewThread("test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);

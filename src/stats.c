@@ -66,7 +66,7 @@ void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop)
     _timeProbes[type] += (double)(stop->tv_sec - start->tv_sec) * 1000000.0 + (double)(stop->tv_usec - start->tv_usec);
 }
 
-void _ProbeSize(ProbeSizeType type, long size) {
+void _ProbeSize(ProbeSizeType type, int size) {
     _sizeProbes[type] += (double)size;
 }
 
@@ -192,5 +192,7 @@ void _StatsEnd(void) {
         ThreadJoin(_statsThread);
         FreeThread(&_statsThread);
     }
+
+    _PrintStats();
 }
 

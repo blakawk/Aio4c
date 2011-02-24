@@ -36,7 +36,7 @@
     _ProbeTime(type,&_start,&_stop); \
 }
 #define ProbeSize(type,value) \
-    _ProbeSize(type,(long)value)
+    _ProbeSize(type,value)
 #else
 #define ProbeTimeStart(type)
 #define ProbeTimeEnd(type)
@@ -71,7 +71,7 @@ extern void _InitProbes(void) __attribute__((constructor));
 
 extern void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop);
 
-extern void _ProbeSize(ProbeSizeType type, long size);
+extern void _ProbeSize(ProbeSizeType type, int size);
 
 #if AIO4C_ENABLE_STATS == 1
 extern void _StatsEnd(void) __attribute__((destructor));
