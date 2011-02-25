@@ -46,23 +46,16 @@ char* ConnectionStateString[MAX_CONNECTION_STATES] = {
     "CLOSED"
 };
 
-Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
+Connection* NewConnection(Buffer* readBuffer, Buffer* writeBuffer, Address* address) {
     Connection* connection = NULL;
 
     if ((connection = aio4c_malloc(sizeof(Connection))) == NULL) {
         return NULL;
     }
 
-    if ((connection->readBuffer = NewBuffer(bufferSize)) == NULL) {
-        FreeConnection(&connection);
-        return NULL;
-    }
 
-    if ((connection->writeBuffer = NewBuffer(bufferSize)) == NULL) {
-        FreeConnection(&connection);
-        return NULL;
-    }
-
+    connection->readBuffer = readBuffer;
+    connection->writeBuffer = writeBuffer;
     BufferLimit(connection->writeBuffer, 0);
     connection->dataBuffer = NULL;
     connection->socket = -1;
@@ -74,16 +67,16 @@ Connection* NewConnection(aio4c_size_t bufferSize, Address* address) {
     connection->closeCode = 0;
     connection->string = address->string;
     connection->lock = NewLock();
-    connection->bufferSize = bufferSize;
     memset(connection->closedBy, 0, AIO4C_MAX_OWNERS * sizeof(aio4c_bool_t));
     connection->closedBy[ACCEPTOR] = true;
     connection->readKey = NULL;
     connection->writeKey = NULL;
+    connection->pool = NULL;
 
     return connection;
 }
 
-Connection* NewConnectionFactory(aio4c_size_t bufferSize) {
+Connection* NewConnectionFactory(BufferPool* pool) {
     Connection* connection = NULL;
 
     if ((connection = aio4c_malloc(sizeof(Connection))) == NULL) {
@@ -94,6 +87,7 @@ Connection* NewConnectionFactory(aio4c_size_t bufferSize) {
     connection->readBuffer = NULL;
     connection->dataBuffer = NULL;
     connection->writeBuffer = NULL;
+    connection->pool = pool;
     connection->state = CLOSED;
     connection->systemHandlers = NewEventQueue();
     connection->userHandlers = NewEventQueue();
@@ -102,7 +96,6 @@ Connection* NewConnectionFactory(aio4c_size_t bufferSize) {
     connection->closeCode = 0;
     connection->string = "factory";
     connection->lock = NewLock();
-    connection->bufferSize = bufferSize;
     memset(connection->closedBy, 0, AIO4C_MAX_OWNERS * sizeof(aio4c_bool_t));
     connection->readKey = NULL;
     connection->writeKey = NULL;
@@ -113,7 +106,7 @@ Connection* NewConnectionFactory(aio4c_size_t bufferSize) {
 Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c_socket_t socket) {
     Connection* connection = NULL;
 
-    connection = NewConnection(factory->bufferSize, address);
+    connection = NewConnection(AllocateBuffer(factory->pool), AllocateBuffer(factory->pool), address);
 
     connection->socket = socket;
 
@@ -412,15 +405,15 @@ void FreeConnection(Connection** connection) {
         ConnectionClose(pConnection);
 
         if (pConnection->readBuffer != NULL) {
-            FreeBuffer(&pConnection->readBuffer);
+            ReleaseBuffer(&pConnection->readBuffer);
         }
 
         if (pConnection->writeBuffer != NULL) {
-            FreeBuffer(&pConnection->writeBuffer);
+            ReleaseBuffer(&pConnection->writeBuffer);
         }
 
         if (pConnection->dataBuffer != NULL) {
-            FreeBuffer(&pConnection->dataBuffer);
+            ReleaseBuffer(&pConnection->dataBuffer);
         }
 
         if (pConnection->address != NULL) {

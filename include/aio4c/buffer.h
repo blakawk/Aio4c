@@ -20,18 +20,36 @@
 #ifndef __AIO4C_BUFFER_H__
 #define __AIO4C_BUFFER_H__
 
+#include <aio4c/thread.h>
 #include <aio4c/types.h>
 
+typedef struct s_BufferPool BufferPool;
+
 typedef struct s_Buffer {
+    BufferPool*   pool;
+    int           poolIndex;
     int           size;
     aio4c_byte_t* data;
     int           position;
     int           limit;
 } Buffer;
 
-extern Buffer* NewBuffer(int size);
+struct s_BufferPool {
+    Buffer** buffers;
+    int      size;
+    int      used;
+    int      batch;
+    int      bufferSize;
+    Lock*    lock;
+};
 
-extern void FreeBuffer(Buffer** buffer);
+extern BufferPool* NewBufferPool(int batch, int bufferSize);
+
+extern Buffer* AllocateBuffer(BufferPool* pool);
+
+extern void ReleaseBuffer(Buffer** buffer);
+
+extern void FreeBufferPool(BufferPool** pool);
 
 extern Buffer* BufferFlip(Buffer* buffer);
 

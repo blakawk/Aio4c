@@ -81,8 +81,10 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
                 }
                 break;
             case EVENT:
+                ProbeTimeStart(TIME_PROBE_NETWORK_WRITE);
                 connection = (Connection*)item.content.event.source;
                 connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
+                ProbeTimeEnd(TIME_PROBE_NETWORK_WRITE);
                 break;
         }
     }
@@ -92,14 +94,14 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
     ProbeTimeEnd(TIME_PROBE_IDLE);
 
     if (numConnectionsReady > 0) {
+        ProbeTimeStart(TIME_PROBE_NETWORK_WRITE);
+
         while (SelectionKeyReady(writer->selector, &key)) {
             connection = (Connection*)key->attachment;
             unregister = true;
 
             if (key->result & (int)key->operation) {
-                ProbeTimeStart(TIME_PROBE_NETWORK_WRITE);
                 ConnectionWrite(connection);
-                ProbeTimeEnd(TIME_PROBE_NETWORK_WRITE);
 
                 if (BufferHasRemaining(connection->writeBuffer) && connection->state != CLOSED) {
                     unregister = false;
@@ -114,6 +116,8 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
         while (Dequeue(writer->toUnregister, &item, false)) {
             Unregister(writer->selector, (SelectionKey*)item.content.data, false);
         }
+
+        ProbeTimeEnd(TIME_PROBE_NETWORK_WRITE);
     }
 
     return true;

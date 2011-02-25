@@ -42,7 +42,7 @@ static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
     if (item->type == DATA) {
         task = (Task*)item->content.data;
         if (task->connection == discriminant) {
-            FreeBuffer(&task->buffer);
+            ReleaseBuffer(&task->buffer);
             aio4c_free(task);
             return true;
         }
@@ -67,9 +67,9 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
                 ConnectionEventHandle(task->connection, INBOUND_DATA_EVENT, task->connection);
                 task->connection->dataBuffer = NULL;
                 ProbeSize(PROBE_PROCESSED_DATA_SIZE,task->buffer->position);
-                ProbeTimeEnd(TIME_PROBE_DATA_PROCESS);
-                FreeBuffer(&task->buffer);
+                ReleaseBuffer(&task->buffer);
                 aio4c_free(task);
+                ProbeTimeEnd(TIME_PROBE_DATA_PROCESS);
                 break;
             case EVENT:
                 connection = (Connection*)item.content.event.source;
@@ -87,6 +87,7 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
 
 static void _WorkerExit(Worker* worker) {
     FreeQueue(&worker->queue);
+    FreeBufferPool(&worker->pool);
 
     WriterEnd(worker->writer);
 
@@ -108,6 +109,7 @@ Worker* NewWorker(char* name, aio4c_size_t bufferSize) {
     worker->writer = NewWriter(worker->thread, "writer", worker->bufferSize);
     worker->thread = NULL;
     worker->thread = NewThread(name, aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
+    worker->pool = NewBufferPool(4, bufferSize);
 
     return worker;
 }
@@ -122,6 +124,8 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
     Buffer* bufferCopy = NULL;
     Task* task = NULL;
 
+    ProbeTimeStart(TIME_PROBE_DATA_PROCESS);
+
     if (event != READ_EVENT || source->state == CLOSED) {
         return;
     }
@@ -130,7 +134,7 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
         return;
     }
 
-    bufferCopy = NewBuffer(worker->bufferSize);
+    bufferCopy = AllocateBuffer(worker->pool);
 
     BufferFlip(source->readBuffer);
 
@@ -142,10 +146,12 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
     task->buffer = bufferCopy;
 
     if (!EnqueueDataItem(worker->queue, task)) {
-        FreeBuffer(&bufferCopy);
+        ReleaseBuffer(&bufferCopy);
         aio4c_free(task);
         return;
     }
+
+    ProbeTimeEnd(TIME_PROBE_DATA_PROCESS);
 }
 
 void WorkerManageConnection(Worker* worker, Connection* connection) {

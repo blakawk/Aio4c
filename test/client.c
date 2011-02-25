@@ -1,5 +1,6 @@
 #include <aio4c/address.h>
 #include <aio4c/alloc.h>
+#include <aio4c/buffer.h>
 #include <aio4c/connection.h>
 #include <aio4c/log.h>
 #include <aio4c/reader.h>
@@ -128,8 +129,9 @@ void clientExit(Client* c) {
 }
 
 int main (void) {
-    Address* addr = NewAddress(IPV4, "localhost", 11111);
-    Connection* conn = NewConnection(8192, addr);
+    Address* addr = NewAddress(IPV4, "srvotc", 11111);
+    BufferPool* pool = NewBufferPool(2, 8192);
+    Connection* conn = NewConnection(AllocateBuffer(pool), AllocateBuffer(pool), addr);
     Data* data = aio4c_malloc(sizeof(Data));
     Client* client = aio4c_malloc(sizeof(Client));
     client->conn = conn;
@@ -153,6 +155,7 @@ int main (void) {
     aio4c_free(client);
     LogEnd();
     FreeThread(&mainThread);
+    FreeBufferPool(&pool);
 
     return EXIT_SUCCESS;
 }

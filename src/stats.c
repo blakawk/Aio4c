@@ -24,10 +24,12 @@
 #include <string.h>
 #include <unistd.h>
 
-static double  _timeProbes[TIME_MAX_PROBE_TYPE];
-static double  _sizeProbes[PROBE_MAX_SIZE_TYPE];
-static Thread* _statsThread = NULL;
-static FILE*   _statsFile = NULL;
+static double       _timeProbes[TIME_MAX_PROBE_TYPE];
+static aio4c_lock_t _timeProbesLock;
+static double       _sizeProbes[PROBE_MAX_SIZE_TYPE];
+static aio4c_lock_t _sizeProbesLock;
+static Thread*      _statsThread = NULL;
+static FILE*        _statsFile = NULL;
 
 static void _statsInit(void* dummy) {
     dummy = NULL;
@@ -43,11 +45,14 @@ void _WriteStats(void);
 
 static aio4c_bool_t _statsRun(void* dummy) {
     dummy = NULL;
+
     _PrintStats();
     if (_statsFile != NULL) {
         _WriteStats();
     }
+
     sleep(1);
+
     return true;
 }
 
@@ -59,15 +64,21 @@ static void _statsExit(void* dummy) {
 void _InitProbes(void) {
     memset(_timeProbes, 0, TIME_MAX_PROBE_TYPE * sizeof(double));
     memset(_sizeProbes, 0, PROBE_MAX_SIZE_TYPE * sizeof(double));
+    aio4c_mutex_init(&_timeProbesLock, NULL);
+    aio4c_mutex_init(&_sizeProbesLock, NULL);
     _statsThread = NewThread("stats", aio4c_thread_handler(_statsInit), aio4c_thread_run(_statsRun), aio4c_thread_handler(_statsExit), aio4c_thread_arg(NULL));
 }
 
 void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop) {
+    aio4c_mutex_lock(&_timeProbesLock);
     _timeProbes[type] += (double)(stop->tv_sec - start->tv_sec) * 1000000.0 + (double)(stop->tv_usec - start->tv_usec);
+    aio4c_mutex_unlock(&_timeProbesLock);
 }
 
 void _ProbeSize(ProbeSizeType type, int size) {
+    aio4c_mutex_lock(&_sizeProbesLock);
     _sizeProbes[type] += (double)size;
+    aio4c_mutex_unlock(&_sizeProbesLock);
 }
 
 static double _elapsedTime(void) {
@@ -130,28 +141,47 @@ static void _ConvertSize(double size, double* result, char** unit) {
 }
 
 static void _ptimes(char* label, ProbeTimeType tType) {
+    aio4c_mutex_lock(&_timeProbesLock);
     pstats("=== %s: %.3f s [%.3f%%]\n", label, _timeProbes[tType] / 1000000.0,
             _timeProbes[tType] * 100.0 / _elapsedTime());
+    aio4c_mutex_unlock(&_timeProbesLock);
 }
 
 static void _pstats(char* label, ProbeTimeType tType, ProbeSizeType sType) {
     double size = 0.0;
     char* unit = NULL;
 
+    aio4c_mutex_lock(&_sizeProbesLock);
     _ConvertSize(_sizeProbes[sType], &size, &unit);
+    aio4c_mutex_unlock(&_sizeProbesLock);
+    aio4c_mutex_lock(&_timeProbesLock);
     pstats("=== %s: %.3f %s in %.3f s [%.3f%%]\n", label, size, unit,
             _timeProbes[tType] / 1000000.0,
             _timeProbes[tType] * 100.0 / _elapsedTime());
+    aio4c_mutex_unlock(&_timeProbesLock);
 }
 
 void _PrintStats(void) {
+    static double lastAlloc = 0.0, lastFree = 0.0;
+    long _alloc = 0L, _free = 0L;
+
+    aio4c_mutex_lock(&_sizeProbesLock);
+    _alloc = (long)_sizeProbes[PROBE_MEMORY_ALLOCATE_COUNT] - lastAlloc;
+    lastAlloc = _sizeProbes[PROBE_MEMORY_ALLOCATE_COUNT];
+    _free = (long)_sizeProbes[PROBE_MEMORY_FREE_COUNT] - lastFree;
+    lastFree = _sizeProbes[PROBE_MEMORY_FREE_COUNT];
+    aio4c_mutex_unlock(&_sizeProbesLock);
+
      pstats("================= STATISTICS ===================%c", '\n');
-    _pstats("MEMORY ALLOCATION", TIME_PROBE_MEMORY_ALLOCATION, PROBE_MEMORY_ALLOCATED_SIZE);
+    _pstats("ALLOCATED MEMORY ", TIME_PROBE_MEMORY_ALLOCATION, PROBE_MEMORY_ALLOCATED_SIZE);
+    _pstats("ALLOCATED BUFFERS", TIME_PROBE_BUFFER_ALLOCATION, PROBE_BUFFER_ALLOCATED_SIZE);
+    pstats("=== MEMORY ALLOCATION: %ld allocations, %ld frees\n", _alloc, _free);
     _pstats("NETWORK READ     ", TIME_PROBE_NETWORK_READ, PROBE_NETWORK_READ_SIZE);
     _pstats("NETWORK WRITE    ", TIME_PROBE_NETWORK_WRITE, PROBE_NETWORK_WRITE_SIZE);
     _pstats("PROCESSED DATA   ", TIME_PROBE_DATA_PROCESS, PROBE_PROCESSED_DATA_SIZE);
     _ptimes("IDLE TIME        ", TIME_PROBE_IDLE);
     _ptimes("BLOCKED TIME     ", TIME_PROBE_BLOCK);
+     pstats("=== RUNNING THREADS  : %d\n", GetNumThreads());
      pstats("=================    END     ===================%c", '\n');
 }
 
@@ -162,7 +192,7 @@ void _WriteStats(void) {
     static aio4c_bool_t _initialized = false;
     struct timeval time;
     static double lastRead = 0.0, lastWrite = 0.0, lastProcess = 0.0, lastIdle = 0.0;
-    double read = 0.0, write = 0.0, process = 0.0, idle = 0.0;
+    double read = 0.0, write = 0.0, process = 0.0, idle = 0.0, allocated = 0.0, connections = 0.0;
 
     if (!_initialized) {
         _initialized = true;
@@ -171,18 +201,24 @@ void _WriteStats(void) {
 
     gettimeofday(&time, NULL);
 
+    aio4c_mutex_lock(&_sizeProbesLock);
     read =  _sizeProbes[PROBE_NETWORK_READ_SIZE] - lastRead;
     lastRead = _sizeProbes[PROBE_NETWORK_READ_SIZE];
     write = _sizeProbes[PROBE_NETWORK_WRITE_SIZE] - lastWrite;
     lastWrite = _sizeProbes[PROBE_NETWORK_WRITE_SIZE];
     process = _sizeProbes[PROBE_PROCESSED_DATA_SIZE] - lastProcess;
     lastProcess = _sizeProbes[PROBE_PROCESSED_DATA_SIZE];
+    aio4c_mutex_unlock(&_sizeProbesLock);
+    aio4c_mutex_lock(&_timeProbesLock);
     idle = _timeProbes[TIME_PROBE_IDLE] - lastIdle;
     lastIdle = _timeProbes[TIME_PROBE_IDLE];
+    allocated = _sizeProbes[PROBE_MEMORY_ALLOCATED_SIZE];
+    connections = _sizeProbes[PROBE_CONNECTION_COUNT];
+    aio4c_mutex_unlock(&_timeProbesLock);
 
     fprintf(_statsFile, "%u;%d,%d;%d,%d;%d,%d;%d,%d;%d;%d,%d\r\n", (unsigned int)(time.tv_sec - _start.tv_sec),
-            floatWithComma(_sizeProbes[PROBE_MEMORY_ALLOCATED_SIZE] / 1024.0),
-            floatWithComma(read / 1024.0), floatWithComma(write / 1024.0), floatWithComma(process / 1024.0), (int)_sizeProbes[PROBE_CONNECTIONS_SIZE],
+            floatWithComma(allocated / 1024.0),
+            floatWithComma(read / 1024.0), floatWithComma(write / 1024.0), floatWithComma(process / 1024.0), (int)connections,
             floatWithComma(idle / 1000.0));
 }
 

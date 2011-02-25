@@ -43,6 +43,7 @@ void* aio4c_malloc(aio4c_size_t size) {
     memset(ptr, 0, size + sizeof(size));
 
     ProbeSize(PROBE_MEMORY_ALLOCATED_SIZE, size);
+    ProbeSize(PROBE_MEMORY_ALLOCATE_COUNT, 1);
 
     sPtr = (aio4c_size_t*)ptr;
     sPtr[0] = size;
@@ -82,6 +83,7 @@ void* aio4c_realloc(void* ptr, aio4c_size_t size) {
         memset(&cPtr[prevSize], 0, size - prevSize);
     }
 
+    ProbeSize(PROBE_MEMORY_ALLOCATE_COUNT, 1);
     ProbeSize(PROBE_MEMORY_ALLOCATED_SIZE, size - prevSize);
 
     ProbeTimeEnd(TIME_PROBE_MEMORY_ALLOCATION);
@@ -102,6 +104,7 @@ void aio4c_free(void* ptr) {
     free(ptr);
 
     ProbeSize(PROBE_MEMORY_ALLOCATED_SIZE, -size);
+    ProbeSize(PROBE_MEMORY_FREE_COUNT, 1);
 
     ProbeTimeEnd(TIME_PROBE_MEMORY_ALLOCATION);
 }

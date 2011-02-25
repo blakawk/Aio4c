@@ -34,9 +34,10 @@
 static Thread*      _threads[AIO4C_MAX_THREADS];
 static aio4c_bool_t _threadsInitialized = false;
 static int          _numThreads = 0;
+static int          _numThreadsRunning = 0;
 
 int GetNumThreads(void) {
-    return _numThreads;
+    return _numThreadsRunning;
 }
 
 Lock* NewLock(void) {
@@ -107,13 +108,29 @@ Condition* NewCondition(void) {
 }
 
 aio4c_bool_t WaitCondition(Condition* condition, Lock* lock) {
-    ProbeTimeStart(TIME_PROBE_IDLE);
+#if AIO4C_ENABLE_STATS == 0
     if (aio4c_cond_wait(&condition->condition, &lock->mutex) != 0) {
         return false;
     }
-    ProbeTimeEnd(TIME_PROBE_IDLE);
 
     return true;
+#else
+    struct timespec ts;
+    int ret = 0;
+
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec++;
+
+    if ((ret = aio4c_cond_timedwait(&condition->condition, &lock->mutex, &ts)) != 0) {
+        if (ret == ETIMEDOUT) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    return true;
+#endif
 }
 
 void NotifyCondition(Condition* condition) {
@@ -163,10 +180,15 @@ aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait) {
         return false;
     }
 
+
     while (!queue->exit && wait && queue->numItems == 0 && queue->valid) {
+        ProbeTimeStart(TIME_PROBE_IDLE);
+
         if (!WaitCondition(queue->condition, queue->lock)) {
             break;
         }
+
+        ProbeTimeEnd(TIME_PROBE_IDLE);
     }
 
     if (queue->numItems > 0) {
@@ -382,6 +404,7 @@ Selector* NewSelector(void) {
     selector->numPolls = 1;
     selector->maxPolls = 1;
     selector->curKey = -1;
+    selector->curKeyCount = -1;
 
     selector->lock = NewLock();
 
@@ -548,7 +571,7 @@ void SelectorWakeUp(Selector* selector) {
     unsigned char dummy = 1;
     aio4c_poll_t polls[1] = { { .fd = selector->pipe[AIO4C_PIPE_WRITE], .events = AIO4C_OP_WRITE, .revents = 0 } };
 
-    if (poll(polls, 1, 0) > 0 && polls[0].revents == AIO4C_OP_WRITE) {
+    if (poll(polls, 1, 0) > 0 && polls[0].revents & AIO4C_OP_WRITE) {
         write(selector->pipe[AIO4C_PIPE_WRITE], &dummy, sizeof(unsigned char));
     }
 }
@@ -585,23 +608,41 @@ void FreeSelector(Selector** pSelector) {
 aio4c_bool_t SelectionKeyReady (Selector* selector, SelectionKey** key) {
     int i = 0;
     aio4c_bool_t result = true;
+    aio4c_poll_t polls[1] = { { .fd = 0, .events = 0, .revents = 0 } };
 
     TakeLock(selector->lock);
 
     if (selector->curKey == -1) {
         selector->curKey = 0;
+        selector->curKeyCount = 0;
     }
 
     if (selector->curKey >= selector->numKeys) {
         selector->curKey = -1;
+        selector->curKeyCount = -1;
         result = false;
     }
 
     if (result) {
+        if (selector->curKeyCount >= 1 && selector->keys[selector->curKey]->count > selector->curKeyCount) {
+            polls[0].fd = selector->keys[selector->curKey]->fd;
+            polls[0].events = selector->keys[selector->curKey]->operation;
+            if (poll(polls, 1, 0) == 1 && polls[0].revents & polls[0].events) {
+                selector->keys[selector->curKey]->result = polls[0].revents;
+                selector->curKeyCount++;
+                *key = selector->keys[selector->curKey];
+                return true;
+            } else {
+                selector->curKeyCount = 0;
+                selector->curKey++;
+            }
+        }
+
         for (i = selector->curKey; i < selector->numKeys; i++) {
             if (selector->polls[selector->keys[i]->poll].revents > 0) {
                 selector->keys[i]->result = selector->polls[selector->keys[i]->poll].revents;
                 *key = selector->keys[i];
+                selector->curKeyCount++;
                 selector->curKey = i + 1;
                 selector->polls[selector->keys[i]->poll].revents = 0;
                 break;
@@ -627,6 +668,8 @@ static void _ThreadCleanup(Thread* thread) {
         thread->exit(thread->arg);
     }
 
+    _numThreadsRunning--;
+
     ReleaseLock(thread->lock);
 
     for (i = 0; i < _numThreads; i++) {
@@ -640,6 +683,8 @@ static void _ThreadCleanup(Thread* thread) {
 
 static Thread* _runThread(Thread* thread) {
     TakeLock(thread->lock);
+
+    _numThreadsRunning++;
 
     if (thread->init != NULL) {
         thread->init(thread->arg);
@@ -788,7 +833,11 @@ Thread* ThreadJoin(Thread* thread) {
         return thread;
     }
 
+    _numThreadsRunning--;
+
     aio4c_thread_join(thread->id, &returnValue);
+
+    _numThreadsRunning++;
 
     aio4c_thread_detach(thread->id);
 

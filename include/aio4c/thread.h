@@ -44,6 +44,7 @@
 
 #define aio4c_cond_init pthread_cond_init
 #define aio4c_cond_wait pthread_cond_wait
+#define aio4c_cond_timedwait pthread_cond_timedwait
 #define aio4c_cond_signal pthread_cond_signal
 #define aio4c_cond_destroy pthread_cond_destroy
 
@@ -166,6 +167,7 @@ typedef struct s_Selector {
     int            numKeys;
     int            maxKeys;
     int            curKey;
+    int            curKeyCount;
     aio4c_poll_t*  polls;
     int            numPolls;
     int            maxPolls;

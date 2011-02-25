@@ -72,15 +72,15 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
     ProbeTimeEnd(TIME_PROBE_IDLE);
 
     if (numConnectionsReady > 0) {
+        ProbeTimeStart(TIME_PROBE_NETWORK_READ);
         while (SelectionKeyReady(reader->selector, &key)) {
             if (key->result & (int)key->operation) {
-                ProbeTimeStart(TIME_PROBE_NETWORK_READ);
                 connection = ConnectionRead((Connection*)key->attachment);
-                ProbeTimeEnd(TIME_PROBE_NETWORK_READ);
             } else {
                 ConnectionClose((Connection*)key->attachment);
             }
         }
+        ProbeTimeEnd(TIME_PROBE_NETWORK_READ);
     }
 
     return true;

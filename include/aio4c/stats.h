@@ -28,12 +28,12 @@
 #endif
 
 #if AIO4C_ENABLE_STATS == 1
-#define ProbeTimeStart(type) {     \
-    struct timeval _start, _stop;  \
+#define ProbeTimeStart(type) {                 \
+    struct timeval _start, _stop;              \
     gettimeofday(&_start, NULL);
-#define ProbeTimeEnd(type)         \
-    gettimeofday(&_stop, NULL);    \
-    _ProbeTime(type,&_start,&_stop); \
+#define ProbeTimeEnd(type)                     \
+    gettimeofday(&_stop, NULL);                \
+    _ProbeTime(type,&_start,&_stop);           \
 }
 #define ProbeSize(type,value) \
     _ProbeSize(type,value)
@@ -48,6 +48,7 @@
 
 typedef enum e_ProbeTimeType {
     TIME_PROBE_MEMORY_ALLOCATION,
+    TIME_PROBE_BUFFER_ALLOCATION,
     TIME_PROBE_NETWORK_READ,
     TIME_PROBE_NETWORK_WRITE,
     TIME_PROBE_DATA_PROCESS,
@@ -58,10 +59,13 @@ typedef enum e_ProbeTimeType {
 
 typedef enum e_ProbeSizeType {
     PROBE_MEMORY_ALLOCATED_SIZE,
+    PROBE_BUFFER_ALLOCATED_SIZE,
     PROBE_NETWORK_READ_SIZE,
     PROBE_NETWORK_WRITE_SIZE,
     PROBE_PROCESSED_DATA_SIZE,
-    PROBE_CONNECTIONS_SIZE,
+    PROBE_CONNECTION_COUNT,
+    PROBE_MEMORY_ALLOCATE_COUNT,
+    PROBE_MEMORY_FREE_COUNT,
     PROBE_MAX_SIZE_TYPE
 } ProbeSizeType;
 

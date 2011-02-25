@@ -36,6 +36,7 @@ typedef struct s_Worker {
     aio4c_size_t bufferSize;
     Writer*      writer;
     Queue*       queue;
+    BufferPool*  pool;
 } Worker;
 
 extern Worker* NewWorker(char* name, aio4c_size_t bufferSize);

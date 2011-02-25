@@ -36,7 +36,8 @@ int main(void) {
 
     _main = ThreadMain("server-main");
     LogInit(_main, DEBUG, "server.log");
-    Connection* factory = NewConnectionFactory(8192);
+    BufferPool* pool = NewBufferPool(2, 8192);
+    Connection* factory = NewConnectionFactory(pool);
     _acceptor = NewAcceptor("server-acceptor", IPV4, "localhost", 11111, factory);
 
     while ((nbRead = read(STDIN_FILENO, buffer, 31)) > 0) {

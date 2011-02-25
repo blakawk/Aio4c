@@ -74,10 +74,10 @@ typedef struct s_Connection {
     ConnectionCloseCause closeCause;
     int                  closeCode;
     char*                string;
-    aio4c_size_t         bufferSize;
     aio4c_bool_t         closedBy[AIO4C_MAX_OWNERS];
     SelectionKey*        readKey;
     SelectionKey*        writeKey;
+    BufferPool*          pool;
 } Connection;
 
 #define aio4c_connection_handler(handler) \
@@ -86,9 +86,9 @@ typedef struct s_Connection {
 #define aio4c_connection_handler_arg(arg) \
     (void*)arg
 
-extern Connection* NewConnection(aio4c_size_t bufferSize, Address* address);
+extern Connection* NewConnection(Buffer* readBuffer, Buffer* writeBuffer, Address* address);
 
-extern Connection* NewConnectionFactory(aio4c_size_t bufferSize);
+extern Connection* NewConnectionFactory(BufferPool* pool);
 
 extern Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c_socket_t sock);
 

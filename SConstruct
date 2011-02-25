@@ -48,6 +48,6 @@ if GetOption('PROFILING'):
 if GetOption('STATISTICS'):
     env.Append(CPPDEFINES = {"AIO4C_ENABLE_STATS" : 1})
 
-env.SharedLibrary('build/aio4c', Glob('build/src/*.c'), LIBS=['pthread'], CPPPATH=['include'])
+env.SharedLibrary('build/aio4c', Glob('build/src/*.c'), LIBS=['pthread','rt'], CPPPATH=['include'])
 env.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])
 env.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])

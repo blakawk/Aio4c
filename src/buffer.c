@@ -20,12 +20,15 @@
 #include <aio4c/buffer.h>
 
 #include <aio4c/alloc.h>
+#include <aio4c/log.h>
+#include <aio4c/stats.h>
 #include <aio4c/types.h>
+#include <aio4c/thread.h>
 
 #include <stdlib.h>
 #include <string.h>
 
-Buffer* NewBuffer(int size) {
+static Buffer* _NewBuffer(int size) {
     Buffer* buffer = NULL;
 
     if ((buffer = aio4c_malloc(sizeof(Buffer))) == NULL) {
@@ -44,7 +47,7 @@ Buffer* NewBuffer(int size) {
     return buffer;
 }
 
-void FreeBuffer(Buffer** buffer) {
+static void _FreeBuffer(Buffer** buffer) {
     Buffer* pBuffer = NULL;
 
     if (buffer != NULL && ((pBuffer = *buffer) != NULL)) {
@@ -58,6 +61,154 @@ void FreeBuffer(Buffer** buffer) {
     }
 }
 
+BufferPool* NewBufferPool(int batch, int bufferSize) {
+    BufferPool* pool = NULL;
+    int i = 0;
+
+    if ((pool = aio4c_malloc(sizeof(BufferPool))) == NULL) {
+        return NULL;
+    }
+
+    if ((pool->lock = NewLock()) == NULL) {
+        free(pool);
+        return NULL;
+    }
+
+    if ((pool->buffers = aio4c_malloc(batch * sizeof(Buffer*))) == NULL) {
+        free(pool);
+        return NULL;
+    }
+
+    for (i = 0; i < batch; i++) {
+        if ((pool->buffers[i] = _NewBuffer(bufferSize)) == NULL) {
+            break;
+        }
+        pool->buffers[i]->poolIndex = i;
+        pool->buffers[i]->pool = pool;
+    }
+
+    if (i < batch) {
+        for (; i >= 0; i--) {
+            _FreeBuffer(&pool->buffers[i]);
+        }
+        free(pool->buffers);
+        free(pool);
+        return NULL;
+    }
+
+    pool->size = batch;
+    pool->used = 0;
+    pool->batch = batch;
+    pool->bufferSize = bufferSize;
+
+    return pool;
+}
+
+Buffer* AllocateBuffer(BufferPool* pool) {
+    Buffer** buffers = NULL;
+    Buffer* buffer = NULL;
+    int i = 0;
+
+    ProbeTimeStart(TIME_PROBE_BUFFER_ALLOCATION);
+
+    TakeLock(pool->lock);
+
+    if (pool->used == pool->size) {
+        if ((buffers = aio4c_realloc(pool->buffers, (pool->size + pool->batch) * sizeof(Buffer*))) == NULL) {
+            return NULL;
+        }
+
+        pool->buffers = buffers;
+
+        for (i = 0; i < pool->batch; i++) {
+            if ((pool->buffers[pool->size + i] = _NewBuffer(pool->bufferSize)) == NULL) {
+                break;
+            }
+            pool->buffers[pool->size + i]->pool = pool;
+            pool->buffers[pool->size + i]->poolIndex = pool->size + i;
+        }
+
+        pool->size += i;
+    }
+
+    BufferReset(pool->buffers[pool->used]);
+    buffer = pool->buffers[pool->used];
+    buffer->poolIndex = pool->used;
+    pool->used++;
+
+    ProbeSize(PROBE_BUFFER_ALLOCATED_SIZE, buffer->size);
+
+    ReleaseLock(pool->lock);
+
+    ProbeTimeEnd(TIME_PROBE_BUFFER_ALLOCATION);
+
+    return buffer;
+}
+
+void ReleaseBuffer(Buffer** pBuffer) {
+    Buffer* buffer = NULL;
+    BufferPool* pool = NULL;
+    int i = 0;
+
+    ProbeTimeStart(TIME_PROBE_BUFFER_ALLOCATION);
+
+    if (pBuffer != NULL && (buffer = *pBuffer) != NULL) {
+        if ((pool = buffer->pool) == NULL) {
+            _FreeBuffer(pBuffer);
+            return;
+        }
+
+        TakeLock(pool->lock);
+
+        for (i = buffer->poolIndex; i < pool->used - 1; i++) {
+            pool->buffers[i] = pool->buffers[i + 1];
+            pool->buffers[i]->poolIndex = i;
+        }
+
+        pool->buffers[i] = buffer;
+        pool->buffers[i]->poolIndex = i;
+        pool->used--;
+
+        ProbeSize(PROBE_BUFFER_ALLOCATED_SIZE, -buffer->size);
+
+        ReleaseLock(pool->lock);
+
+        *pBuffer = NULL;
+    }
+
+    ProbeTimeEnd(TIME_PROBE_BUFFER_ALLOCATION);
+}
+
+void FreeBufferPool(BufferPool** pPool) {
+    BufferPool* pool = NULL;
+    int i = 0;
+
+    if (pPool != NULL && (pool = *pPool) != NULL) {
+        if (pool->lock != NULL) {
+            TakeLock(pool->lock);
+        }
+
+        for (i = 0; i < pool->size; i++) {
+            if (pool->buffers[i] != NULL) {
+                _FreeBuffer(&pool->buffers[i]);
+            }
+        }
+
+        pool->used = 0;
+        pool->size = 0;
+
+        aio4c_free(pool->buffers);
+
+        if (pool->lock != NULL) {
+            FreeLock(&pool->lock);
+        }
+
+        aio4c_free(pool);
+
+        *pPool = NULL;
+    }
+}
+
 Buffer* BufferFlip(Buffer* buffer) {
     buffer->limit = buffer->position;
     buffer->position = 0;
@@ -67,7 +218,8 @@ Buffer* BufferFlip(Buffer* buffer) {
 
 Buffer* BufferPosition(Buffer* buffer, int position) {
     if (position >= buffer->limit) {
-        FreeBuffer(&buffer);
+        Log(ThreadSelf(), ERROR, "invalid position %d for buffer %p [lim: %d]", position, (void*)buffer, buffer->limit);
+        return NULL;
     } else {
         buffer->position = position;
     }
@@ -77,7 +229,8 @@ Buffer* BufferPosition(Buffer* buffer, int position) {
 
 Buffer* BufferLimit(Buffer* buffer, int limit) {
     if (limit > buffer->size) {
-        FreeBuffer(&buffer);
+        Log(ThreadSelf(), ERROR, "invalid limit %d for buffer %p [cap: %d]", limit, (void*)buffer, buffer->size);
+        return NULL;
     } else {
         buffer->limit = limit;
     }
