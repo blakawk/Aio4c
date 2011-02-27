@@ -32,7 +32,7 @@ typedef struct s_Reader {
     Worker*        worker;
 } Reader;
 
-extern Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize);
+extern Reader* NewReader(char* name, aio4c_size_t bufferSize);
 
 extern void ReaderManageConnection(Reader* reader, Connection* connection);
 

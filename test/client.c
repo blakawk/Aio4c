@@ -1,47 +1,32 @@
-#include <aio4c/address.h>
-#include <aio4c/alloc.h>
+/**
+ * Copyright © 2011 blakawk <blakawk@gentooist.com>
+ * All rights reserved.  Released under GPLv3 License.
+ *
+ * This program is free software: you can redistribute
+ * it  and/or  modify  it under  the  terms of the GNU.
+ * General  Public  License  as  published by the Free
+ * Software Foundation, version 3 of the License.
+ *
+ * This  program  is  distributed  in the hope that it
+ * will be useful, but  WITHOUT  ANY WARRANTY; without
+ * even  the  implied  warranty  of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * See   the  GNU  General  Public  License  for  more
+ * details. You should have received a copy of the GNU
+ * General Public License along with this program.  If
+ * not, see <http://www.gnu.org/licenses/>.
+ **/
 #include <aio4c/buffer.h>
+#include <aio4c/client.h>
 #include <aio4c/connection.h>
+#include <aio4c/event.h>
 #include <aio4c/log.h>
-#include <aio4c/reader.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-#include <errno.h>
-#include <poll.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-typedef struct s_Client {
-    Thread* thread;
-    Connection* conn;
-    Reader* reader;
-    Queue* queue;
-    aio4c_bool_t freeOnClose;
-} Client;
-
-void onInit(Event event, Connection* source, Client* c) {
-    if (event != INIT_EVENT) {
-        return;
-    }
-    Log(c->thread, INFO, "connection initialized");
-    ConnectionConnect(source);
-}
-
-void onConnect(Event event, Connection* source, Client* c) {
-    if (event == CONNECTING_EVENT) {
-        ConnectionFinishConnect(source);
-        return;
-    }
-
-    c->freeOnClose = false;
-
-    ReaderManageConnection(c->reader, source);
-}
 
 void onRead(Event event, Connection* source, Client* c) {
     if (event != INBOUND_DATA_EVENT) {
@@ -66,96 +51,17 @@ void onWrite(Event event, Connection* source, Client* c) {
     source->writeBuffer->position += 7;
 }
 
-void onClose(Event event, Connection* source, Client* c) {
-    if (event != CLOSE_EVENT || source->state != CLOSED) {
-        return;
-    }
-
-    if (!EnqueueExitItem(c->queue)) {
-        return;
-    }
-}
-
-typedef struct s_Data {
-    Thread* thread;
-    int counter;
-} Data;
-
-void testInit(Data * arg) {
-    Log(arg->thread, INFO, "test initialized");
-    arg->counter = 0;
-}
-
-aio4c_bool_t testRun(Data* arg) {
-    arg->counter++;
-    Log(arg->thread, DEBUG, "test running %d", arg->counter);
-    if (arg->counter > 10) {
-        return false;
-    }
-    return true;
-}
-
-void testExit(Data* arg) {
-    Log(arg->thread, INFO, "test exiting %d", arg->counter);
-}
-
-void clientInit(Client* c) {
-    Log(c->thread, INFO, "started");
-}
-
-aio4c_bool_t clientRun(Client* c) {
-    QueueItem item;
-    memset(&item, 0, sizeof(QueueItem));
-    ConnectionAddHandler(c->conn, INIT_EVENT, aio4c_connection_handler(onInit), aio4c_connection_handler_arg(c), true);
-    ConnectionAddHandler(c->conn, CONNECTING_EVENT, aio4c_connection_handler(onConnect), aio4c_connection_handler_arg(c), true);
-    ConnectionAddHandler(c->conn, CONNECTED_EVENT, aio4c_connection_handler(onConnect), aio4c_connection_handler_arg(c), true);
-    ConnectionAddHandler(c->conn, INBOUND_DATA_EVENT, aio4c_connection_handler(onRead), aio4c_connection_handler_arg(c), false);
-    ConnectionAddHandler(c->conn, WRITE_EVENT, aio4c_connection_handler(onWrite), aio4c_connection_handler_arg(c), false);
-    ConnectionAddHandler(c->conn, CLOSE_EVENT, aio4c_connection_handler(onClose), aio4c_connection_handler_arg(c), true);
-    c->freeOnClose = true;
-    c->reader = NewReader(c->thread, "reader", 8192);
-    ConnectionInit(c->conn);
-    Dequeue(c->queue, &item, true);
-    if (c->freeOnClose) {
-        FreeConnection(&c->conn);
-    }
-    ReaderEnd(c->reader);
-    return false;
-}
-
-void clientExit(Client* c) {
-    Log(c->thread, INFO, "exited");
-    FreeQueue(&c->queue);
-}
-
 int main (void) {
-    Address* addr = NewAddress(IPV4, "srvotc", 11111);
-    BufferPool* pool = NewBufferPool(2, 8192);
-    Connection* conn = NewConnection(AllocateBuffer(pool), AllocateBuffer(pool), addr);
-    Data* data = aio4c_malloc(sizeof(Data));
-    Client* client = aio4c_malloc(sizeof(Client));
-    client->conn = conn;
-    client->thread = NULL;
-    client->reader = NULL;
-    data->thread = NULL;
-    data->counter = 0;
+    Thread* client = NULL;
+    Thread* tMain = NULL;
 
-    Thread* mainThread = ThreadMain("main");
-    LogInit(mainThread, INFO, "client.log");
+    LogInit(tMain = ThreadMain("main"), INFO, "client.log");
 
-    client->queue = NewQueue();
-    data->thread = NewThread("test", (void(*)(void*))testInit, (aio4c_bool_t(*)(void*))testRun, (void(*)(void*))testExit, (void*)data);
-    client->thread = NewThread("client", aio4c_thread_handler(clientInit), aio4c_thread_run(clientRun), aio4c_thread_handler(clientExit), aio4c_thread_arg(client));
-
-    ThreadJoin(data->thread);
-    FreeThread(&data->thread);
-    aio4c_free(data);
-    ThreadJoin(client->thread);
-    FreeThread(&client->thread);
-    aio4c_free(client);
+    client = NewClient(IPV4, "localhost", 11111, 3, 10, 8192, onRead, onWrite);
+    ThreadJoin(client);
+    FreeThread(&client);
     LogEnd();
-    FreeThread(&mainThread);
-    FreeBufferPool(&pool);
+    FreeThread(&tMain);
 
     return EXIT_SUCCESS;
 }

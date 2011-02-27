@@ -99,11 +99,11 @@ static void _ReaderExit(Reader* reader) {
     aio4c_free(reader);
 }
 
-Reader* NewReader(Thread* parent, char* name, aio4c_size_t bufferSize) {
+Reader* NewReader(char* name, aio4c_size_t bufferSize) {
     Reader* reader = NULL;
 
     if ((reader = aio4c_malloc(sizeof(Reader))) == NULL) {
-        Log(parent, ERROR, "reader allocation: %s", strerror(errno));
+        Log(ThreadSelf(), ERROR, "reader allocation: %s", strerror(errno));
         return NULL;
     }
 

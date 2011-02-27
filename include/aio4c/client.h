@@ -20,16 +20,27 @@
 #ifndef __AIO4C_CLIENT_H__
 #define __AIO4C_CLIENT_H__
 
+#include <aio4c/address.h>
+#include <aio4c/reader.h>
+#include <aio4c/thread.h>
 #include <aio4c/types.h>
 
 typedef struct s_Client {
     Address*     address;
     Connection*  connection;
-    aio4c_thread_t thread;
+    Thread*      thread;
+    Reader*      reader;
+    Queue*       queue;
+    BufferPool*  pool;
+    void       (*readHandler)(Event,Connection*,struct s_Client*);
+    void       (*writeHandler)(Event,Connection*,struct s_Client*);
+    int          retries;
+    int          interval;
+    int          retryCount;
+    int          bufferSize;
+    aio4c_bool_t connected;
 } Client;
 
-extern Client* NewClient(char * address, aio4c_port_t port);
-
-extern Client* ClientRun();
+extern Thread* NewClient(AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*readHandler)(Event,Connection*,Client*), void (*writeHandler)(Event,Connection*,Client*));
 
 #endif

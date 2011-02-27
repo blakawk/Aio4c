@@ -37,7 +37,7 @@
 #include <unistd.h>
 
 static void _AcceptorInit(Acceptor* acceptor) {
-    acceptor->reader = NewReader(acceptor->thread, "reader", acceptor->factory->pool->bufferSize);
+    acceptor->reader = NewReader("reader", acceptor->factory->pool->bufferSize);
     acceptor->key = Register(acceptor->selector, AIO4C_OP_READ, acceptor->socket, NULL);
     Log(acceptor->thread, INFO, "initialized");
 }

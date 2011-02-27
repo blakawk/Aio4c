@@ -54,6 +54,7 @@ static void _LogPrintMessage(Logger* logger, char* message) {
     }
 
     fprintf(log, "%s", message);
+    fflush(log);
     aio4c_free(message);
 }
 
