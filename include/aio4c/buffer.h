@@ -25,14 +25,21 @@
 
 typedef struct s_BufferPool BufferPool;
 
-typedef struct s_Buffer {
+#ifndef __AIO4C_BUFFER_DEFINED__
+#define __AIO4C_BUFFER_DEFINED__
+
+typedef struct s_Buffer Buffer;
+
+#endif
+
+struct s_Buffer {
     BufferPool*   pool;
     int           poolIndex;
     int           size;
     aio4c_byte_t* data;
     int           position;
     int           limit;
-} Buffer;
+};
 
 struct s_BufferPool {
     Buffer** buffers;

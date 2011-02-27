@@ -53,22 +53,19 @@ static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
 
 static aio4c_bool_t _WorkerRun(Worker* worker) {
     QueueItem item;
-    Task* task = NULL;
     Connection* connection = NULL;
 
     while (Dequeue(worker->queue, &item, true)) {
         switch (item.type) {
             case EXIT:
                 return false;
-            case DATA:
-                task = (Task*)item.content.data;
+            case TASK:
                 ProbeTimeStart(TIME_PROBE_DATA_PROCESS);
-                task->connection->dataBuffer = task->buffer;
-                ConnectionEventHandle(task->connection, INBOUND_DATA_EVENT, task->connection);
-                task->connection->dataBuffer = NULL;
-                ProbeSize(PROBE_PROCESSED_DATA_SIZE,task->buffer->position);
-                ReleaseBuffer(&task->buffer);
-                aio4c_free(task);
+                item.content.task.connection->dataBuffer = item.content.task.buffer;
+                ConnectionEventHandle(item.content.task.connection, item.content.task.event, item.content.task.connection);
+                item.content.task.connection->dataBuffer = NULL;
+                ProbeSize(PROBE_PROCESSED_DATA_SIZE,item.content.task.buffer->position);
+                ReleaseBuffer(&item.content.task.buffer);
                 ProbeTimeEnd(TIME_PROBE_DATA_PROCESS);
                 break;
             case EVENT:
@@ -78,6 +75,8 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
                     Log(worker->thread, DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
                 }
+                break;
+            default:
                 break;
         }
     }
@@ -122,32 +121,28 @@ static void _WorkerCloseHandler(Event event, Connection* source, Worker* worker)
 
 static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) {
     Buffer* bufferCopy = NULL;
-    Task* task = NULL;
+    Event eventToProcess = OUTBOUND_DATA_EVENT;
 
     ProbeTimeStart(TIME_PROBE_DATA_PROCESS);
 
-    if (event != READ_EVENT || source->state == CLOSED) {
-        return;
-    }
-
-    if ((task = aio4c_malloc(sizeof(Task))) == NULL) {
+    if ((event != READ_EVENT && event != OUTBOUND_DATA_AVAILABLE_EVENT) || source->state == CLOSED) {
         return;
     }
 
     bufferCopy = AllocateBuffer(worker->pool);
 
-    BufferFlip(source->readBuffer);
+    if (event == READ_EVENT) {
+        BufferFlip(source->readBuffer);
 
-    BufferCopy(bufferCopy, source->readBuffer);
+        BufferCopy(bufferCopy, source->readBuffer);
 
-    BufferReset(source->readBuffer);
+        BufferReset(source->readBuffer);
 
-    task->connection = source;
-    task->buffer = bufferCopy;
+        eventToProcess = INBOUND_DATA_EVENT;
+    }
 
-    if (!EnqueueDataItem(worker->queue, task)) {
+    if (!EnqueueTaskItem(worker->queue, eventToProcess, source, bufferCopy)) {
         ReleaseBuffer(&bufferCopy);
-        aio4c_free(task);
         return;
     }
 

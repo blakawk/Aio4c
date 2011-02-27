@@ -259,6 +259,8 @@ Connection* ConnectionRead(Connection* connection) {
 
     buffer = connection->readBuffer;
 
+    LogBuffer(ThreadSelf(), DEBUG, buffer);
+
     if (!BufferHasRemaining(buffer)) {
         return _ConnectionHandleError(connection, BUFFER_OVERFLOW, buffer->position);
     }

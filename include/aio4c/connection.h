@@ -61,7 +61,14 @@ typedef enum e_ConnectionOwner {
     AIO4C_MAX_OWNERS = 4
 } ConnectionOwner;
 
-typedef struct s_Connection {
+#ifndef __AIO4C_CONNECTION_DEFINED__
+#define __AIO4C_CONNECTION_DEFINED__
+
+typedef struct s_Connection Connection;
+
+#endif
+
+struct s_Connection {
     Buffer*              readBuffer;
     Buffer*              writeBuffer;
     Buffer*              dataBuffer;
@@ -78,7 +85,7 @@ typedef struct s_Connection {
     SelectionKey*        readKey;
     SelectionKey*        writeKey;
     BufferPool*          pool;
-} Connection;
+};
 
 #define aio4c_connection_handler(handler) \
     (void(*)(Event,Connection*,void*))handler

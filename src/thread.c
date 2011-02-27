@@ -294,6 +294,19 @@ aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, void* source) {
     return _Enqueue(queue, &item);
 }
 
+aio4c_bool_t EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer) {
+    QueueItem item;
+
+    memset(&item, 0, sizeof(QueueItem));
+
+    item.type = TASK;
+    item.content.task.event = event;
+    item.content.task.connection = connection;
+    item.content.task.buffer = buffer;
+
+    return _Enqueue(queue, &item);
+}
+
 aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,void*), void* discriminant) {
     int i = 0, j = 0;
     aio4c_bool_t removed = false;

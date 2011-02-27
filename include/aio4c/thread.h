@@ -117,6 +117,7 @@ typedef struct s_Condition {
 typedef enum e_QueueItemType {
     EVENT,
     DATA,
+    TASK,
     EXIT
 } QueueItemType;
 
@@ -125,7 +126,28 @@ typedef struct s_QueueEventItem {
     void* source;
 } QueueEventItem;
 
+#ifndef __AIO4C_CONNECTION_DEFINED__
+#define __AIO4C_CONNECTION_DEFINED__
+
+typedef struct s_Connection Connection;
+
+#endif
+
+#ifndef __AIO4C_BUFFER_DEFINED__
+#define __AIO4C_BUFFER_DEFINED__
+
+typedef struct s_Buffer Buffer;
+
+#endif
+
+typedef struct s_QueueTaskItem {
+    Event       event;
+    Connection* connection;
+    Buffer*     buffer;
+} QueueTaskItem;
+
 typedef union u_QueueItemData {
+    QueueTaskItem task;
     QueueEventItem event;
     void*  data;
 } QueueItemData;
@@ -199,6 +221,8 @@ extern aio4c_bool_t EnqueueDataItem(Queue* queue, void* data);
 extern aio4c_bool_t EnqueueExitItem(Queue* queue);
 
 extern aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, void* source);
+
+extern aio4c_bool_t EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer);
 
 extern aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait);
 

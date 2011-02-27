@@ -64,6 +64,8 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                     FreeConnection(&connection);
                 }
                 break;
+            default:
+                break;
         }
     }
 

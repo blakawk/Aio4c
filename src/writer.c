@@ -86,6 +86,8 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
                 connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
                 ProbeTimeEnd(TIME_PROBE_NETWORK_WRITE);
                 break;
+            default:
+                break;
         }
     }
 

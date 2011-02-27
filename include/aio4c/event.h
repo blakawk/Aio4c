@@ -22,7 +22,7 @@
 
 #include <aio4c/types.h>
 
-#define AIO_EVENTS_COUNT 8
+#define AIO_EVENTS_COUNT 9
 
 typedef enum e_EventType {
     INIT_EVENT = 0,
@@ -31,8 +31,9 @@ typedef enum e_EventType {
     READ_EVENT = 3,
     INBOUND_DATA_EVENT = 4,
     WRITE_EVENT = 5,
-    OUTBOUND_DATA_EVENT = 6,
-    CLOSE_EVENT = 7
+    OUTBOUND_DATA_AVAILABLE_EVENT = 6,
+    OUTBOUND_DATA_EVENT = 7,
+    CLOSE_EVENT = 8
 } Event;
 
 typedef struct s_EventHandler {
