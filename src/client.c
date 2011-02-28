@@ -64,16 +64,16 @@ static aio4c_bool_t _clientRun(Client* client) {
             case EVENT:
                 switch (item.content.event.type) {
                     case INIT_EVENT:
-                        Log(client->thread, DEBUG, "connection %s initialized", ((Connection*)item.content.event.source)->string);
+                        Log(client->thread, DEBUG, "connection %s initialized", client->address->string);
                         ConnectionConnect((Connection*)item.content.event.source);
                         break;
                     case CONNECTING_EVENT:
-                        Log(client->thread, DEBUG, "finishing connection to %s", ((Connection*)item.content.event.source)->string);
+                        Log(client->thread, DEBUG, "finishing connection to %s", client->address->string);
                         ConnectionFinishConnect((Connection*)item.content.event.source);
                         break;
                     case CONNECTED_EVENT:
                         client->retryCount = 0;
-                        Log(client->thread, INFO, "connection established with success on %s", ((Connection*)item.content.event.source)->string);
+                        Log(client->thread, INFO, "connection established with success on %s", client->address->string);
                         ReaderManageConnection(client->reader, (Connection*)item.content.event.source);
                         client->connected = true;
                         break;
@@ -81,7 +81,7 @@ static aio4c_bool_t _clientRun(Client* client) {
                         if (client->retryCount < client->retries) {
                             client->retryCount++;
                             sleep(client->interval);
-                            Log(client->thread, WARN, "connection with %s lost, retrying (%d/%d)", ((Connection*)item.content.event.source)->string, client->retryCount, client->retries);
+                            Log(client->thread, WARN, "connection with %s lost, retrying (%d/%d)", client->address->string, client->retryCount, client->retries);
                             if (!client->connected) {
                                 FreeConnection(&client->connection);
                             } else {
@@ -89,7 +89,7 @@ static aio4c_bool_t _clientRun(Client* client) {
                             }
                             _connection(client);
                         } else {
-                            Log(client->thread, ERROR, "retried too many times to connect %s, giving up", ((Connection*)item.content.event.source)->string);
+                            Log(client->thread, ERROR, "retried too many times to connect %s, giving up", client->address->string);
                             FreeConnection(&client->connection);
                             return false;
                         }
