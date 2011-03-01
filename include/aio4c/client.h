@@ -32,8 +32,8 @@ typedef struct s_Client {
     Reader*      reader;
     Queue*       queue;
     BufferPool*  pool;
-    void       (*readHandler)(Event,Connection*,struct s_Client*);
-    void       (*writeHandler)(Event,Connection*,struct s_Client*);
+    void       (*handler)(Event,Connection*,void*);
+    void*        handlerArg;
     int          retries;
     int          interval;
     int          retryCount;
@@ -41,6 +41,6 @@ typedef struct s_Client {
     aio4c_bool_t connected;
 } Client;
 
-extern Thread* NewClient(AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*readHandler)(Event,Connection*,Client*), void (*writeHandler)(Event,Connection*,Client*));
+extern Thread* NewClient(AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
 
 #endif

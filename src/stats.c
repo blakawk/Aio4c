@@ -35,7 +35,7 @@ static void _statsInit(void* dummy) {
     dummy = NULL;
     _statsFile = fopen("stats.csv", "w");
     if (_statsFile != NULL) {
-        fprintf(_statsFile, "TIME (s);ALLOCATED MEMORY (kb);READ DATA (kb/s);WRITTEN DATA (kb/s);PROCESSED DATA (kb/s);CONNECTIONS;IDLE TIME (ms)\r\n");
+        fprintf(_statsFile, "TIME (s);ALLOCATED MEMORY (kb);READ DATA (kb/s);WRITTEN DATA (kb/s);PROCESSED DATA (kb/s);CONNECTIONS;IDLE TIME (ms);LATENCY (ms)\r\n");
     }
 }
 
@@ -179,6 +179,7 @@ void _PrintStats(void) {
     _pstats("NETWORK READ     ", TIME_PROBE_NETWORK_READ, PROBE_NETWORK_READ_SIZE);
     _pstats("NETWORK WRITE    ", TIME_PROBE_NETWORK_WRITE, PROBE_NETWORK_WRITE_SIZE);
     _pstats("PROCESSED DATA   ", TIME_PROBE_DATA_PROCESS, PROBE_PROCESSED_DATA_SIZE);
+    _pstats("LATENCY          ", TIME_PROBE_LATENCY, PROBE_LATENCY_COUNT);
     _ptimes("IDLE TIME        ", TIME_PROBE_IDLE);
     _ptimes("BLOCKED TIME     ", TIME_PROBE_BLOCK);
      pstats("=== RUNNING THREADS  : %d\n", GetNumThreads());
@@ -191,8 +192,8 @@ void _WriteStats(void) {
     static struct timeval _start;
     static aio4c_bool_t _initialized = false;
     struct timeval time;
-    static double lastRead = 0.0, lastWrite = 0.0, lastProcess = 0.0, lastIdle = 0.0;
-    double read = 0.0, write = 0.0, process = 0.0, idle = 0.0, allocated = 0.0, connections = 0.0;
+    static double lastRead = 0.0, lastWrite = 0.0, lastProcess = 0.0, lastIdle = 0.0, lastLatency = 0.0, lastLatencyCount = 0.0;
+    double read = 0.0, write = 0.0, process = 0.0, idle = 0.0, allocated = 0.0, connections = 0.0, latency = 0.0, latencyCount = 0.0;
 
     if (!_initialized) {
         _initialized = true;
@@ -201,6 +202,7 @@ void _WriteStats(void) {
 
     gettimeofday(&time, NULL);
 
+    aio4c_mutex_lock(&_timeProbesLock);
     aio4c_mutex_lock(&_sizeProbesLock);
     read =  _sizeProbes[PROBE_NETWORK_READ_SIZE] - lastRead;
     lastRead = _sizeProbes[PROBE_NETWORK_READ_SIZE];
@@ -208,18 +210,21 @@ void _WriteStats(void) {
     lastWrite = _sizeProbes[PROBE_NETWORK_WRITE_SIZE];
     process = _sizeProbes[PROBE_PROCESSED_DATA_SIZE] - lastProcess;
     lastProcess = _sizeProbes[PROBE_PROCESSED_DATA_SIZE];
-    aio4c_mutex_unlock(&_sizeProbesLock);
-    aio4c_mutex_lock(&_timeProbesLock);
+    latencyCount = _sizeProbes[PROBE_LATENCY_COUNT] - lastLatencyCount;
+    lastLatencyCount = _sizeProbes[PROBE_LATENCY_COUNT];
     idle = _timeProbes[TIME_PROBE_IDLE] - lastIdle;
     lastIdle = _timeProbes[TIME_PROBE_IDLE];
     allocated = _sizeProbes[PROBE_MEMORY_ALLOCATED_SIZE];
     connections = _sizeProbes[PROBE_CONNECTION_COUNT];
+    latency = _timeProbes[TIME_PROBE_LATENCY] - lastLatency;
+    lastLatency = _timeProbes[TIME_PROBE_LATENCY];
+    aio4c_mutex_unlock(&_sizeProbesLock);
     aio4c_mutex_unlock(&_timeProbesLock);
 
-    fprintf(_statsFile, "%u;%d,%d;%d,%d;%d,%d;%d,%d;%d;%d,%d\r\n", (unsigned int)(time.tv_sec - _start.tv_sec),
+    fprintf(_statsFile, "%u;%d,%d;%d,%d;%d,%d;%d,%d;%d;%d,%d;%d,%d\r\n", (unsigned int)(time.tv_sec - _start.tv_sec),
             floatWithComma(allocated / 1024.0),
             floatWithComma(read / 1024.0), floatWithComma(write / 1024.0), floatWithComma(process / 1024.0), (int)connections,
-            floatWithComma(idle / 1000.0));
+            floatWithComma(idle / 1000.0), floatWithComma(latencyCount>0?(latency / 1000.0 / latencyCount):0.0));
 }
 
 void _StatsEnd(void) {

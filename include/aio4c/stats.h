@@ -35,11 +35,14 @@
     gettimeofday(&_stop, NULL);                \
     _ProbeTime(type,&_start,&_stop);           \
 }
+#define ProbeTime(type,start,stop) \
+    _ProbeTime(type,start,stop)
 #define ProbeSize(type,value) \
     _ProbeSize(type,value)
 #else
 #define ProbeTimeStart(type)
 #define ProbeTimeEnd(type)
+#define ProbeTime(type,start,stop)
 #define ProbeSize(type,value)
 #endif
 
@@ -54,6 +57,7 @@ typedef enum e_ProbeTimeType {
     TIME_PROBE_DATA_PROCESS,
     TIME_PROBE_BLOCK,
     TIME_PROBE_IDLE,
+    TIME_PROBE_LATENCY,
     TIME_MAX_PROBE_TYPE
 } ProbeTimeType;
 
@@ -66,6 +70,7 @@ typedef enum e_ProbeSizeType {
     PROBE_CONNECTION_COUNT,
     PROBE_MEMORY_ALLOCATE_COUNT,
     PROBE_MEMORY_FREE_COUNT,
+    PROBE_LATENCY_COUNT,
     PROBE_MAX_SIZE_TYPE
 } ProbeSizeType;
 

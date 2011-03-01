@@ -17,28 +17,31 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-#ifndef __AIO4C_ACCEPTOR_H__
-#define __AIO4C_ACCEPTOR_H__
+#ifndef __AIO4C_SERVER_H__
+#define __AIO4C_SERVER_H__
 
+#include <aio4c/acceptor.h>
 #include <aio4c/address.h>
+#include <aio4c/buffer.h>
 #include <aio4c/connection.h>
-#include <aio4c/reader.h>
+#include <aio4c/log.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-typedef struct s_Acceptor {
-    Thread*        thread;
-    Address*       address;
-    aio4c_socket_t socket;
-    Reader*        reader;
-    Selector*      selector;
-    SelectionKey*  key;
-    Connection*    factory;
-    Queue*         queue;
-} Acceptor;
+typedef struct s_Server {
+    Thread*     main;
+    Address*    address;
+    Acceptor*   acceptor;
+    BufferPool* pool;
+    Connection* factory;
+    Thread*     thread;
+    void      (*handler)(Event,Connection*,void*);
+    void*       handlerArg;
+    Queue*      queue;
+} Server;
 
-extern Acceptor* NewAcceptor(char* name, Address* address, Connection* factory);
+extern Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg);
 
-extern void AcceptorEnd(Acceptor* acceptor);
+extern void ServerEnd(Server* server);
 
 #endif

@@ -160,6 +160,10 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
             tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), tm->tm_mday,
             tm->tm_mon + 1, tm->tm_year % 100, levelString);
 
+    if (from == NULL) {
+        from = ThreadSelf();
+    }
+
     if (from != NULL) {
         fromLen = snprintf(&pMessage[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "%s: ", from->name);
     }

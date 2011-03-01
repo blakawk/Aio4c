@@ -109,13 +109,13 @@ void EventHandle(EventQueue* queue, Event event, void* source) {
     }
 }
 
-void EventHandlerRemove(EventQueue* queue, EventHandler* handler) {
+void EventHandlerRemove(EventQueue* queue, Event event, void (*handler)(Event,void*,void*)) {
     int i = 0;
 
-    for (i=0; i<queue->maxHandlers[handler->event]; i++) {
-        if (queue->eventHandlers[handler->event][i] == handler) {
-            FreeEventHandler(&queue->eventHandlers[handler->event][i]);
-            queue->handlersCount[handler->event]--;
+    for (i=0; i<queue->maxHandlers[event]; i++) {
+        if (queue->eventHandlers[event][i]->handler == handler) {
+            FreeEventHandler(&queue->eventHandlers[event][i]);
+            queue->handlersCount[event]--;
         }
     }
 }

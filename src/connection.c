@@ -46,7 +46,7 @@ char* ConnectionStateString[MAX_CONNECTION_STATES] = {
     "CLOSED"
 };
 
-Connection* NewConnection(Buffer* readBuffer, Buffer* writeBuffer, Address* address) {
+Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeAddress) {
     Connection* connection = NULL;
 
     if ((connection = aio4c_malloc(sizeof(Connection))) == NULL) {
@@ -54,8 +54,8 @@ Connection* NewConnection(Buffer* readBuffer, Buffer* writeBuffer, Address* addr
     }
 
 
-    connection->readBuffer = readBuffer;
-    connection->writeBuffer = writeBuffer;
+    connection->readBuffer = AllocateBuffer(pool);
+    connection->writeBuffer = AllocateBuffer(pool);
     BufferLimit(connection->writeBuffer, 0);
     connection->dataBuffer = NULL;
     connection->socket = -1;
@@ -72,6 +72,7 @@ Connection* NewConnection(Buffer* readBuffer, Buffer* writeBuffer, Address* addr
     connection->readKey = NULL;
     connection->writeKey = NULL;
     connection->pool = NULL;
+    connection->freeAddress = freeAddress;
 
     return connection;
 }
@@ -99,6 +100,7 @@ Connection* NewConnectionFactory(BufferPool* pool) {
     memset(connection->closedBy, 0, AIO4C_MAX_OWNERS * sizeof(aio4c_bool_t));
     connection->readKey = NULL;
     connection->writeKey = NULL;
+    connection->freeAddress = false;
 
     return connection;
 }
@@ -106,7 +108,7 @@ Connection* NewConnectionFactory(BufferPool* pool) {
 Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c_socket_t socket) {
     Connection* connection = NULL;
 
-    connection = NewConnection(AllocateBuffer(factory->pool), AllocateBuffer(factory->pool), address);
+    connection = NewConnection(factory->pool, address, true);
 
     connection->socket = socket;
 
@@ -410,6 +412,10 @@ void FreeConnection(Connection** connection) {
 
         if (pConnection->writeBuffer != NULL) {
             ReleaseBuffer(&pConnection->writeBuffer);
+        }
+
+        if (pConnection->freeAddress && pConnection->address != NULL) {
+            FreeAddress(&pConnection->address);
         }
 
         if (pConnection->dataBuffer != NULL) {

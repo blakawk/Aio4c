@@ -673,6 +673,8 @@ aio4c_bool_t SelectionKeyReady (Selector* selector, SelectionKey** key) {
     return result;
 }
 
+static Thread* _MainThread = NULL;
+
 static void _ThreadCleanup(Thread* thread) {
     int i = 0;
     thread->state = EXITED;
@@ -724,11 +726,9 @@ static Thread* _runThread(Thread* thread) {
 
 extern int main (int argc, char** argv);
 
-static Thread* _MainThread = NULL;
-
 Thread* ThreadMain(char* name) {
     if (_MainThread != NULL) {
-        return _MainThread;
+        return NULL;
     }
 
     _threadsInitialized = true;

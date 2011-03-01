@@ -24,6 +24,7 @@
 #include <aio4c/connection.h>
 #include <aio4c/log.h>
 #include <aio4c/reader.h>
+#include <aio4c/stats.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
@@ -88,36 +89,13 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
                 EnqueueDataItem(acceptor->queue, connection);
 
                 ReaderManageConnection(acceptor->reader, connection);
+
+                ProbeSize(PROBE_CONNECTION_COUNT, 1);
             }
         }
     }
 
     return true;
-}
-
-static void _AcceptorExit(Acceptor* acceptor) {
-    QueueItem item;
-    Connection* connection = NULL;
-
-    memset(&item, 0, sizeof(QueueItem));
-
-    Unregister(acceptor->selector, acceptor->key, true);
-    close(acceptor->socket);
-
-    while (Dequeue(acceptor->queue, &item, false)) {
-        connection = (Connection*)item.content.data;
-        ConnectionClose(connection);
-    }
-
-    FreeQueue(&acceptor->queue);
-    ReaderEnd(acceptor->reader);
-    FreeSelector(&acceptor->selector);
-    FreeAddress(&acceptor->address);
-    FreeConnection(&acceptor->factory);
-
-    Log(acceptor->thread, INFO, "exited");
-
-    aio4c_free(acceptor);
 }
 
 static aio4c_bool_t _AcceptorRemoveCallback(QueueItem* item, Connection* discriminant) {
@@ -143,9 +121,38 @@ static void _AcceptorCloseHandler(Event event, Connection* source, Acceptor* acc
     if (ConnectionNoMoreUsed(source, ACCEPTOR)) {
         FreeConnection(&source);
     }
+
+    ProbeSize(PROBE_CONNECTION_COUNT, -1);
 }
 
-Acceptor* NewAcceptor(char* name, AddressType type, char* address, aio4c_port_t port, Connection* factory) {
+static void _AcceptorExit(Acceptor* acceptor) {
+    QueueItem item;
+    Connection* connection = NULL;
+
+    memset(&item, 0, sizeof(QueueItem));
+
+    Unregister(acceptor->selector, acceptor->key, true);
+    close(acceptor->socket);
+
+    while (Dequeue(acceptor->queue, &item, false)) {
+        connection = (Connection*)item.content.data;
+        EventHandlerRemove(connection->systemHandlers, CLOSE_EVENT, aio4c_event_handler(_AcceptorCloseHandler));
+        ConnectionClose(connection);
+        if (ConnectionNoMoreUsed(connection, ACCEPTOR)) {
+            FreeConnection(&connection);
+        }
+    }
+
+    FreeQueue(&acceptor->queue);
+    ReaderEnd(acceptor->reader);
+    FreeSelector(&acceptor->selector);
+
+    Log(acceptor->thread, INFO, "exited");
+
+    aio4c_free(acceptor);
+}
+
+Acceptor* NewAcceptor(char* name, Address* address, Connection* factory) {
     Acceptor* acceptor = NULL;
     int reuseaddr = 1;
 
@@ -153,7 +160,7 @@ Acceptor* NewAcceptor(char* name, AddressType type, char* address, aio4c_port_t 
         return NULL;
     }
 
-    acceptor->address = NewAddress(type, address, port);
+    acceptor->address = address;
     acceptor->socket = socket(PF_INET, SOCK_STREAM, 0);
     acceptor->factory = factory;
     acceptor->queue = NewQueue();
