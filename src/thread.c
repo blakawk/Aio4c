@@ -722,6 +722,8 @@ static Thread* _runThread(Thread* thread) {
     aio4c_thread_cleanup_pop(1);
 
     aio4c_thread_exit(thread);
+
+    return thread;
 }
 
 Thread* ThreadMain(char* name) {

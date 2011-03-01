@@ -47,7 +47,7 @@ static void _LogPrintMessage(Logger* logger, char* message) {
         return;
     }
 
-    if (logger != NULL && !logger->exiting && logger->file != NULL && fileno(logger->file) >= 0) {
+    if (logger != NULL && !logger->exiting && logger->file != NULL) {
         log = logger->file;
     } else {
         log = stderr;
@@ -250,7 +250,7 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
 
             for (j = 0; j < 16; j ++) {
                 c = (char)(buffer->data[i + j] & 0xff);
-                if (!isprint(c)) {
+                if (!isprint((int)c)) {
                     c = '.';
                 }
                 prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "%c", c);
@@ -283,7 +283,7 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
 
     for (j = 0; j < buffer->limit - i; j++) {
         c = (char)(buffer->data[i + j] & 0xff);
-        if (!isprint(c)) {
+        if (!isprint((int)c)) {
             c = '.';
         }
         prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "%c", c);
