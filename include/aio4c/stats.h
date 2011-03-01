@@ -58,6 +58,7 @@ typedef enum e_ProbeTimeType {
     TIME_PROBE_BLOCK,
     TIME_PROBE_IDLE,
     TIME_PROBE_LATENCY,
+    TIME_PROBE_JNI_OVERHEAD,
     TIME_MAX_PROBE_TYPE
 } ProbeTimeType;
 

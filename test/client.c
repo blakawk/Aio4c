@@ -45,8 +45,6 @@ void onRead(Connection* source) {
         buffer->position += sizeof(struct timeval);
         memcpy(&mySeq, &buffer->data[buffer->position], sizeof(int));
         buffer->position += sizeof(int);
-//        Log(NULL, INFO, "pong received, seq = %d, time = %.3f ms", mySeq,
- //               (pong.tv_sec - ping.tv_sec) * 1000.0 + (pong.tv_usec - ping.tv_usec) / 1000.0);
         ProbeSize(PROBE_LATENCY_COUNT, 1);
         ProbeTime(TIME_PROBE_LATENCY, &ping, &pong);
     }
@@ -91,16 +89,14 @@ void handler(Event event, Connection* source, void* c) {
 }
 
 int main (void) {
-    Thread* client = NULL;
-    Thread* tMain = NULL;
+    Client* client = NULL;
+    Thread* tClient = NULL;
 
-    LogInit(tMain = ThreadMain("main"), INFO, NULL);
+    client = NewClient(IPV4, "localhost", 11111, INFO, "client.log", 3, 10, 8192, handler, NULL);
+    tClient = client->thread;
 
-    client = NewClient(IPV4, "localhost", 11111, 3, 10, 8192, handler, NULL);
-    ThreadJoin(client);
-    FreeThread(&client);
-    LogEnd();
-    FreeThread(&tMain);
+    ThreadJoin(tClient);
+    FreeThread(&tClient);
 
     return EXIT_SUCCESS;
 }

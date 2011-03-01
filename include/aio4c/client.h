@@ -21,6 +21,7 @@
 #define __AIO4C_CLIENT_H__
 
 #include <aio4c/address.h>
+#include <aio4c/log.h>
 #include <aio4c/reader.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
@@ -39,8 +40,15 @@ typedef struct s_Client {
     int          retryCount;
     int          bufferSize;
     aio4c_bool_t connected;
+    Thread*      main;
 } Client;
 
-extern Thread* NewClient(AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
+#define aio4c_client_handler(h) \
+    (void(*)(Event,Connection*,void*))h
+
+#define aio4c_client_handler_arg(h) \
+    (void*)h
+
+extern Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel level, char* log, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
 
 #endif

@@ -724,8 +724,6 @@ static Thread* _runThread(Thread* thread) {
     aio4c_thread_exit(thread);
 }
 
-extern int main (int argc, char** argv);
-
 Thread* ThreadMain(char* name) {
     if (_MainThread != NULL) {
         return NULL;
@@ -742,7 +740,7 @@ Thread* ThreadMain(char* name) {
     _MainThread->name = name;
     _MainThread->id = aio4c_thread_self();
     _MainThread->lock = NewLock();
-    _MainThread->run = (aio4c_bool_t(*)(void*))main;
+    _MainThread->run = NULL;
     _MainThread->exit = NULL;
     _MainThread->init = NULL;
     _MainThread->arg = NULL;

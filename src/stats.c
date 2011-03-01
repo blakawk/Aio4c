@@ -182,6 +182,7 @@ void _PrintStats(void) {
     _pstats("LATENCY          ", TIME_PROBE_LATENCY, PROBE_LATENCY_COUNT);
     _ptimes("IDLE TIME        ", TIME_PROBE_IDLE);
     _ptimes("BLOCKED TIME     ", TIME_PROBE_BLOCK);
+    _ptimes("JNI OVERHEAD     ", TIME_PROBE_JNI_OVERHEAD);
      pstats("=== RUNNING THREADS  : %d\n", GetNumThreads());
      pstats("=================    END     ===================%c", '\n');
 }

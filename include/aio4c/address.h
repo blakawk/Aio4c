@@ -23,9 +23,9 @@
 #include <aio4c/types.h>
 
 typedef enum e_AddressType {
-    IPV4 = PF_INET,
-    IPV6 = PF_INET6,
-    UNIX = PF_UNIX
+    IPV4 = 1,
+    IPV6 = 2,
+    UNIX = 3
 } AddressType;
 
 typedef struct s_Address {

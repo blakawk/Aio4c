@@ -117,19 +117,28 @@ static aio4c_bool_t _clientRun(Client* client) {
 }
 
 static void _clientExit(Client* client) {
-    ReaderEnd(client->reader);
+    if (client->reader != NULL) {
+        ReaderEnd(client->reader);
+    }
+
+    LogEnd();
+
     FreeQueue(&client->queue);
     FreeBufferPool(&client->pool);
     FreeAddress(&client->address);
+    FreeThread(&client->main);
     aio4c_free(client);
 }
 
-extern Thread* NewClient(AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg) {
+Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel level, char* log, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg) {
     Client* client = NULL;
 
     if ((client = aio4c_malloc(sizeof(Client))) == NULL) {
         return NULL;
     }
+
+    client->main       = ThreadMain("aio4c-main");
+    LogInit(client->main, level, log);
 
     client->address    = NewAddress(type, address, port);
     client->retries    = retries;
@@ -151,6 +160,5 @@ extern Thread* NewClient(AddressType type, char* address, aio4c_port_t port, int
             aio4c_thread_handler(_clientExit),
             aio4c_thread_arg(client));
 
-    return client->thread;
+    return client;
 }
-
