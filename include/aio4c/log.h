@@ -21,21 +21,22 @@
 #define __AIO4C_LOG_H__
 
 #include <aio4c/buffer.h>
-#include <aio4c/types.h>
 #include <aio4c/thread.h>
+#include <aio4c/types.h>
 
-#define MIN_LOG_MESSAGE_SIZE \
+#define AIO4C_MIN_LOG_MESSAGE_SIZE \
     strlen("[00:00:00.000 00/00/00] [level] \n")
 
-#define MAX_LOG_MESSAGE_SIZE \
-    (MIN_LOG_MESSAGE_SIZE + 256)
+#define AIO4C_MAX_LOG_MESSAGE_SIZE \
+    (AIO4C_MIN_LOG_MESSAGE_SIZE + 256)
 
 typedef enum e_LogLevel {
-    FATAL = 0,
-    ERROR = 1,
-    WARN = 2,
-    INFO = 3,
-    DEBUG = 4
+    AIO4C_LOG_LEVEL_FATAL = 0,
+    AIO4C_LOG_LEVEL_ERROR = 1,
+    AIO4C_LOG_LEVEL_WARN = 2,
+    AIO4C_LOG_LEVEL_INFO = 3,
+    AIO4C_LOG_LEVEL_DEBUG = 4,
+    AIO4C_LOG_LEVEL_MAX = 5
 } LogLevel;
 
 typedef struct s_Logger {
@@ -48,7 +49,7 @@ typedef struct s_Logger {
 
 extern void LogInit(Thread* parent, LogLevel level, char* filename);
 
-extern void Log(Thread* from, LogLevel level, char* message, ...) __attribute__((format(printf, 3, 4)));
+extern __aio4c_dll void Log(Thread* from, LogLevel level, char* message, ...) __attribute__((format(printf, 3, 4)));
 
 extern void LogBuffer(Thread* from, LogLevel level, Buffer* buffer);
 

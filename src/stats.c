@@ -22,11 +22,16 @@
 #include <aio4c/thread.h>
 
 #include <string.h>
-#include <unistd.h>
 
-static double       _timeProbes[TIME_MAX_PROBE_TYPE];
+#ifdef AIO4C_WIN32
+#include <winbase.h>
+#else
+#include <unistd.h>
+#endif
+
+static double       _timeProbes[AIO4C_TIME_MAX_PROBE_TYPE];
 static aio4c_lock_t _timeProbesLock;
-static double       _sizeProbes[PROBE_MAX_SIZE_TYPE];
+static double       _sizeProbes[AIO4C_PROBE_MAX_SIZE_TYPE];
 static aio4c_lock_t _sizeProbesLock;
 static Thread*      _statsThread = NULL;
 static FILE*        _statsFile = NULL;
@@ -51,7 +56,11 @@ static aio4c_bool_t _statsRun(void* dummy) {
         _WriteStats();
     }
 
+#ifdef AIO4C_WIN32
+    Sleep(1000);
+#else
     sleep(1);
+#endif
 
     return true;
 }
@@ -62,8 +71,8 @@ static void _statsExit(void* dummy) {
 }
 
 void _InitProbes(void) {
-    memset(_timeProbes, 0, TIME_MAX_PROBE_TYPE * sizeof(double));
-    memset(_sizeProbes, 0, PROBE_MAX_SIZE_TYPE * sizeof(double));
+    memset(_timeProbes, 0, AIO4C_TIME_MAX_PROBE_TYPE * sizeof(double));
+    memset(_sizeProbes, 0, AIO4C_PROBE_MAX_SIZE_TYPE * sizeof(double));
     aio4c_mutex_init(&_timeProbesLock, NULL);
     aio4c_mutex_init(&_sizeProbesLock, NULL);
     _statsThread = NewThread("stats", aio4c_thread_handler(_statsInit), aio4c_thread_run(_statsRun), aio4c_thread_handler(_statsExit), aio4c_thread_arg(NULL));
@@ -166,23 +175,23 @@ void _PrintStats(void) {
     long _alloc = 0L, _free = 0L;
 
     aio4c_mutex_lock(&_sizeProbesLock);
-    _alloc = (long)_sizeProbes[PROBE_MEMORY_ALLOCATE_COUNT] - lastAlloc;
-    lastAlloc = _sizeProbes[PROBE_MEMORY_ALLOCATE_COUNT];
-    _free = (long)_sizeProbes[PROBE_MEMORY_FREE_COUNT] - lastFree;
-    lastFree = _sizeProbes[PROBE_MEMORY_FREE_COUNT];
+    _alloc = (long)_sizeProbes[AIO4C_PROBE_MEMORY_ALLOCATE_COUNT] - lastAlloc;
+    lastAlloc = _sizeProbes[AIO4C_PROBE_MEMORY_ALLOCATE_COUNT];
+    _free = (long)_sizeProbes[AIO4C_PROBE_MEMORY_FREE_COUNT] - lastFree;
+    lastFree = _sizeProbes[AIO4C_PROBE_MEMORY_FREE_COUNT];
     aio4c_mutex_unlock(&_sizeProbesLock);
 
      pstats("================= STATISTICS ===================%c", '\n');
-    _pstats("ALLOCATED MEMORY ", TIME_PROBE_MEMORY_ALLOCATION, PROBE_MEMORY_ALLOCATED_SIZE);
-    _pstats("ALLOCATED BUFFERS", TIME_PROBE_BUFFER_ALLOCATION, PROBE_BUFFER_ALLOCATED_SIZE);
+    _pstats("ALLOCATED MEMORY ", AIO4C_TIME_PROBE_MEMORY_ALLOCATION, AIO4C_PROBE_MEMORY_ALLOCATED_SIZE);
+    _pstats("ALLOCATED BUFFERS", AIO4C_TIME_PROBE_BUFFER_ALLOCATION, AIO4C_PROBE_BUFFER_ALLOCATED_SIZE);
     pstats("=== MEMORY ALLOCATION: %ld allocations, %ld frees\n", _alloc, _free);
-    _pstats("NETWORK READ     ", TIME_PROBE_NETWORK_READ, PROBE_NETWORK_READ_SIZE);
-    _pstats("NETWORK WRITE    ", TIME_PROBE_NETWORK_WRITE, PROBE_NETWORK_WRITE_SIZE);
-    _pstats("PROCESSED DATA   ", TIME_PROBE_DATA_PROCESS, PROBE_PROCESSED_DATA_SIZE);
-    _pstats("LATENCY          ", TIME_PROBE_LATENCY, PROBE_LATENCY_COUNT);
-    _ptimes("IDLE TIME        ", TIME_PROBE_IDLE);
-    _ptimes("BLOCKED TIME     ", TIME_PROBE_BLOCK);
-    _ptimes("JNI OVERHEAD     ", TIME_PROBE_JNI_OVERHEAD);
+    _pstats("NETWORK READ     ", AIO4C_TIME_PROBE_NETWORK_READ, AIO4C_PROBE_NETWORK_READ_SIZE);
+    _pstats("NETWORK WRITE    ", AIO4C_TIME_PROBE_NETWORK_WRITE, AIO4C_PROBE_NETWORK_WRITE_SIZE);
+    _pstats("PROCESSED DATA   ", AIO4C_TIME_PROBE_DATA_PROCESS, AIO4C_PROBE_PROCESSED_DATA_SIZE);
+    _pstats("LATENCY          ", AIO4C_TIME_PROBE_LATENCY, AIO4C_PROBE_LATENCY_COUNT);
+    _ptimes("IDLE TIME        ", AIO4C_TIME_PROBE_IDLE);
+    _ptimes("BLOCKED TIME     ", AIO4C_TIME_PROBE_BLOCK);
+    _ptimes("JNI OVERHEAD     ", AIO4C_TIME_PROBE_JNI_OVERHEAD);
      pstats("=== RUNNING THREADS  : %d\n", GetNumThreads());
      pstats("=================    END     ===================%c", '\n');
 }
@@ -205,20 +214,20 @@ void _WriteStats(void) {
 
     aio4c_mutex_lock(&_timeProbesLock);
     aio4c_mutex_lock(&_sizeProbesLock);
-    read =  _sizeProbes[PROBE_NETWORK_READ_SIZE] - lastRead;
-    lastRead = _sizeProbes[PROBE_NETWORK_READ_SIZE];
-    write = _sizeProbes[PROBE_NETWORK_WRITE_SIZE] - lastWrite;
-    lastWrite = _sizeProbes[PROBE_NETWORK_WRITE_SIZE];
-    process = _sizeProbes[PROBE_PROCESSED_DATA_SIZE] - lastProcess;
-    lastProcess = _sizeProbes[PROBE_PROCESSED_DATA_SIZE];
-    latencyCount = _sizeProbes[PROBE_LATENCY_COUNT] - lastLatencyCount;
-    lastLatencyCount = _sizeProbes[PROBE_LATENCY_COUNT];
-    idle = _timeProbes[TIME_PROBE_IDLE] - lastIdle;
-    lastIdle = _timeProbes[TIME_PROBE_IDLE];
-    allocated = _sizeProbes[PROBE_MEMORY_ALLOCATED_SIZE];
-    connections = _sizeProbes[PROBE_CONNECTION_COUNT];
-    latency = _timeProbes[TIME_PROBE_LATENCY] - lastLatency;
-    lastLatency = _timeProbes[TIME_PROBE_LATENCY];
+    read =  _sizeProbes[AIO4C_PROBE_NETWORK_READ_SIZE] - lastRead;
+    lastRead = _sizeProbes[AIO4C_PROBE_NETWORK_READ_SIZE];
+    write = _sizeProbes[AIO4C_PROBE_NETWORK_WRITE_SIZE] - lastWrite;
+    lastWrite = _sizeProbes[AIO4C_PROBE_NETWORK_WRITE_SIZE];
+    process = _sizeProbes[AIO4C_PROBE_PROCESSED_DATA_SIZE] - lastProcess;
+    lastProcess = _sizeProbes[AIO4C_PROBE_PROCESSED_DATA_SIZE];
+    latencyCount = _sizeProbes[AIO4C_PROBE_LATENCY_COUNT] - lastLatencyCount;
+    lastLatencyCount = _sizeProbes[AIO4C_PROBE_LATENCY_COUNT];
+    idle = _timeProbes[AIO4C_TIME_PROBE_IDLE] - lastIdle;
+    lastIdle = _timeProbes[AIO4C_TIME_PROBE_IDLE];
+    allocated = _sizeProbes[AIO4C_PROBE_MEMORY_ALLOCATED_SIZE];
+    connections = _sizeProbes[AIO4C_PROBE_CONNECTION_COUNT];
+    latency = _timeProbes[AIO4C_TIME_PROBE_LATENCY] - lastLatency;
+    lastLatency = _timeProbes[AIO4C_TIME_PROBE_LATENCY];
     aio4c_mutex_unlock(&_sizeProbesLock);
     aio4c_mutex_unlock(&_timeProbesLock);
 
@@ -230,7 +239,7 @@ void _WriteStats(void) {
 
 void _StatsEnd(void) {
     if (_statsThread != NULL) {
-        _statsThread->state = STOPPED;
+        _statsThread->state = AIO4C_THREAD_STATE_STOPPED;
         ThreadJoin(_statsThread);
         FreeThread(&_statsThread);
     }

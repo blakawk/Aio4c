@@ -26,16 +26,20 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-#include <errno.h>
-#include <fcntl.h>
-#include <poll.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#ifndef AIO4C_WIN32
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#else
+#include <winsock2.h>
+#endif
+
 static void _ReaderInit(Reader* reader) {
-    Log(reader->thread, INFO, "initialized");
+    Log(reader->thread, AIO4C_LOG_LEVEL_INFO, "initialized");
 }
 
 static aio4c_bool_t _ReaderRun(Reader* reader) {
@@ -46,21 +50,21 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
 
     while(Dequeue(reader->queue, &item, false)) {
         switch(item.type) {
-            case EXIT:
+            case AIO4C_QUEUE_ITEM_EXIT:
                 return false;
-            case DATA:
+            case AIO4C_QUEUE_ITEM_DATA:
                 connection = (Connection*)item.content.data;
                 connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
                 break;
-            case EVENT:
+            case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
                 if (connection->readKey != NULL) {
                     Unregister(reader->selector, connection->readKey, true);
                     connection->readKey = NULL;
                 }
-                Log(reader->thread, DEBUG, "close received for connection %s", connection->string);
-                if (ConnectionNoMoreUsed(connection, READER)) {
-                    Log(reader->thread, DEBUG, "freeing connection %s", connection->string);
+                Log(reader->thread, AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_READER)) {
+                    Log(reader->thread, AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
                 }
                 break;
@@ -69,12 +73,12 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
         }
     }
 
-    ProbeTimeStart(TIME_PROBE_IDLE);
+    ProbeTimeStart(AIO4C_TIME_PROBE_IDLE);
     numConnectionsReady = Select(reader->selector);
-    ProbeTimeEnd(TIME_PROBE_IDLE);
+    ProbeTimeEnd(AIO4C_TIME_PROBE_IDLE);
 
     if (numConnectionsReady > 0) {
-        ProbeTimeStart(TIME_PROBE_NETWORK_READ);
+        ProbeTimeStart(AIO4C_TIME_PROBE_NETWORK_READ);
         while (SelectionKeyReady(reader->selector, &key)) {
             if (key->result & (int)key->operation) {
                 connection = ConnectionRead((Connection*)key->attachment);
@@ -82,7 +86,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                 ConnectionClose((Connection*)key->attachment);
             }
         }
-        ProbeTimeEnd(TIME_PROBE_NETWORK_READ);
+        ProbeTimeEnd(AIO4C_TIME_PROBE_NETWORK_READ);
     }
 
     return true;
@@ -94,7 +98,7 @@ static void _ReaderExit(Reader* reader) {
     FreeQueue(&reader->queue);
     FreeSelector(&reader->selector);
 
-    Log(reader->thread, INFO, "exited");
+    Log(reader->thread, AIO4C_LOG_LEVEL_INFO, "exited");
 
     aio4c_free(reader);
 }
@@ -103,7 +107,7 @@ Reader* NewReader(char* name, aio4c_size_t bufferSize) {
     Reader* reader = NULL;
 
     if ((reader = aio4c_malloc(sizeof(Reader))) == NULL) {
-        Log(ThreadSelf(), ERROR, "reader allocation: %s", strerror(errno));
+        Log(ThreadSelf(), AIO4C_LOG_LEVEL_ERROR, "reader allocation: %s", strerror(errno));
         return NULL;
     }
 
@@ -130,7 +134,7 @@ void ReaderManageConnection(Reader* reader, Connection* connection) {
         return;
     }
 
-    ConnectionAddSystemHandler(connection, CLOSE_EVENT, aio4c_connection_handler(_ReaderEventHandler), aio4c_connection_handler_arg(reader), true);
+    ConnectionAddSystemHandler(connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_ReaderEventHandler), aio4c_connection_handler_arg(reader), true);
 
     WorkerManageConnection(reader->worker, connection);
 

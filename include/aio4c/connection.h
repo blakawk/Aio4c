@@ -27,38 +27,39 @@
 #include <aio4c/types.h>
 
 typedef enum e_ConnectionState {
-    NONE = 0,
-    INITIALIZED = 1,
-    CONNECTING = 2,
-    CONNECTED = 3,
-    CLOSED = 4,
-    MAX_CONNECTION_STATES = 5
+    AIO4C_CONNECTION_STATE_NONE = 0,
+    AIO4C_CONNECTION_STATE_INITIALIZED = 1,
+    AIO4C_CONNECTION_STATE_CONNECTING = 2,
+    AIO4C_CONNECTION_STATE_CONNECTED = 3,
+    AIO4C_CONNECTION_STATE_CLOSED = 4,
+    AIO4C_CONNECTION_STATE_MAX = 5
 } ConnectionState;
 
-extern char* ConnectionStateString[MAX_CONNECTION_STATES];
+extern char* ConnectionStateString[AIO4C_CONNECTION_STATE_MAX];
 
 typedef enum e_ConnectionCloseCauseType {
-    UNKNOWN = 0,
-    INVALID_STATE = 1,
-    SOCKET_CREATION = 2,
-    SOCKET_NONBLOCK = 3,
-    GETSOCKOPT = 4,
-    CONNECTING_ERROR = 5,
-    BUFFER_UNDERFLOW = 6,
-    BUFFER_OVERFLOW = 7,
-    READING = 8,
-    WRITING = 9,
-    REMOTE_CLOSED = 10,
-    EVENT_HANDLER = 11,
-    NO_ERROR = 12
+    AIO4C_CONNECTION_CLOSE_CAUSE_UNKNOWN = 0,
+    AIO4C_CONNECTION_CLOSE_CAUSE_INVALID_STATE = 1,
+    AIO4C_CONNECTION_CLOSE_CAUSE_SOCKET_CREATION = 2,
+    AIO4C_CONNECTION_CLOSE_CAUSE_SOCKET_NONBLOCK = 3,
+    AIO4C_CONNECTION_CLOSE_CAUSE_GETSOCKOPT = 4,
+    AIO4C_CONNECTION_CLOSE_CAUSE_CONNECTING_ERROR = 5,
+    AIO4C_CONNECTION_CLOSE_CAUSE_BUFFER_UNDERFLOW = 6,
+    AIO4C_CONNECTION_CLOSE_CAUSE_BUFFER_OVERFLOW = 7,
+    AIO4C_CONNECTION_CLOSE_CAUSE_READING = 8,
+    AIO4C_CONNECTION_CLOSE_CAUSE_WRITING = 9,
+    AIO4C_CONNECTION_CLOSE_CAUSE_REMOTE_CLOSED = 10,
+    AIO4C_CONNECTION_CLOSE_CAUSE_EVENT_HANDLER = 11,
+    AIO4C_CONNECTION_CLOSE_CAUSE_NO_ERROR = 12,
+    AIO4C_CONNECTION_CLOSE_CAUSE_MAX = 13
 } ConnectionCloseCause;
 
 typedef enum e_ConnectionOwner {
-    READER = 0,
-    WORKER = 1,
-    WRITER = 2,
-    ACCEPTOR = 3,
-    AIO4C_MAX_OWNERS = 4
+    AIO4C_CONNECTION_OWNER_READER = 0,
+    AIO4C_CONNECTION_OWNER_WORKER = 1,
+    AIO4C_CONNECTION_OWNER_WRITER = 2,
+    AIO4C_CONNECTION_OWNER_ACCEPTOR = 3,
+    AIO4C_CONNECTION_OWNER_MAX = 4
 } ConnectionOwner;
 
 #ifndef __AIO4C_CONNECTION_DEFINED__
@@ -81,7 +82,7 @@ struct s_Connection {
     ConnectionCloseCause closeCause;
     int                  closeCode;
     char*                string;
-    aio4c_bool_t         closedBy[AIO4C_MAX_OWNERS];
+    aio4c_bool_t         closedBy[AIO4C_CONNECTION_OWNER_MAX];
     SelectionKey*        readKey;
     SelectionKey*        writeKey;
     BufferPool*          pool;
@@ -107,6 +108,8 @@ extern Connection* ConnectionConnect(Connection* connection);
 extern Connection* ConnectionFinishConnect(Connection* connection);
 
 extern Connection* ConnectionRead(Connection* connection);
+
+extern __aio4c_dll void EnableWriteInterest(Connection* connection);
 
 extern Connection* ConnectionWrite(Connection* connection);
 

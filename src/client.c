@@ -28,11 +28,16 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-#include <string.h>
+#ifdef AIO4C_WIN32
+#include <winbase.h>
+#else
 #include <unistd.h>
+#endif
+
+#include <string.h>
 
 static void _clientEventHandler(Event event, Connection* source, Client* client) {
-    if (event == CONNECTED_EVENT) {
+    if (event == AIO4C_CONNECTED_EVENT) {
         ReaderManageConnection(client->reader, source);
         client->connected = true;
         client->retryCount = 0;
@@ -43,20 +48,20 @@ static void _clientEventHandler(Event event, Connection* source, Client* client)
 
 static void _connection(Client* client) {
     client->connection = NewConnection(client->pool, client->address, false);
-    ConnectionAddSystemHandler(client->connection, INIT_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
-    ConnectionAddSystemHandler(client->connection, CONNECTING_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
-    ConnectionAddSystemHandler(client->connection, CONNECTED_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
-    ConnectionAddSystemHandler(client->connection, CLOSE_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
-    ConnectionAddHandler(client->connection, INIT_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
-    ConnectionAddHandler(client->connection, CONNECTED_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
-    ConnectionAddHandler(client->connection, INBOUND_DATA_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), false);
-    ConnectionAddHandler(client->connection, WRITE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), false);
-    ConnectionAddHandler(client->connection, CLOSE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
+    ConnectionAddSystemHandler(client->connection, AIO4C_INIT_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
+    ConnectionAddSystemHandler(client->connection, AIO4C_CONNECTING_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
+    ConnectionAddSystemHandler(client->connection, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
+    ConnectionAddSystemHandler(client->connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
+    ConnectionAddHandler(client->connection, AIO4C_INIT_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
+    ConnectionAddHandler(client->connection, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
+    ConnectionAddHandler(client->connection, AIO4C_INBOUND_DATA_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), false);
+    ConnectionAddHandler(client->connection, AIO4C_WRITE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), false);
+    ConnectionAddHandler(client->connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
     ConnectionInit(client->connection);
 }
 
 static void _clientInit(Client* client) {
-    Log(client->thread, INFO, "started");
+    Log(client->thread, AIO4C_LOG_LEVEL_INFO, "started");
 
     client->pool = NewBufferPool(2, client->bufferSize);
     client->reader = NewReader("client-reader", client->bufferSize);
@@ -70,28 +75,32 @@ static aio4c_bool_t _clientRun(Client* client) {
 
     while (Dequeue(client->queue, &item, true)) {
         switch (item.type) {
-            case EXIT:
+            case AIO4C_QUEUE_ITEM_EXIT:
                 return false;
-            case EVENT:
+            case AIO4C_QUEUE_ITEM_EVENT:
                 switch (item.content.event.type) {
-                    case INIT_EVENT:
-                        Log(client->thread, DEBUG, "connection %s initialized", client->address->string);
+                    case AIO4C_INIT_EVENT:
+                        Log(client->thread, AIO4C_LOG_LEVEL_DEBUG, "connection %s initialized", client->address->string);
                         ConnectionConnect((Connection*)item.content.event.source);
                         break;
-                    case CONNECTING_EVENT:
-                        Log(client->thread, DEBUG, "finishing connection to %s", client->address->string);
+                    case AIO4C_CONNECTING_EVENT:
+                        Log(client->thread, AIO4C_LOG_LEVEL_DEBUG, "finishing connection to %s", client->address->string);
                         ConnectionFinishConnect((Connection*)item.content.event.source);
                         break;
-                    case CONNECTED_EVENT:
-                        Log(client->thread, INFO, "connection established with success on %s", client->address->string);
+                    case AIO4C_CONNECTED_EVENT:
+                        Log(client->thread, AIO4C_LOG_LEVEL_INFO, "connection established with success on %s", client->address->string);
                         break;
-                    case CLOSE_EVENT:
+                    case AIO4C_CLOSE_EVENT:
                         if (client->retryCount < client->retries) {
                             client->retryCount++;
-                            ProbeTimeStart(TIME_PROBE_IDLE);
+                            ProbeTimeStart(AIO4C_TIME_PROBE_IDLE);
+#ifdef AIO4C_WIN32
+                            Sleep(client->interval * 1000);
+#else
                             sleep(client->interval);
-                            ProbeTimeEnd(TIME_PROBE_IDLE);
-                            Log(client->thread, WARN, "connection with %s lost, retrying (%d/%d)", client->address->string, client->retryCount, client->retries);
+#endif
+                            ProbeTimeEnd(AIO4C_TIME_PROBE_IDLE);
+                            Log(client->thread, AIO4C_LOG_LEVEL_WARN, "connection with %s lost, retrying (%d/%d)", client->address->string, client->retryCount, client->retries);
                             if (!client->connected) {
                                 FreeConnection(&client->connection);
                             } else {
@@ -99,7 +108,7 @@ static aio4c_bool_t _clientRun(Client* client) {
                             }
                             _connection(client);
                         } else {
-                            Log(client->thread, ERROR, "retried too many times to connect %s, giving up", client->address->string);
+                            Log(client->thread, AIO4C_LOG_LEVEL_ERROR, "retried too many times to connect %s, giving up", client->address->string);
                             FreeConnection(&client->connection);
                             return false;
                         }
@@ -162,3 +171,11 @@ Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel l
 
     return client;
 }
+
+void ClientEnd(Client* client) {
+    Thread* tClient = client->thread;
+
+    ThreadJoin(tClient);
+    FreeThread(&tClient);
+}
+

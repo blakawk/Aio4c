@@ -29,12 +29,12 @@
 #include <string.h>
 
 static void _serverInit(Server* server) {
-    ConnectionAddHandler(server->factory, CONNECTED_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), true);
-    ConnectionAddHandler(server->factory, INBOUND_DATA_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), false);
-    ConnectionAddHandler(server->factory, WRITE_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), false);
-    ConnectionAddHandler(server->factory, CLOSE_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), true);
+    ConnectionAddHandler(server->factory, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), true);
+    ConnectionAddHandler(server->factory, AIO4C_INBOUND_DATA_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), false);
+    ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), false);
+    ConnectionAddHandler(server->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), true);
     server->acceptor = NewAcceptor("server-acceptor", server->address, server->factory);
-    Log(server->thread, INFO, "listening on %s", server->address->string);
+    Log(server->thread, AIO4C_LOG_LEVEL_INFO, "listening on %s", server->address->string);
 }
 
 static aio4c_bool_t _serverRun(Server* server) {
@@ -43,7 +43,7 @@ static aio4c_bool_t _serverRun(Server* server) {
     memset(&item, 0, sizeof(QueueItem));
 
     while (Dequeue(server->queue, &item, true)) {
-        if (item.type == EXIT) {
+        if (item.type == AIO4C_QUEUE_ITEM_EXIT) {
             return false;
         }
     }

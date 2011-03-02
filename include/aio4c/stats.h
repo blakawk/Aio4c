@@ -20,6 +20,8 @@
 #ifndef __AIO4C_STATS_H__
 #define __AIO4C_STATS_H__
 
+#include <aio4c/types.h>
+
 #include <stdio.h>
 #include <sys/time.h>
 
@@ -50,41 +52,41 @@
     fprintf(stderr, fmt, __VA_ARGS__)
 
 typedef enum e_ProbeTimeType {
-    TIME_PROBE_MEMORY_ALLOCATION,
-    TIME_PROBE_BUFFER_ALLOCATION,
-    TIME_PROBE_NETWORK_READ,
-    TIME_PROBE_NETWORK_WRITE,
-    TIME_PROBE_DATA_PROCESS,
-    TIME_PROBE_BLOCK,
-    TIME_PROBE_IDLE,
-    TIME_PROBE_LATENCY,
-    TIME_PROBE_JNI_OVERHEAD,
-    TIME_MAX_PROBE_TYPE
+    AIO4C_TIME_PROBE_MEMORY_ALLOCATION,
+    AIO4C_TIME_PROBE_BUFFER_ALLOCATION,
+    AIO4C_TIME_PROBE_NETWORK_READ,
+    AIO4C_TIME_PROBE_NETWORK_WRITE,
+    AIO4C_TIME_PROBE_DATA_PROCESS,
+    AIO4C_TIME_PROBE_BLOCK,
+    AIO4C_TIME_PROBE_IDLE,
+    AIO4C_TIME_PROBE_LATENCY,
+    AIO4C_TIME_PROBE_JNI_OVERHEAD,
+    AIO4C_TIME_MAX_PROBE_TYPE
 } ProbeTimeType;
 
 typedef enum e_ProbeSizeType {
-    PROBE_MEMORY_ALLOCATED_SIZE,
-    PROBE_BUFFER_ALLOCATED_SIZE,
-    PROBE_NETWORK_READ_SIZE,
-    PROBE_NETWORK_WRITE_SIZE,
-    PROBE_PROCESSED_DATA_SIZE,
-    PROBE_CONNECTION_COUNT,
-    PROBE_MEMORY_ALLOCATE_COUNT,
-    PROBE_MEMORY_FREE_COUNT,
-    PROBE_LATENCY_COUNT,
-    PROBE_MAX_SIZE_TYPE
+    AIO4C_PROBE_MEMORY_ALLOCATED_SIZE,
+    AIO4C_PROBE_BUFFER_ALLOCATED_SIZE,
+    AIO4C_PROBE_NETWORK_READ_SIZE,
+    AIO4C_PROBE_NETWORK_WRITE_SIZE,
+    AIO4C_PROBE_PROCESSED_DATA_SIZE,
+    AIO4C_PROBE_CONNECTION_COUNT,
+    AIO4C_PROBE_MEMORY_ALLOCATE_COUNT,
+    AIO4C_PROBE_MEMORY_FREE_COUNT,
+    AIO4C_PROBE_LATENCY_COUNT,
+    AIO4C_PROBE_MAX_SIZE_TYPE
 } ProbeSizeType;
 
 #if AIO4C_ENABLE_STATS == 1
-extern void _InitProbes(void) __attribute__((constructor));
+extern __aio4c_dll void _InitProbes(void) __attribute__((constructor));
 #endif
 
-extern void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop);
+extern __aio4c_dll void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop);
 
-extern void _ProbeSize(ProbeSizeType type, int size);
+extern __aio4c_dll void _ProbeSize(ProbeSizeType type, int size);
 
 #if AIO4C_ENABLE_STATS == 1
-extern void _StatsEnd(void) __attribute__((destructor));
+extern __aio4c_dll void _StatsEnd(void) __attribute__((destructor));
 #endif
 
 #endif

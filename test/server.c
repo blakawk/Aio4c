@@ -39,7 +39,7 @@ static void serverHandler(Event event, Connection* source, void* null) {
     }
 
     switch (event) {
-        case INBOUND_DATA_EVENT:
+        case AIO4C_INBOUND_DATA_EVENT:
             buffer = source->dataBuffer;
             if (memcmp(&buffer->data[buffer->position], "PING ", 6) == 0) {
                 buffer->position += 6;
@@ -49,11 +49,11 @@ static void serverHandler(Event event, Connection* source, void* null) {
                 buffer->position += sizeof(int);
                 if (curSeq == lastSeq + 1) {
                     lastSeq ++;
-                    ConnectionEventHandle(source, OUTBOUND_DATA_EVENT, source);
+                    EnableWriteInterest(source);
                 }
             }
             break;
-        case WRITE_EVENT:
+        case AIO4C_WRITE_EVENT:
             buffer = source->writeBuffer;
             memcpy(&buffer->data[buffer->position], "PONG ", 6);
             buffer->position += 6;
@@ -74,7 +74,7 @@ int main(void) {
     char buffer[32];
     ssize_t nbRead = 0;
 
-    Server* server = NewServer(IPV4, "localhost", 11111, DEBUG, NULL, 8192, serverHandler, NULL);
+    Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, NULL, 8192, serverHandler, NULL);
 
     while ((nbRead = read(STDIN_FILENO, buffer, 31)) > 0) {
         buffer[nbRead] = '\0';

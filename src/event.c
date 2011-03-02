@@ -33,11 +33,11 @@ EventQueue* NewEventQueue(void) {
         return NULL;
     }
 
-    memset(eventQueue->eventHandlers, 0, AIO_EVENTS_COUNT * sizeof(EventHandler*));
-    memset(eventQueue->handlersCount, 0, AIO_EVENTS_COUNT * sizeof(aio4c_size_t));
-    memset(eventQueue->maxHandlers, 0, AIO_EVENTS_COUNT * sizeof(aio4c_size_t));
+    memset(eventQueue->eventHandlers, 0, AIO4C_EVENTS_COUNT * sizeof(EventHandler*));
+    memset(eventQueue->handlersCount, 0, AIO4C_EVENTS_COUNT * sizeof(aio4c_size_t));
+    memset(eventQueue->maxHandlers, 0, AIO4C_EVENTS_COUNT * sizeof(aio4c_size_t));
 
-    for (i=0; i<AIO_EVENTS_COUNT; i++) {
+    for (i=0; i<AIO4C_EVENTS_COUNT; i++) {
         if ((eventQueue->eventHandlers[i] = aio4c_malloc(sizeof(EventHandler*))) == NULL) {
             break;
         }
@@ -46,7 +46,7 @@ EventQueue* NewEventQueue(void) {
         eventQueue->maxHandlers[i]++;
     }
 
-    if (i < AIO_EVENTS_COUNT) {
+    if (i < AIO4C_EVENTS_COUNT) {
         for (; i>=0; i--) {
             aio4c_free(eventQueue->eventHandlers[i]);
         }
@@ -124,7 +124,7 @@ void CopyEventQueue(EventQueue* dst, EventQueue* src) {
     int i = 0, j = 0;
     EventHandler* handler = NULL;
 
-    for (i = 0; i < AIO_EVENTS_COUNT; i++) {
+    for (i = 0; i < AIO4C_EVENTS_COUNT; i++) {
         for (j = 0; j < src->handlersCount[i]; j++) {
             handler = src->eventHandlers[i][j];
             if (handler != NULL) {
@@ -139,7 +139,7 @@ void FreeEventQueue(EventQueue** queue) {
     int i = 0, j = 0;
 
     if (queue != NULL && ((pQueue = *queue) != NULL)) {
-        for (i=0; i<AIO_EVENTS_COUNT; i++) {
+        for (i=0; i<AIO4C_EVENTS_COUNT; i++) {
             if (pQueue->eventHandlers[i] != NULL) {
                 for (j=0; j<pQueue->maxHandlers[i]; j++) {
                     if (pQueue->eventHandlers[i][j] != NULL) {

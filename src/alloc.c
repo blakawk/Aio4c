@@ -33,22 +33,22 @@ void* aio4c_malloc(aio4c_size_t size) {
     void* ptr = NULL;
     aio4c_size_t* sPtr = NULL;
 
-    ProbeTimeStart(TIME_PROBE_MEMORY_ALLOCATION);
+    ProbeTimeStart(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
     if ((ptr = malloc(size + sizeof(size))) == NULL) {
-        Log(ThreadSelf(), FATAL, "cannot allocate memory: %s", strerror(errno));
+        Log(ThreadSelf(), AIO4C_LOG_LEVEL_FATAL, "cannot allocate memory: %s", strerror(errno));
         return NULL;
     }
 
     memset(ptr, 0, size + sizeof(size));
 
-    ProbeSize(PROBE_MEMORY_ALLOCATED_SIZE, size);
-    ProbeSize(PROBE_MEMORY_ALLOCATE_COUNT, 1);
+    ProbeSize(AIO4C_PROBE_MEMORY_ALLOCATED_SIZE, size);
+    ProbeSize(AIO4C_PROBE_MEMORY_ALLOCATE_COUNT, 1);
 
     sPtr = (aio4c_size_t*)ptr;
     sPtr[0] = size;
 
-    ProbeTimeEnd(TIME_PROBE_MEMORY_ALLOCATION);
+    ProbeTimeEnd(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
     return (void*)(&sPtr[1]);
 }
@@ -63,7 +63,7 @@ void* aio4c_realloc(void* ptr, aio4c_size_t size) {
         return aio4c_malloc(size);
     }
 
-    ProbeTimeStart(TIME_PROBE_MEMORY_ALLOCATION);
+    ProbeTimeStart(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
     sPtr = (aio4c_size_t*)ptr;
 
@@ -71,7 +71,7 @@ void* aio4c_realloc(void* ptr, aio4c_size_t size) {
     ptr = &sPtr[-1];
 
     if ((_ptr = realloc(ptr, size + sizeof(size))) == NULL) {
-        Log(ThreadSelf(), FATAL, "cannot re-allocate memory: %s", strerror(errno));
+        Log(ThreadSelf(), AIO4C_LOG_LEVEL_FATAL, "cannot re-allocate memory: %s", strerror(errno));
         return NULL;
     }
 
@@ -83,10 +83,10 @@ void* aio4c_realloc(void* ptr, aio4c_size_t size) {
         memset(&cPtr[prevSize], 0, size - prevSize);
     }
 
-    ProbeSize(PROBE_MEMORY_ALLOCATE_COUNT, 1);
-    ProbeSize(PROBE_MEMORY_ALLOCATED_SIZE, size - prevSize);
+    ProbeSize(AIO4C_PROBE_MEMORY_ALLOCATE_COUNT, 1);
+    ProbeSize(AIO4C_PROBE_MEMORY_ALLOCATED_SIZE, size - prevSize);
 
-    ProbeTimeEnd(TIME_PROBE_MEMORY_ALLOCATION);
+    ProbeTimeEnd(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
     return (void*)(cPtr);
 }
@@ -95,7 +95,7 @@ void aio4c_free(void* ptr) {
     aio4c_size_t* sPtr = NULL;
     aio4c_size_t size = 0;
 
-    ProbeTimeStart(TIME_PROBE_MEMORY_ALLOCATION);
+    ProbeTimeStart(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
     sPtr = (aio4c_size_t*)ptr;
     size = sPtr[-1];
@@ -103,8 +103,8 @@ void aio4c_free(void* ptr) {
 
     free(ptr);
 
-    ProbeSize(PROBE_MEMORY_ALLOCATED_SIZE, -size);
-    ProbeSize(PROBE_MEMORY_FREE_COUNT, 1);
+    ProbeSize(AIO4C_PROBE_MEMORY_ALLOCATED_SIZE, -size);
+    ProbeSize(AIO4C_PROBE_MEMORY_FREE_COUNT, 1);
 
-    ProbeTimeEnd(TIME_PROBE_MEMORY_ALLOCATION);
+    ProbeTimeEnd(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 }

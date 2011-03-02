@@ -45,11 +45,11 @@ void onRead(Connection* source) {
         buffer->position += sizeof(struct timeval);
         memcpy(&mySeq, &buffer->data[buffer->position], sizeof(int));
         buffer->position += sizeof(int);
-        ProbeSize(PROBE_LATENCY_COUNT, 1);
-        ProbeTime(TIME_PROBE_LATENCY, &ping, &pong);
+        ProbeSize(AIO4C_PROBE_LATENCY_COUNT, 1);
+        ProbeTime(AIO4C_TIME_PROBE_LATENCY, &ping, &pong);
     }
 
-    ConnectionEventHandle(source, OUTBOUND_DATA_EVENT, source);
+    EnableWriteInterest(source);
 }
 
 void onWrite(Connection* source) {
@@ -73,30 +73,26 @@ void handler(Event event, Connection* source, void* c) {
     }
 
     switch (event) {
-        case INBOUND_DATA_EVENT:
+        case AIO4C_INBOUND_DATA_EVENT:
             onRead(source);
             break;
-        case WRITE_EVENT:
+        case AIO4C_WRITE_EVENT:
             onWrite(source);
             break;
-        case CONNECTED_EVENT:
-            ConnectionEventHandle(source, OUTBOUND_DATA_EVENT, source);
+        case AIO4C_CONNECTED_EVENT:
+            EnableWriteInterest(source);
             break;
         default:
-            Log(NULL, DEBUG, "received event %d", event);
+            Log(NULL, AIO4C_LOG_LEVEL_DEBUG, "received event %d", event);
             break;
     }
 }
 
 int main (void) {
     Client* client = NULL;
-    Thread* tClient = NULL;
 
-    client = NewClient(IPV4, "localhost", 11111, INFO, "client.log", 3, 10, 8192, handler, NULL);
-    tClient = client->thread;
-
-    ThreadJoin(tClient);
-    FreeThread(&tClient);
+    client = NewClient(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "client.log", 3, 10, 8192, handler, NULL);
+    ClientEnd(client);
 
     return EXIT_SUCCESS;
 }

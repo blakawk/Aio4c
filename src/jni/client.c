@@ -49,25 +49,25 @@ static void _jniClientEventHandler(Event event, Connection* connection, JavaClie
     cClient = (*jvm)->GetObjectClass(jvm, jClient);
 
     switch (event) {
-        case INIT_EVENT:
+        case AIO4C_INIT_EVENT:
             jMethod = (*jvm)->GetMethodID(jvm, cClient, "onInit", "()V");
             (*jvm)->CallVoidMethod(jvm, jClient, jMethod);
             break;
-        case CLOSE_EVENT:
+        case AIO4C_CLOSE_EVENT:
             jMethod = (*jvm)->GetMethodID(jvm, cClient, "onClose", "()V");
             (*jvm)->CallVoidMethod(jvm, jClient, jMethod);
             break;
-        case CONNECTED_EVENT:
+        case AIO4C_CONNECTED_EVENT:
             jMethod = (*jvm)->GetMethodID(jvm, cClient, "onConnect", "()V");
             (*jvm)->CallVoidMethod(jvm, jClient, jMethod);
             break;
-        case INBOUND_DATA_EVENT:
+        case AIO4C_INBOUND_DATA_EVENT:
             jMethod = (*jvm)->GetMethodID(jvm, cClient, "processData", "([B)V");
             bArray = (*jvm)->NewByteArray(jvm, connection->dataBuffer->limit - connection->dataBuffer->position);
             (*jvm)->SetByteArrayRegion(jvm, bArray, 0, connection->dataBuffer->limit - connection->dataBuffer->position, (jbyte*)&connection->dataBuffer->data[connection->dataBuffer->position]);
             (*jvm)->CallVoidMethod(jvm, jClient, jMethod, bArray);
             break;
-        case WRITE_EVENT:
+        case AIO4C_WRITE_EVENT:
             jMethod = (*jvm)->GetMethodID(jvm, cClient, "writeData", "([B)I");
             bArray = (*jvm)->NewByteArray(jvm, connection->writeBuffer->limit - connection->writeBuffer->position);
             writed = (*jvm)->CallIntMethod(jvm, jClient, jMethod, bArray);
@@ -81,7 +81,7 @@ static void _jniClientEventHandler(Event event, Connection* connection, JavaClie
 }
 
 JNIEXPORT jlong JNICALL Java_com_aio4c_Client_Create(JNIEnv *jvm, jobject client) {
-    ProbeTimeStart(TIME_PROBE_JNI_OVERHEAD);
+    ProbeTimeStart(AIO4C_TIME_PROBE_JNI_OVERHEAD);
     int addressType = 0, retries = 0, retryInterval = 0, bufferSize = 0, logLevel = 0;
     short port = 0;
     char *address = NULL, *log = NULL;
@@ -127,7 +127,7 @@ JNIEXPORT jlong JNICALL Java_com_aio4c_Client_Create(JNIEnv *jvm, jobject client
     (*jvm)->ReleaseStringUTFChars(jvm, oLog, log);
 
     return result;
-    ProbeTimeEnd(TIME_PROBE_JNI_OVERHEAD);
+    ProbeTimeEnd(AIO4C_TIME_PROBE_JNI_OVERHEAD);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_Client_End(JNIEnv* jvm, jobject client) {

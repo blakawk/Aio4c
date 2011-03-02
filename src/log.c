@@ -33,7 +33,7 @@
 #include <time.h>
 
 static Logger _logger = {
-    .level = FATAL,
+    .level = AIO4C_LOG_LEVEL_FATAL,
     .file = NULL,
     .queue = NULL,
     .thread = NULL,
@@ -59,7 +59,7 @@ static void _LogPrintMessage(Logger* logger, char* message) {
 }
 
 static void _LogInit(Logger* logger) {
-    Log(logger->thread, INFO, "logging is initialized");
+    Log(logger->thread, AIO4C_LOG_LEVEL_INFO, "logging is initialized");
 }
 
 static aio4c_bool_t _LogRun(Logger* logger) {
@@ -69,9 +69,9 @@ static aio4c_bool_t _LogRun(Logger* logger) {
 
     while (Dequeue(logger->queue, &item, true)) {
         switch (item.type) {
-            case EXIT:
+            case AIO4C_QUEUE_ITEM_EXIT:
                 return false;
-            case DATA:
+            case AIO4C_QUEUE_ITEM_DATA:
                 _LogPrintMessage(logger, (char*)item.content.data);
                 break;
             default:
@@ -83,7 +83,7 @@ static aio4c_bool_t _LogRun(Logger* logger) {
 }
 
 static void _LogExit(Logger* logger) {
-    Log(logger->thread, INFO, "logging finished");
+    Log(logger->thread, AIO4C_LOG_LEVEL_INFO, "logging finished");
 
     _LogRun(logger);
 
@@ -94,8 +94,6 @@ static void _LogExit(Logger* logger) {
 }
 
 void LogInit(Thread* parent, LogLevel level, char* filename) {
-    tzset();
-
     _logger.level = level;
     _logger.thread = NULL;
     _logger.exiting = false;
@@ -103,18 +101,18 @@ void LogInit(Thread* parent, LogLevel level, char* filename) {
     if (filename != NULL) {
         if ((_logger.file = fopen(filename, "a")) == NULL) {
             _logger.file = stderr;
-            Log(parent, WARN, "open %s: %s, therefore logging will be performed on console instead", filename, strerror(errno));
+            Log(parent, AIO4C_LOG_LEVEL_WARN, "open %s: %s, therefore logging will be performed on console instead", filename, strerror(errno));
         }
     } else {
         _logger.file = stderr;
     }
 
     if ((_logger.queue = NewQueue()) == NULL) {
-        Log(parent, WARN, "cannot create log messages queue: %s, therefore no thread will be used", strerror(errno));
+        Log(parent, AIO4C_LOG_LEVEL_WARN, "cannot create log messages queue: %s, therefore no thread will be used", strerror(errno));
     } else {
         _logger.thread = NewThread("logger", (void(*)(void*))_LogInit, (aio4c_bool_t(*)(void*))_LogRun, (void(*)(void*))_LogExit, (void*)&_logger);
         if (_logger.thread == NULL) {
-            Log(parent, WARN, "cannot create logging thread, logging may slow down performances");
+            Log(parent, AIO4C_LOG_LEVEL_WARN, "cannot create logging thread, logging may slow down performances");
         }
     }
 }
@@ -126,7 +124,7 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
     struct tm* tm = NULL;
     aio4c_size_t prefixLen = 0, fromLen = 0;
 
-    if ((pMessage = aio4c_malloc(MAX_LOG_MESSAGE_SIZE * sizeof(char))) == NULL) {
+    if ((pMessage = aio4c_malloc(AIO4C_MAX_LOG_MESSAGE_SIZE * sizeof(char))) == NULL) {
         *message = NULL;
         return 0;
     }
@@ -137,26 +135,26 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
     tm = localtime((time_t*)&tv.tv_sec);
 
     switch(level) {
-        case INFO:
+        case AIO4C_LOG_LEVEL_INFO:
             levelString = "info";
             break;
-        case WARN:
+        case AIO4C_LOG_LEVEL_WARN:
             levelString = "warn";
             break;
-        case ERROR:
+        case AIO4C_LOG_LEVEL_ERROR:
             levelString = "error";
             break;
-        case FATAL:
+        case AIO4C_LOG_LEVEL_FATAL:
             levelString = "FATAL";
             break;
-        case DEBUG:
+        case AIO4C_LOG_LEVEL_DEBUG:
             levelString = "debug";
             break;
         default:
             break;
     }
 
-    prefixLen = snprintf(pMessage, MAX_LOG_MESSAGE_SIZE, "[%02d:%02d:%02d.%03d %02d/%02d/%02d] [%s] ",
+    prefixLen = snprintf(pMessage, AIO4C_MAX_LOG_MESSAGE_SIZE, "[%02d:%02d:%02d.%03d %02d/%02d/%02d] [%s] ",
             tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), tm->tm_mday,
             tm->tm_mon + 1, tm->tm_year % 100, levelString);
 
@@ -165,7 +163,7 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
     }
 
     if (from != NULL) {
-        fromLen = snprintf(&pMessage[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "%s: ", from->name);
+        fromLen = snprintf(&pMessage[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "%s: ", from->name);
     }
 
     *message = pMessage;
@@ -189,10 +187,10 @@ void Log(Thread* from, LogLevel level, char* message, ...) {
     }
 
     va_start(args, message);
-    messageLen += vsnprintf(&pMessage[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, message, args);
+    messageLen += vsnprintf(&pMessage[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, message, args);
     va_end(args);
 
-    if (messageLen >= MAX_LOG_MESSAGE_SIZE - prefixLen) {
+    if (messageLen >= AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen) {
         if ((pMessage = aio4c_realloc(pMessage, prefixLen + messageLen + 2)) == NULL) {
             aio4c_free(pMessage);
             return;
@@ -242,10 +240,10 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     if (buffer->limit >= 16) {
         for (i = buffer->position; i < buffer->limit; i += 16) {
             prefixLen = _LogPrefix(from, level, &message);
-            prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "0x%08x: ", i);
+            prefixLen += snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "0x%08x: ", i);
 
             for (j = 0; j < 16; j ++) {
-                prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "%02x ", (buffer->data[i + j] & 0xff));
+                prefixLen += snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "%02x ", (buffer->data[i + j] & 0xff));
             }
 
             for (j = 0; j < 16; j ++) {
@@ -253,9 +251,9 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
                 if (!isprint((int)c)) {
                     c = '.';
                 }
-                prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "%c", c);
+                prefixLen += snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "%c", c);
             }
-            snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "\n");
+            snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "\n");
             if (logger != NULL && logger->queue != NULL) {
                 if (!EnqueueDataItem(logger->queue, message)) {
                     _LogPrintMessage(logger, message);
@@ -271,14 +269,14 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
     }
 
     prefixLen = _LogPrefix(from, level, &message);
-    prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "0x%08x: ", i);
+    prefixLen += snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "0x%08x: ", i);
 
     for (j = 0; j < buffer->limit - i; j++) {
-        prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "%02x ", (buffer->data[i + j] & 0xff));
+        prefixLen += snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "%02x ", (buffer->data[i + j] & 0xff));
     }
 
     for (; j < 16; j++) {
-        prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "   ");
+        prefixLen += snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "   ");
     }
 
     for (j = 0; j < buffer->limit - i; j++) {
@@ -286,10 +284,10 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
         if (!isprint((int)c)) {
             c = '.';
         }
-        prefixLen += snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "%c", c);
+        prefixLen += snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "%c", c);
     }
 
-    snprintf(&message[prefixLen], MAX_LOG_MESSAGE_SIZE - prefixLen, "\n");
+    snprintf(&message[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "\n");
 
     if (logger != NULL && logger->queue != NULL) {
         if (!EnqueueDataItem(logger->queue, message)) {

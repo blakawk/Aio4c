@@ -23,7 +23,12 @@
 #include <aio4c/event.h>
 #include <aio4c/types.h>
 
+#ifndef AIO4C_WIN32
 #include <poll.h>
+#else
+#include <winsock2.h>
+#endif
+
 #include <pthread.h>
 #include <stdio.h>
 
@@ -75,25 +80,27 @@
     }
 
 typedef enum e_ThreadState {
-    RUNNING,
-    BLOCKED,
-    IDLE,
-    STOPPED,
-    EXITED,
-    JOINED
+    AIO4C_THREAD_STATE_RUNNING,
+    AIO4C_THREAD_STATE_BLOCKED,
+    AIO4C_THREAD_STATE_IDLE,
+    AIO4C_THREAD_STATE_STOPPED,
+    AIO4C_THREAD_STATE_EXITED,
+    AIO4C_THREAD_STATE_JOINED,
+    AIO4C_THREAD_STATE_MAX
 } ThreadState;
 
 typedef enum e_LockState {
-    DESTROYED,
-    FREE,
-    LOCKED
+    AIO4C_LOCK_STATE_DESTROYED,
+    AIO4C_LOCK_STATE_FREE,
+    AIO4C_LOCK_STATE_LOCKED,
+    AIO4C_LOCK_STATE_MAX
 } LockState;
 
 typedef struct s_Lock Lock;
 
 typedef struct s_Thread {
     char*             name;
-    aio4c_thread_t    id;
+    pthread_t         id;
     ThreadState       state;
     aio4c_bool_t      stateValid;
     Lock*             lock;
@@ -115,10 +122,11 @@ typedef struct s_Condition {
 } Condition;
 
 typedef enum e_QueueItemType {
-    EVENT,
-    DATA,
-    TASK,
-    EXIT
+    AIO4C_QUEUE_ITEM_EVENT,
+    AIO4C_QUEUE_ITEM_DATA,
+    AIO4C_QUEUE_ITEM_TASK,
+    AIO4C_QUEUE_ITEM_EXIT,
+    AIO4C_QUEUE_ITEM_MAX
 } QueueItemType;
 
 typedef struct s_QueueEventItem {
@@ -168,10 +176,15 @@ typedef struct s_Queue {
     aio4c_bool_t emptied;
 } Queue;
 
-typedef enum e_SelectionOperation {
-    AIO4C_OP_READ = POLLIN,
-    AIO4C_OP_WRITE = POLLOUT
-} SelectionOperation;
+#ifndef AIO4C_WIN32
+#define AIO4C_OP_READ POLLIN
+#define AIO4C_OP_WRITE POLLOUT
+#else
+#define AIO4C_OP_READ POLLRDNORM
+#define AIO4C_OP_WRITE POLLWRNORM
+#endif
+
+typedef int SelectionOperation;
 
 typedef struct s_SelectionKey {
     SelectionOperation operation;
@@ -194,6 +207,9 @@ typedef struct s_Selector {
     int            numPolls;
     int            maxPolls;
     Lock*          lock;
+#ifdef AIO4C_WIN32
+    int            port;
+#endif
 } Selector;
 
 extern int GetNumThreads(void);

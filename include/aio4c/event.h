@@ -22,18 +22,16 @@
 
 #include <aio4c/types.h>
 
-#define AIO_EVENTS_COUNT 9
-
 typedef enum e_EventType {
-    INIT_EVENT = 0,
-    CONNECTING_EVENT = 1,
-    CONNECTED_EVENT = 2,
-    READ_EVENT = 3,
-    INBOUND_DATA_EVENT = 4,
-    WRITE_EVENT = 5,
-    OUTBOUND_DATA_AVAILABLE_EVENT = 6,
-    OUTBOUND_DATA_EVENT = 7,
-    CLOSE_EVENT = 8
+    AIO4C_INIT_EVENT = 0,
+    AIO4C_CONNECTING_EVENT = 1,
+    AIO4C_CONNECTED_EVENT = 2,
+    AIO4C_READ_EVENT = 3,
+    AIO4C_INBOUND_DATA_EVENT = 4,
+    AIO4C_WRITE_EVENT = 5,
+    AIO4C_OUTBOUND_DATA_EVENT = 6,
+    AIO4C_CLOSE_EVENT = 7,
+    AIO4C_EVENTS_COUNT = 8
 } Event;
 
 typedef struct s_EventHandler {
@@ -50,9 +48,9 @@ typedef struct s_EventHandler {
     (void*)arg
 
 typedef struct s_EventQueue {
-    int handlersCount[AIO_EVENTS_COUNT];
-    int maxHandlers[AIO_EVENTS_COUNT];
-    EventHandler** eventHandlers[AIO_EVENTS_COUNT];
+    int handlersCount[AIO4C_EVENTS_COUNT];
+    int maxHandlers[AIO4C_EVENTS_COUNT];
+    EventHandler** eventHandlers[AIO4C_EVENTS_COUNT];
 } EventQueue;
 
 extern EventQueue* NewEventQueue(void);

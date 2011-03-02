@@ -109,7 +109,7 @@ Buffer* AllocateBuffer(BufferPool* pool) {
     Buffer* buffer = NULL;
     int i = 0;
 
-    ProbeTimeStart(TIME_PROBE_BUFFER_ALLOCATION);
+    ProbeTimeStart(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
 
     TakeLock(pool->lock);
 
@@ -136,11 +136,11 @@ Buffer* AllocateBuffer(BufferPool* pool) {
     buffer->poolIndex = pool->used;
     pool->used++;
 
-    ProbeSize(PROBE_BUFFER_ALLOCATED_SIZE, buffer->size);
+    ProbeSize(AIO4C_PROBE_BUFFER_ALLOCATED_SIZE, buffer->size);
 
     ReleaseLock(pool->lock);
 
-    ProbeTimeEnd(TIME_PROBE_BUFFER_ALLOCATION);
+    ProbeTimeEnd(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
 
     return buffer;
 }
@@ -150,7 +150,7 @@ void ReleaseBuffer(Buffer** pBuffer) {
     BufferPool* pool = NULL;
     int i = 0;
 
-    ProbeTimeStart(TIME_PROBE_BUFFER_ALLOCATION);
+    ProbeTimeStart(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
 
     if (pBuffer != NULL && (buffer = *pBuffer) != NULL) {
         if ((pool = buffer->pool) == NULL) {
@@ -169,14 +169,14 @@ void ReleaseBuffer(Buffer** pBuffer) {
         pool->buffers[i]->poolIndex = i;
         pool->used--;
 
-        ProbeSize(PROBE_BUFFER_ALLOCATED_SIZE, -buffer->size);
+        ProbeSize(AIO4C_PROBE_BUFFER_ALLOCATED_SIZE, -buffer->size);
 
         ReleaseLock(pool->lock);
 
         *pBuffer = NULL;
     }
 
-    ProbeTimeEnd(TIME_PROBE_BUFFER_ALLOCATION);
+    ProbeTimeEnd(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
 }
 
 void FreeBufferPool(BufferPool** pPool) {
@@ -218,7 +218,7 @@ Buffer* BufferFlip(Buffer* buffer) {
 
 Buffer* BufferPosition(Buffer* buffer, int position) {
     if (position >= buffer->limit) {
-        Log(ThreadSelf(), ERROR, "invalid position %d for buffer %p [lim: %d]", position, (void*)buffer, buffer->limit);
+        Log(ThreadSelf(), AIO4C_LOG_LEVEL_ERROR, "invalid position %d for buffer %p [lim: %d]", position, (void*)buffer, buffer->limit);
         return NULL;
     } else {
         buffer->position = position;
@@ -229,7 +229,7 @@ Buffer* BufferPosition(Buffer* buffer, int position) {
 
 Buffer* BufferLimit(Buffer* buffer, int limit) {
     if (limit > buffer->size) {
-        Log(ThreadSelf(), ERROR, "invalid limit %d for buffer %p [cap: %d]", limit, (void*)buffer, buffer->size);
+        Log(ThreadSelf(), AIO4C_LOG_LEVEL_ERROR, "invalid limit %d for buffer %p [cap: %d]", limit, (void*)buffer, buffer->size);
         return NULL;
     } else {
         buffer->limit = limit;

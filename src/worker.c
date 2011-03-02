@@ -34,12 +34,12 @@
 #include <string.h>
 
 static void _WorkerInit(Worker* worker) {
-    Log(worker->thread, INFO, "initialized");
+    Log(worker->thread, AIO4C_LOG_LEVEL_INFO, "initialized");
 }
 
 static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
     Task* task = NULL;
-    if (item->type == DATA) {
+    if (item->type == AIO4C_QUEUE_ITEM_DATA) {
         task = (Task*)item->content.data;
         if (task->connection == discriminant) {
             ReleaseBuffer(&task->buffer);
@@ -57,22 +57,22 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
 
     while (Dequeue(worker->queue, &item, true)) {
         switch (item.type) {
-            case EXIT:
+            case AIO4C_QUEUE_ITEM_EXIT:
                 return false;
-            case TASK:
-                ProbeTimeStart(TIME_PROBE_DATA_PROCESS);
+            case AIO4C_QUEUE_ITEM_TASK:
+                ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
                 item.content.task.connection->dataBuffer = item.content.task.buffer;
                 ConnectionEventHandle(item.content.task.connection, item.content.task.event, item.content.task.connection);
                 item.content.task.connection->dataBuffer = NULL;
-                ProbeSize(PROBE_PROCESSED_DATA_SIZE,item.content.task.buffer->position);
+                ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,item.content.task.buffer->position);
                 ReleaseBuffer(&item.content.task.buffer);
-                ProbeTimeEnd(TIME_PROBE_DATA_PROCESS);
+                ProbeTimeEnd(AIO4C_TIME_PROBE_DATA_PROCESS);
                 break;
-            case EVENT:
+            case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
-                Log(worker->thread, DEBUG, "close received for connection %s", connection->string);
-                if (ConnectionNoMoreUsed(connection, WORKER)) {
-                    Log(worker->thread, DEBUG, "freeing connection %s", connection->string);
+                Log(worker->thread, AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WORKER)) {
+                    Log(worker->thread, AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
                 }
                 break;
@@ -90,7 +90,7 @@ static void _WorkerExit(Worker* worker) {
 
     WriterEnd(worker->writer);
 
-    Log(worker->thread, INFO, "exited");
+    Log(worker->thread, AIO4C_LOG_LEVEL_INFO, "exited");
 
     aio4c_free(worker);
 }
@@ -121,24 +121,24 @@ static void _WorkerCloseHandler(Event event, Connection* source, Worker* worker)
 
 static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) {
     Buffer* bufferCopy = NULL;
-    Event eventToProcess = OUTBOUND_DATA_EVENT;
+    Event eventToProcess = AIO4C_OUTBOUND_DATA_EVENT;
 
-    ProbeTimeStart(TIME_PROBE_DATA_PROCESS);
+    ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
 
-    if ((event != READ_EVENT && event != OUTBOUND_DATA_AVAILABLE_EVENT) || source->state == CLOSED) {
+    if (event != AIO4C_READ_EVENT || source->state == AIO4C_CONNECTION_STATE_CLOSED) {
         return;
     }
 
     bufferCopy = AllocateBuffer(worker->pool);
 
-    if (event == READ_EVENT) {
+    if (event == AIO4C_READ_EVENT) {
         BufferFlip(source->readBuffer);
 
         BufferCopy(bufferCopy, source->readBuffer);
 
         BufferReset(source->readBuffer);
 
-        eventToProcess = INBOUND_DATA_EVENT;
+        eventToProcess = AIO4C_INBOUND_DATA_EVENT;
     }
 
     if (!EnqueueTaskItem(worker->queue, eventToProcess, source, bufferCopy)) {
@@ -146,12 +146,12 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
         return;
     }
 
-    ProbeTimeEnd(TIME_PROBE_DATA_PROCESS);
+    ProbeTimeEnd(AIO4C_TIME_PROBE_DATA_PROCESS);
 }
 
 void WorkerManageConnection(Worker* worker, Connection* connection) {
-    ConnectionAddSystemHandler(connection, READ_EVENT, aio4c_connection_handler(_WorkerReadHandler), aio4c_connection_handler_arg(worker), false);
-    ConnectionAddSystemHandler(connection, CLOSE_EVENT, aio4c_connection_handler(_WorkerCloseHandler), aio4c_connection_handler_arg(worker), true);
+    ConnectionAddSystemHandler(connection, AIO4C_READ_EVENT, aio4c_connection_handler(_WorkerReadHandler), aio4c_connection_handler_arg(worker), false);
+    ConnectionAddSystemHandler(connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_WorkerCloseHandler), aio4c_connection_handler_arg(worker), true);
     WriterManageConnection(worker->writer, connection);
 }
 
