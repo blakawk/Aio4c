@@ -21,15 +21,26 @@
 #define __AIO4C_TYPES_H__
 
 #ifndef AIO4C_WIN32
+
 #include <netinet/in.h>
 #include <poll.h>
-#else
-#include <winsock2.h>
-#endif
 
-#include <pthread.h>
+#else /* AIO4C_WIN32 */
+
+#include <winsock2.h>
+
+#endif /* AIO4C_WIN32 */
+
 #include <stdio.h>
 #include <sys/types.h>
+
+#define AIO4C_PIPE_READ (short)0
+#define AIO4C_PIPE_WRITE (short)1
+#define INET_PORTSTRLEN 5
+
+#ifndef AIO4C_DLLEXPORT
+#define AIO4C_DLLEXPORT
+#endif /* AIO4C_DLLEXPORT */
 
 typedef unsigned char aio4c_byte_t;
 
@@ -46,36 +57,22 @@ typedef struct sockaddr aio4c_addr_t;
 
 typedef short aio4c_port_t;
 
-#define INET_PORTSTRLEN 5
+#ifndef AIO4C_WIN32
 
 typedef int aio4c_socket_t;
 
+#else /* AIO4C_WIN32 */
+
+typedef SOCKET aio4c_socket_t;
+
+typedef int socklen_t;
+
+#endif /* AIO4C_WIN32 */
+
 typedef FILE aio4c_file_t;
-
-typedef pthread_mutex_t aio4c_lock_t;
-
-typedef pthread_cond_t aio4c_cond_t;
 
 typedef struct pollfd aio4c_poll_t;
 
-typedef int aio4c_pipe_t[2];
-
-#ifndef socklen_t
-typedef int socklen_t;
-#endif
-
-#define AIO4C_PIPE_READ (short)0
-
-#define AIO4C_PIPE_WRITE (short)1
-
-#ifdef AIO4C_WIN32
-#ifdef AIO4C_BUILD
-#define __aio4c_dll __declspec(dllexport)
-#else
-#define __aio4c_dll __declspec(dllimport)
-#endif
-#else
-#define __aio4c_dll
-#endif
+typedef aio4c_socket_t aio4c_pipe_t[2];
 
 #endif

@@ -30,7 +30,7 @@ typedef struct s_BufferPool BufferPool;
 
 typedef struct s_Buffer Buffer;
 
-#endif
+#endif /* __AIO4C_BUFFER_DEFINED__ */
 
 struct s_Buffer {
     BufferPool*   pool;

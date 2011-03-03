@@ -67,7 +67,7 @@ typedef enum e_ConnectionOwner {
 
 typedef struct s_Connection Connection;
 
-#endif
+#endif /* __AIO4C_CONNECTION_DEFINED__ */
 
 struct s_Connection {
     Buffer*              readBuffer;
@@ -109,7 +109,7 @@ extern Connection* ConnectionFinishConnect(Connection* connection);
 
 extern Connection* ConnectionRead(Connection* connection);
 
-extern __aio4c_dll void EnableWriteInterest(Connection* connection);
+extern AIO4C_DLLEXPORT void EnableWriteInterest(Connection* connection);
 
 extern Connection* ConnectionWrite(Connection* connection);
 

@@ -26,30 +26,44 @@
 #include <sys/time.h>
 
 #ifndef AIO4C_ENABLE_STATS
+
 #define AIO4C_ENABLE_STATS 0
-#endif
+
+#endif /* AIO4C_ENABLE_STATS */
 
 #if AIO4C_ENABLE_STATS == 1
+
 #define ProbeTimeStart(type) {                 \
     struct timeval _start, _stop;              \
     gettimeofday(&_start, NULL);
+
 #define ProbeTimeEnd(type)                     \
     gettimeofday(&_stop, NULL);                \
     _ProbeTime(type,&_start,&_stop);           \
 }
+
 #define ProbeTime(type,start,stop) \
     _ProbeTime(type,start,stop)
+
 #define ProbeSize(type,value) \
     _ProbeSize(type,value)
-#else
+
+#else /* AIO4C_ENABLE_STATS */
+
 #define ProbeTimeStart(type)
+
 #define ProbeTimeEnd(type)
+
 #define ProbeTime(type,start,stop)
+
 #define ProbeSize(type,value)
-#endif
+
+#endif /* AIO4C_ENABLE_STATS */
 
 #define pstats(fmt, ...) \
     fprintf(stderr, fmt, __VA_ARGS__)
+
+#if AIO4C_ENABLE_STATS == 1
 
 typedef enum e_ProbeTimeType {
     AIO4C_TIME_PROBE_MEMORY_ALLOCATION,
@@ -77,16 +91,14 @@ typedef enum e_ProbeSizeType {
     AIO4C_PROBE_MAX_SIZE_TYPE
 } ProbeSizeType;
 
-#if AIO4C_ENABLE_STATS == 1
-extern __aio4c_dll void _InitProbes(void) __attribute__((constructor));
-#endif
+extern AIO4C_DLLEXPORT void _InitProbes(void) __attribute__((constructor));
 
-extern __aio4c_dll void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop);
+extern AIO4C_DLLEXPORT void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop);
 
-extern __aio4c_dll void _ProbeSize(ProbeSizeType type, int size);
+extern AIO4C_DLLEXPORT void _ProbeSize(ProbeSizeType type, int size);
 
-#if AIO4C_ENABLE_STATS == 1
-extern __aio4c_dll void _StatsEnd(void) __attribute__((destructor));
-#endif
+extern AIO4C_DLLEXPORT void _StatsEnd(void) __attribute__((destructor));
+
+#endif /* AIO4C_ENABLE_STATS */
 
 #endif

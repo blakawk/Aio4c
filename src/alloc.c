@@ -24,8 +24,12 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
+#ifndef AIO4C_WIN32
+
 #include <errno.h>
-#include <pthread.h>
+
+#endif /* AIO4C_WIN32 */
+
 #include <stdlib.h>
 #include <string.h>
 

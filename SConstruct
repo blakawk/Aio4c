@@ -38,15 +38,21 @@ AddOption('--enable-statistics',
           action = 'store_true',
           help = 'Enable compilation with statistics')
 
+AddOption('--target',
+          dest = 'TARGET',
+          metavar = 'TARGET',
+          type = 'string',
+          help = 'Compile for target TARGET')
+
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L -DAIO4C_P_TYPE=int',
                   ENV = {'PATH': os.environ['PATH'], 'TMP': os.environ['TMP']})
 
-if not ConfigureJNI(env):
-    print "Java Native Interface required, exiting..."
-    Exit(1)
-
-for path in env['JNI_CPPPATH']:
-    env.Append(CPPFLAGS = ' -I%s' % path)
+if 'JNI_CPPPATH' not in os.environ:
+    if not ConfigureJNI(env):
+        print "Java Native Interface required, exiting..."
+        Exit(1)
+else:
+    env.Append(CPPPATH = os.environ['JNI_CPPPATH'].split())
 
 if GetOption('DEBUG'):
     env.Append(CCFLAGS = '-ggdb3')
@@ -59,24 +65,41 @@ if GetOption('PROFILING'):
 if GetOption('STATISTICS'):
     env.Append(CPPDEFINES = {"AIO4C_ENABLE_STATS" : 1})
 
-
 if sys.platform == 'cygwin':
     env['CC'] = 'i686-w64-mingw32-gcc'
 
-libs = ['pthread']
+if GetOption('TARGET'):
+    env['CC'] = GetOption('TARGET') + "-gcc"
 
-if sys.platform == 'win32' or sys.platform == 'cygwin':
-    env.Append(CPPDEFINES = {"AIO4C_WIN32": 1, "_WIN32_WINNT": 0x0600, "WINVER": 0x0600})
-#    env.Append(LINKFLAGS = '-Wl,--enable-runtime-pseudo-reloc -Wl,--no-undefined')
+libs = []
+
+if sys.platform == 'win32' or sys.platform == 'cygwin' or (GetOption('TARGET') and 'mingw' in GetOption('TARGET')):
+    w32env = env.Clone()
+    w32env['SHOBJSUFFIX'] = '.obj'
+    w32env['SHLIBSUFFIX'] = '.dll'
+    w32env['PROGSUFFIX'] = '.exe'
+    w32env['OBJSUFFIX'] = '.obj'
+    if '-fPIC' in w32env['SHCCFLAGS']:
+        w32env['SHCCFLAGS'].remove('-fPIC')
+    w32env.Append(CPPDEFINES = {"AIO4C_WIN32": 1, "_WIN32_WINNT": 0x0600, "WINVER": 0x0600})
     libs.append('ws2_32')
+    envlib = w32env.Clone()
+    envuser = w32env.Clone()
+    envlib.Append(CPPDEFINES = {"AIO4C_DLLEXPORT": "'__declspec(dllexport)'"})
+    envuser.Append(CPPDEFINES = {"AIO4C_DLLIMPORT": "'__declspec(dllimport)'"})
+else:
+    envlib = env.Clone()
+    envuser = env.Clone()
+    libs.append('pthread')
 
 env.Java('build/java', 'java')
 env.JavaH(target = File('include/aio4c/jni/client.h'), source = 'build/java/com/aio4c/Client.class', JAVACLASSDIR = 'build/java')
 
+libfiles = Glob('build/src/*.c')
 
-envaio4c = env.Clone()
-envaio4c.Append(CPPDEFINES = {"AIO4C_BUILD": 1})
+if not GetOption('STATISTICS'):
+    libfiles.remove(File('build/src/stats.c'))
 
-libaio4c = envaio4c.SharedLibrary('build/aio4c', Glob('build/src/*.c') + Glob('build/src/jni/*.c'), LIBS=libs, CPPPATH=['include'])
-client = env.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])
-server = env.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])
+envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'), LIBS=libs, CPPPATH=['include'])
+envuser.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])
+envuser.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])

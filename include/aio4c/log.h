@@ -49,7 +49,7 @@ typedef struct s_Logger {
 
 extern void LogInit(Thread* parent, LogLevel level, char* filename);
 
-extern __aio4c_dll void Log(Thread* from, LogLevel level, char* message, ...) __attribute__((format(printf, 3, 4)));
+extern AIO4C_DLLEXPORT void Log(Thread* from, LogLevel level, char* message, ...) __attribute__((format(printf, 3, 4)));
 
 extern void LogBuffer(Thread* from, LogLevel level, Buffer* buffer);
 

@@ -27,7 +27,7 @@ typedef enum e_AddressType {
     AIO4C_ADDRESS_IPV6,
 #ifndef AIO4C_WIN32
     AIO4C_ADDRESS_UNIX,
-#endif
+#endif /* AIO4C_WIN32 */
     AIO4C_ADDRESS_MAX
 } AddressType;
 

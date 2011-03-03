@@ -49,8 +49,8 @@ typedef struct s_Client {
 #define aio4c_client_handler_arg(h) \
     (void*)h
 
-extern __aio4c_dll Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel level, char* log, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
+extern AIO4C_DLLEXPORT Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel level, char* log, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
 
-extern __aio4c_dll void ClientEnd(Client* client);
+extern AIO4C_DLLEXPORT void ClientEnd(Client* client);
 
 #endif

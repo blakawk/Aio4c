@@ -21,20 +21,31 @@
 
 #include <aio4c/thread.h>
 
+#ifdef AIO4C_WIN32
+
+#include <winbase.h>
+
+#else /* AIO4C_WIN32 */
+
+#include <pthread.h>
+#include <unistd.h>
+
+#endif /* AIO4C_WIN32 */
+
+#include <stdio.h>
 #include <string.h>
 
-#ifdef AIO4C_WIN32
-#include <winbase.h>
-#else
-#include <unistd.h>
-#endif
-
-static double       _timeProbes[AIO4C_TIME_MAX_PROBE_TYPE];
-static aio4c_lock_t _timeProbesLock;
-static double       _sizeProbes[AIO4C_PROBE_MAX_SIZE_TYPE];
-static aio4c_lock_t _sizeProbesLock;
-static Thread*      _statsThread = NULL;
-static FILE*        _statsFile = NULL;
+static Thread*         _statsThread = NULL;
+static FILE*           _statsFile = NULL;
+static double          _timeProbes[AIO4C_TIME_MAX_PROBE_TYPE];
+static double          _sizeProbes[AIO4C_PROBE_MAX_SIZE_TYPE];
+#ifndef AIO4C_WIN32
+static pthread_mutex_t _timeProbesLock;
+static pthread_mutex_t _sizeProbesLock;
+#else /* AIO4C_WIN32 */
+static HANDLE          _timeProbesLock;
+static HANDLE          _sizeProbesLock;
+#endif /* AIO4C_WIN32 */
 
 static void _statsInit(void* dummy) {
     dummy = NULL;
@@ -58,9 +69,9 @@ static aio4c_bool_t _statsRun(void* dummy) {
 
 #ifdef AIO4C_WIN32
     Sleep(1000);
-#else
+#else /* AIO4C_WIN32 */
     sleep(1);
-#endif
+#endif /* AIO4C_WIN32 */
 
     return true;
 }
@@ -73,21 +84,47 @@ static void _statsExit(void* dummy) {
 void _InitProbes(void) {
     memset(_timeProbes, 0, AIO4C_TIME_MAX_PROBE_TYPE * sizeof(double));
     memset(_sizeProbes, 0, AIO4C_PROBE_MAX_SIZE_TYPE * sizeof(double));
-    aio4c_mutex_init(&_timeProbesLock, NULL);
-    aio4c_mutex_init(&_sizeProbesLock, NULL);
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_init(&_timeProbesLock, NULL);
+    pthread_mutex_init(&_sizeProbesLock, NULL);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_init not implemented for win32"
+#endif /* AIO4C_WIN32 */
+
     _statsThread = NewThread("stats", aio4c_thread_handler(_statsInit), aio4c_thread_run(_statsRun), aio4c_thread_handler(_statsExit), aio4c_thread_arg(NULL));
 }
 
 void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop) {
-    aio4c_mutex_lock(&_timeProbesLock);
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_timeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_lock not implemented for win32"
+#endif /* AIO4C_WIN32 */
+
     _timeProbes[type] += (double)(stop->tv_sec - start->tv_sec) * 1000000.0 + (double)(stop->tv_usec - start->tv_usec);
-    aio4c_mutex_unlock(&_timeProbesLock);
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_timeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_unlock not implemented for win32"
+#endif /* AIO4C_WIN32 */
 }
 
 void _ProbeSize(ProbeSizeType type, int size) {
-    aio4c_mutex_lock(&_sizeProbesLock);
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_sizeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_lock not implemented for win32"
+#endif /* AIO4C_WIN32 */
+
     _sizeProbes[type] += (double)size;
-    aio4c_mutex_unlock(&_sizeProbesLock);
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_sizeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_unlock not implemented for win32"
+#endif /* AIO4C_WIN32 */
 }
 
 static double _elapsedTime(void) {
@@ -150,36 +187,72 @@ static void _ConvertSize(double size, double* result, char** unit) {
 }
 
 static void _ptimes(char* label, ProbeTimeType tType) {
-    aio4c_mutex_lock(&_timeProbesLock);
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_timeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_lock not implemented for win32"
+#endif /* AIO4C_WIN32 */
+
     pstats("=== %s: %.3f s [%.3f%%]\n", label, _timeProbes[tType] / 1000000.0,
             _timeProbes[tType] * 100.0 / _elapsedTime());
-    aio4c_mutex_unlock(&_timeProbesLock);
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_timeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_unlock not implemented for win32"
+#endif /* AIO4C_WIN32 */
 }
 
 static void _pstats(char* label, ProbeTimeType tType, ProbeSizeType sType) {
     double size = 0.0;
     char* unit = NULL;
 
-    aio4c_mutex_lock(&_sizeProbesLock);
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_sizeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_lock not implemented for win32"
+#endif /* AIO4C_WIN32 */
+
     _ConvertSize(_sizeProbes[sType], &size, &unit);
-    aio4c_mutex_unlock(&_sizeProbesLock);
-    aio4c_mutex_lock(&_timeProbesLock);
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_sizeProbesLock);
+    pthread_mutex_lock(&_timeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_unlock and pthread_mutex_lock not implemented for win32"
+#endif /* AIO4C_WIN32 */
+
     pstats("=== %s: %.3f %s in %.3f s [%.3f%%]\n", label, size, unit,
             _timeProbes[tType] / 1000000.0,
             _timeProbes[tType] * 100.0 / _elapsedTime());
-    aio4c_mutex_unlock(&_timeProbesLock);
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_timeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_unlock not implemented for win32"
+#endif /* AIO4C_WIN32 */
 }
 
 void _PrintStats(void) {
     static double lastAlloc = 0.0, lastFree = 0.0;
     long _alloc = 0L, _free = 0L;
 
-    aio4c_mutex_lock(&_sizeProbesLock);
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_sizeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_lock not implemented for win32"
+#endif /* AIO4C_WIN32 */
+
     _alloc = (long)_sizeProbes[AIO4C_PROBE_MEMORY_ALLOCATE_COUNT] - lastAlloc;
     lastAlloc = _sizeProbes[AIO4C_PROBE_MEMORY_ALLOCATE_COUNT];
     _free = (long)_sizeProbes[AIO4C_PROBE_MEMORY_FREE_COUNT] - lastFree;
     lastFree = _sizeProbes[AIO4C_PROBE_MEMORY_FREE_COUNT];
-    aio4c_mutex_unlock(&_sizeProbesLock);
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_sizeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_unlock not implemented for win32"
+#endif /* AIO4C_WIN32 */
 
      pstats("================= STATISTICS ===================%c", '\n');
     _pstats("ALLOCATED MEMORY ", AIO4C_TIME_PROBE_MEMORY_ALLOCATION, AIO4C_PROBE_MEMORY_ALLOCATED_SIZE);
@@ -212,8 +285,13 @@ void _WriteStats(void) {
 
     gettimeofday(&time, NULL);
 
-    aio4c_mutex_lock(&_timeProbesLock);
-    aio4c_mutex_lock(&_sizeProbesLock);
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_timeProbesLock);
+    pthread_mutex_lock(&_sizeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_lock not implemented for win32"
+#endif /* AIO4C_WIN32 */
+
     read =  _sizeProbes[AIO4C_PROBE_NETWORK_READ_SIZE] - lastRead;
     lastRead = _sizeProbes[AIO4C_PROBE_NETWORK_READ_SIZE];
     write = _sizeProbes[AIO4C_PROBE_NETWORK_WRITE_SIZE] - lastWrite;
@@ -228,8 +306,13 @@ void _WriteStats(void) {
     connections = _sizeProbes[AIO4C_PROBE_CONNECTION_COUNT];
     latency = _timeProbes[AIO4C_TIME_PROBE_LATENCY] - lastLatency;
     lastLatency = _timeProbes[AIO4C_TIME_PROBE_LATENCY];
-    aio4c_mutex_unlock(&_sizeProbesLock);
-    aio4c_mutex_unlock(&_timeProbesLock);
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_sizeProbesLock);
+    pthread_mutex_unlock(&_timeProbesLock);
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_unlock not implemented for win32"
+#endif /* AIO4C_WIN32 */
 
     fprintf(_statsFile, "%u;%d,%d;%d,%d;%d,%d;%d,%d;%d;%d,%d;%d,%d\r\n", (unsigned int)(time.tv_sec - _start.tv_sec),
             floatWithComma(allocated / 1024.0),

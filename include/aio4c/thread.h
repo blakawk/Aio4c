@@ -24,34 +24,18 @@
 #include <aio4c/types.h>
 
 #ifndef AIO4C_WIN32
+
 #include <poll.h>
-#else
-#include <winsock2.h>
-#endif
-
 #include <pthread.h>
+
+#else /* AIO4C_WIN32 */
+
+#include <winbase.h>
+#include <winsock2.h>
+
+#endif /* AIO4C_WIN32 */
+
 #include <stdio.h>
-
-#define aio4c_mutex_init pthread_mutex_init
-#define aio4c_mutex_lock pthread_mutex_lock
-#define aio4c_mutex_unlock pthread_mutex_unlock
-#define aio4c_mutex_destroy pthread_mutex_destroy
-
-#define aio4c_thread_create pthread_create
-#define aio4c_thread_self pthread_self
-#define aio4c_thread_cancel pthread_cancel
-#define aio4c_thread_join pthread_join
-#define aio4c_thread_cleanup_push pthread_cleanup_push
-#define aio4c_thread_cleanup_pop pthread_cleanup_pop
-#define aio4c_thread_exit pthread_exit
-#define aio4c_thread_detach pthread_detach
-#define aio4c_thread_kill pthread_kill
-
-#define aio4c_cond_init pthread_cond_init
-#define aio4c_cond_wait pthread_cond_wait
-#define aio4c_cond_timedwait pthread_cond_timedwait
-#define aio4c_cond_signal pthread_cond_signal
-#define aio4c_cond_destroy pthread_cond_destroy
 
 #define aio4c_thread_run(run) \
     (aio4c_bool_t(*)(void*))run
@@ -69,15 +53,6 @@
     (void*)discriminant
 
 #define AIO4C_MAX_THREADS 32
-
-#ifndef AIO4C_DEBUG_LOCKS
-#define AIO4C_DEBUG_LOCKS 0
-#endif
-
-#define debugLock(fmt, ...) \
-    if (AIO4C_DEBUG_LOCKS) { \
-        fprintf(stderr, fmt, __VA_ARGS__); \
-    }
 
 typedef enum e_ThreadState {
     AIO4C_THREAD_STATE_RUNNING,
@@ -100,7 +75,11 @@ typedef struct s_Lock Lock;
 
 typedef struct s_Thread {
     char*             name;
+#ifndef AIO4C_WIN32
     pthread_t         id;
+#else /* AIO4C_WIN32 */
+    DWORD             id;
+#endif /* AIO4C_WIN32 */
     ThreadState       state;
     aio4c_bool_t      stateValid;
     Lock*             lock;
@@ -111,14 +90,18 @@ typedef struct s_Thread {
 } Thread;
 
 struct s_Lock {
-    LockState    state;
-    Thread*      owner;
-    aio4c_lock_t mutex;
+    LockState       state;
+    Thread*         owner;
+#ifndef AIO4C_WIN32
+    pthread_mutex_t mutex;
+#endif /* AIO4C_WIN32 */
 };
 
 typedef struct s_Condition {
-    Thread*       owner;
-    aio4c_cond_t  condition;
+    Thread*        owner;
+#ifndef AIO4C_WIN32
+    pthread_cond_t condition;
+#endif /* AIO4C_WIN32 */
 } Condition;
 
 typedef enum e_QueueItemType {
@@ -139,14 +122,14 @@ typedef struct s_QueueEventItem {
 
 typedef struct s_Connection Connection;
 
-#endif
+#endif /* __AIO4C_CONNECTION_DEFINED__ */
 
 #ifndef __AIO4C_BUFFER_DEFINED__
 #define __AIO4C_BUFFER_DEFINED__
 
 typedef struct s_Buffer Buffer;
 
-#endif
+#endif /* __AIO4C_BUFFER_DEFINED__ */
 
 typedef struct s_QueueTaskItem {
     Event       event;
@@ -176,15 +159,15 @@ typedef struct s_Queue {
     aio4c_bool_t emptied;
 } Queue;
 
+typedef enum e_SelectionOperation {
 #ifndef AIO4C_WIN32
-#define AIO4C_OP_READ POLLIN
-#define AIO4C_OP_WRITE POLLOUT
-#else
-#define AIO4C_OP_READ POLLRDNORM
-#define AIO4C_OP_WRITE POLLWRNORM
-#endif
-
-typedef int SelectionOperation;
+    AIO4C_OP_READ = POLLIN,
+    AIO4C_OP_WRITE = POLLOUT
+#else /* AIO4C_WIN32 */
+    AIO4C_OP_READ = POLLRDNORM,
+    AIO4C_OP_WRITE = POLLWRNORM
+#endif /* AIO4C_WIN32 */
+} SelectionOperation;
 
 typedef struct s_SelectionKey {
     SelectionOperation operation;
@@ -209,7 +192,7 @@ typedef struct s_Selector {
     Lock*          lock;
 #ifdef AIO4C_WIN32
     int            port;
-#endif
+#endif /* AIO4C_WIN32 */
 } Selector;
 
 extern int GetNumThreads(void);

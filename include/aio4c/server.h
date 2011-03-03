@@ -40,8 +40,8 @@ typedef struct s_Server {
     Queue*      queue;
 } Server;
 
-extern __aio4c_dll Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg);
+extern AIO4C_DLLEXPORT Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg);
 
-extern __aio4c_dll void ServerEnd(Server* server);
+extern AIO4C_DLLEXPORT void ServerEnd(Server* server);
 
 #endif

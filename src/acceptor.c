@@ -29,14 +29,19 @@
 #include <aio4c/types.h>
 
 #ifndef AIO4C_WIN32
+
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <netdb.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <fcntl.h>
-#else
+
+#else /* AIO4C_WIN32 */
+
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#endif
+
+#endif /* AIO4C_WIN32 */
 
 #include <stdlib.h>
 #include <string.h>
