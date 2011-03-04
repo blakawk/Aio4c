@@ -24,6 +24,8 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
+#include <stdarg.h>
+
 #define AIO4C_MIN_LOG_MESSAGE_SIZE \
     strlen("[00:00:00.000 00/00/00] [level] \n")
 

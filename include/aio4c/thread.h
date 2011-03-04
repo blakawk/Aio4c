@@ -58,11 +58,12 @@ typedef enum e_ThreadState {
     AIO4C_THREAD_STATE_RUNNING,
     AIO4C_THREAD_STATE_BLOCKED,
     AIO4C_THREAD_STATE_IDLE,
-    AIO4C_THREAD_STATE_STOPPED,
     AIO4C_THREAD_STATE_EXITED,
     AIO4C_THREAD_STATE_JOINED,
     AIO4C_THREAD_STATE_MAX
 } ThreadState;
+
+extern char* ThreadStateString[AIO4C_THREAD_STATE_MAX];
 
 typedef enum e_LockState {
     AIO4C_LOCK_STATE_DESTROYED,
@@ -70,6 +71,17 @@ typedef enum e_LockState {
     AIO4C_LOCK_STATE_LOCKED,
     AIO4C_LOCK_STATE_MAX
 } LockState;
+
+extern char* LockStateString[AIO4C_LOCK_STATE_MAX];
+
+typedef enum e_ConditionState {
+    AIO4C_COND_STATE_DESTROYED,
+    AIO4C_COND_STATE_FREE,
+    AIO4C_COND_STATE_WAITED,
+    AIO4C_COND_STATE_MAX
+} ConditionState;
+
+extern char* ConditionStateString[AIO4C_COND_STATE_MAX];
 
 typedef struct s_Lock Lock;
 
@@ -81,7 +93,7 @@ typedef struct s_Thread {
     DWORD             id;
 #endif /* AIO4C_WIN32 */
     ThreadState       state;
-    aio4c_bool_t      stateValid;
+    aio4c_bool_t      running;
     Lock*             lock;
     void            (*init)(void*);
     aio4c_bool_t    (*run)(void*);
@@ -94,13 +106,18 @@ struct s_Lock {
     Thread*         owner;
 #ifndef AIO4C_WIN32
     pthread_mutex_t mutex;
+#else /* AIO4C_WIN32 */
+#error "pthread_mutex_t not implemented for win32"
 #endif /* AIO4C_WIN32 */
 };
 
 typedef struct s_Condition {
+    ConditionState state;
     Thread*        owner;
 #ifndef AIO4C_WIN32
     pthread_cond_t condition;
+#else /* AIO4C_WIN32 */
+#error "pthread_cond_t not implemented for win32"
 #endif /* AIO4C_WIN32 */
 } Condition;
 
@@ -111,6 +128,8 @@ typedef enum e_QueueItemType {
     AIO4C_QUEUE_ITEM_EXIT,
     AIO4C_QUEUE_ITEM_MAX
 } QueueItemType;
+
+extern char* QueueItemTypeString[AIO4C_QUEUE_ITEM_MAX];
 
 typedef struct s_QueueEventItem {
     Event type;

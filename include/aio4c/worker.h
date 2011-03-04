@@ -39,7 +39,7 @@ typedef struct s_Worker {
     BufferPool*  pool;
 } Worker;
 
-extern Worker* NewWorker(char* name, aio4c_size_t bufferSize);
+extern Worker* NewWorker(aio4c_size_t bufferSize);
 
 extern void WorkerManageConnection(Worker* worker, Connection* connection);
 

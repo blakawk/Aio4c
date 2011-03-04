@@ -91,7 +91,7 @@ void handler(Event event, Connection* source, void* c) {
 int main (void) {
     Client* client = NULL;
 
-    client = NewClient(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "client.log", 3, 10, 8192, handler, NULL);
+    client = NewClient(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "client.log", 3, 3, 8192, handler, NULL);
     ClientEnd(client);
 
     return EXIT_SUCCESS;

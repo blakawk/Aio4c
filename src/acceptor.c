@@ -22,6 +22,7 @@
 #include <aio4c/address.h>
 #include <aio4c/alloc.h>
 #include <aio4c/connection.h>
+#include <aio4c/error.h>
 #include <aio4c/log.h>
 #include <aio4c/reader.h>
 #include <aio4c/stats.h>
@@ -31,10 +32,12 @@
 #ifndef AIO4C_WIN32
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <unistd.h>
 
 #else /* AIO4C_WIN32 */
 
@@ -46,10 +49,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <unistd.h>
 
 static void _AcceptorInit(Acceptor* acceptor) {
-    acceptor->reader = NewReader("reader", acceptor->factory->pool->bufferSize);
+    acceptor->reader = NewReader(acceptor->factory->pool->bufferSize);
     acceptor->key = Register(acceptor->selector, AIO4C_OP_READ, acceptor->socket, NULL);
     Log(acceptor->thread, AIO4C_LOG_LEVEL_INFO, "initialized");
 }
@@ -167,39 +169,72 @@ static void _AcceptorExit(Acceptor* acceptor) {
     aio4c_free(acceptor);
 }
 
-Acceptor* NewAcceptor(char* name, Address* address, Connection* factory) {
+Acceptor* NewAcceptor(Address* address, Connection* factory) {
     Acceptor* acceptor = NULL;
+#ifndef AIO4C_WIN32
+    int reuseaddr = 1;
+#else /* AIO4C_WIN32 */
     char reuseaddr = 1;
+#endif /* AIO4C_WIN32 */
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
     if ((acceptor = aio4c_malloc(sizeof(Acceptor))) == NULL) {
+#ifndef AIO4C_WIN32
+        code.error = errno;
+#else /* AIO4C_WIN32 */
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+#endif /* AIO4C_WIN32 */
+        code.size = sizeof(Acceptor);
+        code.type = "Acceptor";
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
         return NULL;
     }
 
     acceptor->address = address;
     acceptor->socket = socket(PF_INET, SOCK_STREAM, 0);
+#ifndef AIO4C_WIN32
+    if (acceptor->socket == -1) {
+        code.error = errno;
+#else /* AIO4C_WIN32 */
+    if (acceptor->socket == SOCKET_ERROR) {
+        code.source = AIO4C_ERRNO_SOURCE_WSA;
+#endif /* AIO4C_WIN32 */
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_SOCKET_ERROR_TYPE, AIO4C_SOCKET_ERROR, &code);
+        aio4c_free(acceptor);
+        return NULL;
+    }
+
     acceptor->factory = factory;
     acceptor->queue = NewQueue();
 
     ConnectionAddSystemHandler(acceptor->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_AcceptorCloseHandler), aio4c_connection_handler_arg(acceptor), true);
 
-    if (acceptor->socket == -1) {
-        FreeAddress(&acceptor->address);
-        aio4c_free(acceptor);
-        return NULL;
-    }
-
 #ifndef AIO4C_WIN32
     if (fcntl(acceptor->socket, F_SETFL, O_NONBLOCK) == -1) {
-#else
+        code.error = errno;
+#else /* AIO4C_WIN32 */
     unsigned long ioctl = 1;
-    if (ioctlsocket(acceptor->socket, FIONBIO, &ioctl) != 0) {
-#endif
+    if (ioctlsocket(acceptor->socket, FIONBIO, &ioctl) == SOCKET_ERROR) {
+        code.source = AIO4C_ERRNO_SOURCE_WSA;
+#endif /* AIO4C_WIN32 */
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_SOCKET_ERROR_TYPE, AIO4C_FCNTL_ERROR, &code);
         FreeAddress(&acceptor->address);
         aio4c_free(acceptor);
         return NULL;
     }
 
-    if (setsockopt(acceptor->socket, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr)) == -1) {
+    if (setsockopt(acceptor->socket, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr)) != 0) {
+#ifndef AIO4C_WIN32
+        code.error = errno;
+#else /* AIO4C_WIN32 */
+        code.source = AIO4C_ERRNO_SOURCE_WSA;
+#endif /* AIO4C_WIN32 */
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_SOCKET_ERROR_TYPE, AIO4C_SETSOCKOPT_ERROR, &code);
+#ifndef AIO4C_WIN32
+        close(acceptor->socket);
+#else /* AIO4C_WIN32 */
+        socketclose(acceptor->socket);
+#endif /* AIO4C_WIN32 */
         FreeAddress(&acceptor->address);
         aio4c_free(acceptor);
         return NULL;
@@ -221,14 +256,14 @@ Acceptor* NewAcceptor(char* name, Address* address, Connection* factory) {
     acceptor->thread = NULL;
     acceptor->selector = NewSelector();
 
-    acceptor->thread = NewThread(name, aio4c_thread_handler(_AcceptorInit), aio4c_thread_run(_AcceptorRun), aio4c_thread_handler(_AcceptorExit), aio4c_thread_arg(acceptor));
+    acceptor->thread = NewThread("acceptor", aio4c_thread_handler(_AcceptorInit), aio4c_thread_run(_AcceptorRun), aio4c_thread_handler(_AcceptorExit), aio4c_thread_arg(acceptor));
 
     return acceptor;
 }
 
 void AcceptorEnd(Acceptor* acceptor) {
     Thread* th = acceptor->thread;
-    acceptor->thread->state = AIO4C_THREAD_STATE_STOPPED;
+    acceptor->thread->running = false;
     SelectorWakeUp(acceptor->selector);
     ThreadJoin(th);
     FreeThread(&th);

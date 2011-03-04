@@ -103,7 +103,7 @@ static void _ReaderExit(Reader* reader) {
     aio4c_free(reader);
 }
 
-Reader* NewReader(char* name, aio4c_size_t bufferSize) {
+Reader* NewReader(aio4c_size_t bufferSize) {
     Reader* reader = NULL;
 
     if ((reader = aio4c_malloc(sizeof(Reader))) == NULL) {
@@ -114,9 +114,9 @@ Reader* NewReader(char* name, aio4c_size_t bufferSize) {
     reader->selector = NewSelector();
     reader->queue = NewQueue();
     reader->worker = NULL;
-    reader->worker = NewWorker("worker", bufferSize);
+    reader->worker = NewWorker(bufferSize);
     reader->thread = NULL;
-    reader->thread = NewThread(name, aio4c_thread_handler(_ReaderInit), aio4c_thread_run(_ReaderRun), aio4c_thread_handler(_ReaderExit), aio4c_thread_arg(reader));
+    reader->thread = NewThread("reader", aio4c_thread_handler(_ReaderInit), aio4c_thread_run(_ReaderRun), aio4c_thread_handler(_ReaderExit), aio4c_thread_arg(reader));
 
     return reader;
 }

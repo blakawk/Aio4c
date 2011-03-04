@@ -70,12 +70,12 @@ BufferPool* NewBufferPool(int batch, int bufferSize) {
     }
 
     if ((pool->lock = NewLock()) == NULL) {
-        free(pool);
+        aio4c_free(pool);
         return NULL;
     }
 
     if ((pool->buffers = aio4c_malloc(batch * sizeof(Buffer*))) == NULL) {
-        free(pool);
+        aio4c_free(pool);
         return NULL;
     }
 
@@ -200,6 +200,7 @@ void FreeBufferPool(BufferPool** pPool) {
         aio4c_free(pool->buffers);
 
         if (pool->lock != NULL) {
+            ReleaseLock(pool->lock);
             FreeLock(&pool->lock);
         }
 

@@ -322,7 +322,7 @@ void _WriteStats(void) {
 
 void _StatsEnd(void) {
     if (_statsThread != NULL) {
-        _statsThread->state = AIO4C_THREAD_STATE_STOPPED;
+        _statsThread->running = false;
         ThreadJoin(_statsThread);
         FreeThread(&_statsThread);
     }

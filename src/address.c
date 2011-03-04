@@ -124,7 +124,7 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv4->sin_port = htons(port);
             ResolveIP(type, address, (struct sockaddr*)ipv4);
             if ((pAddress->string = aio4c_malloc(INET_ADDRSTRLEN * sizeof(char))) != NULL) {
-                if (getnameinfo((struct sockaddr*)&ipv4, sizeof(struct sockaddr_in), pAddress->string, INET_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST) == 0) {
+                if (getnameinfo((struct sockaddr*)ipv4, sizeof(struct sockaddr_in), pAddress->string, INET_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST) == 0) {
                     addrLen = strlen(pAddress->string);
                     addPort = true;
                 }
@@ -138,7 +138,7 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv6->sin6_scope_id = 0;
             ResolveIP(type, address, (struct sockaddr*)ipv6);
             if ((pAddress->string = aio4c_malloc((INET6_ADDRSTRLEN + 1) * sizeof(char))) != NULL) {
-                if (getnameinfo((struct sockaddr*)&ipv6, sizeof(struct sockaddr_in6), &pAddress->string[1], INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST) == 0) {
+                if (getnameinfo((struct sockaddr*)ipv6, sizeof(struct sockaddr_in6), &pAddress->string[1], INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST) == 0) {
                     pAddress->string[0] = '[';
                     addrLen = strlen(pAddress->string);
                     addPort = true;

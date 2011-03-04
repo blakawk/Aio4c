@@ -55,7 +55,7 @@ typedef unsigned int aio4c_position_t;
 
 typedef struct sockaddr aio4c_addr_t;
 
-typedef short aio4c_port_t;
+typedef int aio4c_port_t;
 
 #ifndef AIO4C_WIN32
 

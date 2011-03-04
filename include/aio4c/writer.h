@@ -34,7 +34,7 @@ typedef struct s_Writer {
     Queue*        toUnregister;
 } Writer;
 
-extern Writer* NewWriter(Thread* parent, char* name, aio4c_size_t bufferSize);
+extern Writer* NewWriter(aio4c_size_t bufferSize);
 
 extern void WriterManageConnection(Writer* writer, Connection* connection);
 

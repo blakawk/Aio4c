@@ -37,7 +37,7 @@ typedef struct s_Acceptor {
     Queue*         queue;
 } Acceptor;
 
-extern Acceptor* NewAcceptor(char* name, Address* address, Connection* factory);
+extern Acceptor* NewAcceptor(Address* address, Connection* factory);
 
 extern void AcceptorEnd(Acceptor* acceptor);
 

@@ -4,3 +4,5 @@ tags
 *.log
 *~
 *.pyc
+include/aio4c/jni
+*.csv

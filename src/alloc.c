@@ -40,7 +40,6 @@ void* aio4c_malloc(aio4c_size_t size) {
     ProbeTimeStart(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
     if ((ptr = malloc(size + sizeof(size))) == NULL) {
-        Log(ThreadSelf(), AIO4C_LOG_LEVEL_FATAL, "cannot allocate memory: %s", strerror(errno));
         return NULL;
     }
 
@@ -75,7 +74,6 @@ void* aio4c_realloc(void* ptr, aio4c_size_t size) {
     ptr = &sPtr[-1];
 
     if ((_ptr = realloc(ptr, size + sizeof(size))) == NULL) {
-        Log(ThreadSelf(), AIO4C_LOG_LEVEL_FATAL, "cannot re-allocate memory: %s", strerror(errno));
         return NULL;
     }
 

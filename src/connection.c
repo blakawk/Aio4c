@@ -33,14 +33,18 @@
 #include <string.h>
 
 #ifndef AIO4C_WIN32
+
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <errno.h>
+
 #else
+
 #include <winsock2.h>
+
 #endif
 
 

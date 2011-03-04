@@ -45,7 +45,10 @@ AddOption('--target',
           help = 'Compile for target TARGET')
 
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L -DAIO4C_P_TYPE=int',
-                  ENV = {'PATH': os.environ['PATH'], 'TMP': os.environ['TMP']})
+                  ENV = {'PATH': os.environ['PATH']})
+
+if 'TMP' in os.environ:
+    env.Append(ENV, {'TMP': os.environ['TMP']})
 
 if 'JNI_CPPPATH' not in os.environ:
     if not ConfigureJNI(env):

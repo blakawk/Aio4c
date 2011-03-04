@@ -64,7 +64,7 @@ static void _clientInit(Client* client) {
     Log(client->thread, AIO4C_LOG_LEVEL_INFO, "started");
 
     client->pool = NewBufferPool(2, client->bufferSize);
-    client->reader = NewReader("client-reader", client->bufferSize);
+    client->reader = NewReader(client->bufferSize);
     _connection(client);
 }
 

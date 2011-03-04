@@ -135,11 +135,11 @@ static void _WriterExit(Writer* writer) {
     aio4c_free(writer);
 }
 
-Writer* NewWriter(Thread* parent, char* name, aio4c_size_t bufferSize) {
+Writer* NewWriter(aio4c_size_t bufferSize) {
     Writer* writer = NULL;
 
     if ((writer = aio4c_malloc(sizeof(Writer))) == NULL) {
-        Log(parent, AIO4C_LOG_LEVEL_ERROR, "cannot allocate writer: %s", strerror(errno));
+        Log(NULL, AIO4C_LOG_LEVEL_ERROR, "cannot allocate writer: %s", strerror(errno));
         return NULL;
     }
 
@@ -149,7 +149,7 @@ Writer* NewWriter(Thread* parent, char* name, aio4c_size_t bufferSize) {
     writer->bufferSize = bufferSize;
 
     writer->thread = NULL;
-    writer->thread = NewThread(name, aio4c_thread_handler(_WriterInit), aio4c_thread_run(_WriterRun), aio4c_thread_handler(_WriterExit), aio4c_thread_arg(writer));
+    writer->thread = NewThread("writer", aio4c_thread_handler(_WriterInit), aio4c_thread_run(_WriterRun), aio4c_thread_handler(_WriterExit), aio4c_thread_arg(writer));
 
     return writer;
 }

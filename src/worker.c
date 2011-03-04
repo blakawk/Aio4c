@@ -95,7 +95,7 @@ static void _WorkerExit(Worker* worker) {
     aio4c_free(worker);
 }
 
-Worker* NewWorker(char* name, aio4c_size_t bufferSize) {
+Worker* NewWorker(aio4c_size_t bufferSize) {
     Worker* worker = NULL;
 
     if ((worker = aio4c_malloc(sizeof(Worker))) == NULL) {
@@ -105,9 +105,9 @@ Worker* NewWorker(char* name, aio4c_size_t bufferSize) {
     worker->queue = NewQueue();
     worker->bufferSize = bufferSize;
     worker->writer = NULL;
-    worker->writer = NewWriter(worker->thread, "writer", worker->bufferSize);
+    worker->writer = NewWriter(worker->bufferSize);
     worker->thread = NULL;
-    worker->thread = NewThread(name, aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
+    worker->thread = NewThread("worker", aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
     worker->pool = NewBufferPool(4, bufferSize);
 
     return worker;

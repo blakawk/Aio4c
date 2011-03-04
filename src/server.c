@@ -33,7 +33,7 @@ static void _serverInit(Server* server) {
     ConnectionAddHandler(server->factory, AIO4C_INBOUND_DATA_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), false);
     ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), false);
     ConnectionAddHandler(server->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), true);
-    server->acceptor = NewAcceptor("server-acceptor", server->address, server->factory);
+    server->acceptor = NewAcceptor(server->address, server->factory);
     Log(server->thread, AIO4C_LOG_LEVEL_INFO, "listening on %s", server->address->string);
 }
 
@@ -73,7 +73,7 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel leve
         return NULL;
     }
 
-    server->main       = ThreadMain("aio4c-main");
+    server->main       = ThreadMain("main");
     LogInit(server->main, level, log);
 
     server->address    = NewAddress(type, host, port);
