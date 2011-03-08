@@ -87,6 +87,7 @@ struct s_Connection {
     SelectionKey*        writeKey;
     BufferPool*          pool;
     aio4c_bool_t         freeAddress;
+    void*              (*dataFactory)(Connection*);
 };
 
 #define aio4c_connection_handler(handler) \
@@ -97,7 +98,7 @@ struct s_Connection {
 
 extern Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeAddress);
 
-extern Connection* NewConnectionFactory(BufferPool* pool);
+extern Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connection*));
 
 extern Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c_socket_t sock);
 

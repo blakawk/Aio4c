@@ -27,28 +27,27 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-static void serverHandler(Event event, Connection* source, void* null) {
+typedef struct s_Data {
+    struct timeval ping;
+    int lastSeq;
+} Data;
+
+static void serverHandler(Event event, Connection* source, Data* data) {
     Buffer* buffer = NULL;
-    static struct timeval ping;
-    static int lastSeq = 0;
     int curSeq = 0;
     struct timeval pong;
-
-    if (null != NULL) {
-        return;
-    }
 
     switch (event) {
         case AIO4C_INBOUND_DATA_EVENT:
             buffer = source->dataBuffer;
             if (memcmp(&buffer->data[buffer->position], "PING ", 6) == 0) {
                 buffer->position += 6;
-                memcpy(&ping, &buffer->data[buffer->position], sizeof(struct timeval));
+                memcpy(&data->ping, &buffer->data[buffer->position], sizeof(struct timeval));
                 buffer->position += sizeof(struct timeval);
                 memcpy(&curSeq, &buffer->data[buffer->position], sizeof(int));
                 buffer->position += sizeof(int);
-                if (curSeq == lastSeq + 1) {
-                    lastSeq ++;
+                if (curSeq == data->lastSeq + 1) {
+                    data->lastSeq ++;
                     EnableWriteInterest(source);
                 }
             }
@@ -58,23 +57,31 @@ static void serverHandler(Event event, Connection* source, void* null) {
             memcpy(&buffer->data[buffer->position], "PONG ", 6);
             buffer->position += 6;
             gettimeofday(&pong, NULL);
-            memcpy(&buffer->data[buffer->position], &ping, sizeof(struct timeval));
+            memcpy(&buffer->data[buffer->position], &data->ping, sizeof(struct timeval));
             buffer->position += sizeof(struct timeval);
             memcpy(&buffer->data[buffer->position], &pong, sizeof(struct timeval));
             buffer->position += sizeof(struct timeval);
-            memcpy(&buffer->data[buffer->position], &lastSeq, sizeof(int));
+            memcpy(&buffer->data[buffer->position], &data->lastSeq, sizeof(int));
             buffer->position += sizeof(int);
+            break;
+        case AIO4C_CLOSE_EVENT:
+            free(data);
             break;
         default:
             break;
     }
 }
 
+void* dataFactory(Connection* c) {
+    Log(NULL, AIO4C_LOG_LEVEL_DEBUG, "creating data for connection %s", c->string);
+    return malloc(sizeof(Data));
+}
+
 int main(void) {
     char buffer[32];
     ssize_t nbRead = 0;
 
-    Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, NULL, 8192, serverHandler, NULL);
+    Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "server.log", 8192, aio4c_server_handler(serverHandler), dataFactory);
 
     while ((nbRead = read(STDIN_FILENO, buffer, 31)) > 0) {
         buffer[nbRead] = '\0';

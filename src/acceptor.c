@@ -62,8 +62,8 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
     aio4c_size_t numConnectionsReady = 0;
     aio4c_socket_t sock = -1;
     Address* address = NULL;
-    char* host = NULL;
     Connection* connection = NULL;
+    char hbuf[NI_MAXHOST];
     SelectionKey* key = NULL;
 
     memset(&addr, 0, sizeof(struct sockaddr));
@@ -73,21 +73,17 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
     if (numConnectionsReady > 0) {
         while (SelectionKeyReady(acceptor->selector, &key)) {
             if ((sock = accept(acceptor->socket, &addr, &addrSize)) >= 0) {
+                memset(hbuf, 0, sizeof(hbuf));
+
                 switch(acceptor->address->type) {
                     case AIO4C_ADDRESS_IPV4:
-                        if ((host = aio4c_malloc(INET_ADDRSTRLEN * sizeof(char))) != NULL) {
-                            if (getnameinfo((struct sockaddr*)&addr, sizeof(struct sockaddr_in), host, INET_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST) == 0) {
-                                address = NewAddress(AIO4C_ADDRESS_IPV4, host, ntohs(((struct sockaddr_in*)&addr)->sin_port));
-                            }
-                            aio4c_free(host);
+                        if (getnameinfo((struct sockaddr*)&addr, sizeof(struct sockaddr_in), hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) == 0) {
+                            address = NewAddress(AIO4C_ADDRESS_IPV4, hbuf, ntohs(((struct sockaddr_in*)&addr)->sin_port));
                         }
                         break;
                     case AIO4C_ADDRESS_IPV6:
-                        if ((host = aio4c_malloc(INET6_ADDRSTRLEN * sizeof(char))) != NULL) {
-                            if (getnameinfo((struct sockaddr*)&addr, sizeof(struct sockaddr_in6), host, INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST) == 0) {
-                                address = NewAddress(AIO4C_ADDRESS_IPV6, host, ntohs(((struct sockaddr_in6*)&addr)->sin6_port));
-                            }
-                            aio4c_free(host);
+                        if (getnameinfo((struct sockaddr*)&addr, sizeof(struct sockaddr_in6), hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) == 0) {
+                            address = NewAddress(AIO4C_ADDRESS_IPV6, hbuf, ntohs(((struct sockaddr_in6*)&addr)->sin6_port));
                         }
                         break;
 #ifndef AIO4C_WIN32
@@ -149,7 +145,11 @@ static void _AcceptorExit(Acceptor* acceptor) {
     memset(&item, 0, sizeof(QueueItem));
 
     Unregister(acceptor->selector, acceptor->key, true);
+#ifndef AIO4C_WIN32
     close(acceptor->socket);
+#else /* AIO4C_WIN32 */
+    closesocket(acceptor->socket);
+#endif /* AIO4C_WIN32 */
 
     while (Dequeue(acceptor->queue, &item, false)) {
         connection = (Connection*)item.content.data;
@@ -218,6 +218,11 @@ Acceptor* NewAcceptor(Address* address, Connection* factory) {
         code.source = AIO4C_ERRNO_SOURCE_WSA;
 #endif /* AIO4C_WIN32 */
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_SOCKET_ERROR_TYPE, AIO4C_FCNTL_ERROR, &code);
+#ifndef AIO4C_WIN32
+        close(acceptor->socket);
+#else /* AIO4C_WIN32 */
+        closesocket(acceptor->socket);
+#endif /* AIO4C_WIN32 */
         FreeAddress(&acceptor->address);
         aio4c_free(acceptor);
         return NULL;
@@ -233,7 +238,7 @@ Acceptor* NewAcceptor(Address* address, Connection* factory) {
 #ifndef AIO4C_WIN32
         close(acceptor->socket);
 #else /* AIO4C_WIN32 */
-        socketclose(acceptor->socket);
+        closesocket(acceptor->socket);
 #endif /* AIO4C_WIN32 */
         FreeAddress(&acceptor->address);
         aio4c_free(acceptor);

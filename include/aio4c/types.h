@@ -36,7 +36,6 @@
 
 #define AIO4C_PIPE_READ (short)0
 #define AIO4C_PIPE_WRITE (short)1
-#define INET_PORTSTRLEN 5
 
 #ifndef AIO4C_DLLEXPORT
 #define AIO4C_DLLEXPORT
@@ -71,7 +70,9 @@ typedef int socklen_t;
 
 typedef FILE aio4c_file_t;
 
+#ifdef AIO4C_HAVE_POLL
 typedef struct pollfd aio4c_poll_t;
+#endif /* AIO4C_HAVE_POLL */
 
 typedef aio4c_socket_t aio4c_pipe_t[2];
 

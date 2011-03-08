@@ -18,7 +18,6 @@
 import os
 import string
 import sys
-from ConfigureJNI import ConfigureJNI
 
 VariantDir('build/src', 'src', duplicate=0)
 VariantDir('build/test', 'test', duplicate=0)
@@ -28,81 +27,220 @@ AddOption('--enable-debug',
           action = 'store_true',
           help = 'Enable compilation with debugging symbols')
 
-AddOption('--enable-profiling',
-          dest = 'PROFILING',
+AddOption('--enable-debug-threads',
+          dest = 'DEBUG_THREADS',
           action = 'store_true',
-          help = 'Enable compilation with profiling information')
+          help = 'Enable threads debugging')
 
 AddOption('--enable-statistics',
           dest = 'STATISTICS',
           action = 'store_true',
           help = 'Enable compilation with statistics')
 
+AddOption('--use-select',
+          dest = 'USE_POLL',
+          action = 'store_false',
+          default = True,
+          help = 'Force use of select instead of poll')
+
+AddOption('--use-selector-udp',
+          dest = 'USE_PIPE',
+          action = 'store_false',
+          default = True,
+          help = 'Use UDP sockets for selector instead of anonymous pipe')
+
 AddOption('--target',
           dest = 'TARGET',
           metavar = 'TARGET',
-          type = 'string',
           help = 'Compile for target TARGET')
 
-env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L -DAIO4C_P_TYPE=int',
+env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L',
                   ENV = {'PATH': os.environ['PATH']})
 
-if 'TMP' in os.environ:
-    env.Append(ENV, {'TMP': os.environ['TMP']})
+ptr_size_src = """
+#include <stdio.h>
 
-if 'JNI_CPPPATH' not in os.environ:
-    if not ConfigureJNI(env):
-        print "Java Native Interface required, exiting..."
+int main(void) {
+    if (sizeof(void*) == sizeof(int)) {
+        printf("int");
+    } else if (sizeof(void*) == sizeof(long)) {
+        printf("long");
+    } else {
+        return 1;
+    }
+    return 0;
+}
+"""
+
+def CheckPointerSize(context):
+    context.Message('Checking size of void*... ')
+    result = context.TryRun(ptr_size_src, '.c')
+    if result[0]:
+        context.Result(result[1])
+    else:
+        context.Result(result[0])
+    return result
+
+have_poll_src = """
+#ifdef AIO4C_WIN32
+#include <winsock2.h>
+#else
+#include <poll.h>
+#endif
+
+int main(void) {
+    struct pollfd polls[1] = { { .fd = 0, .events = POLLIN, .revents = 0 } };
+#ifndef AIO4C_WIN32
+    poll(polls, 1, -1);
+#else
+    WSAPoll(polls, 1, -1);
+#endif
+    return 0;
+}
+"""
+
+def HavePoll(context):
+    context.Message('Checking if poll is useable... ')
+    result = context.TryLink(have_poll_src, '.c', )
+    context.Result(result)
+    return result
+
+have_pipe_src = """
+#include <unistd.h>
+
+int main(void) {
+    int fds[2];
+    pipe(fds);
+    return 0;
+}
+"""
+
+def HavePipe(context):
+    context.Message('Checking if pipe is useable... ')
+    result = context.TryLink(have_pipe_src, '.c')
+    context.Result(result)
+    return result
+
+def doConfigure(env):
+    if not env.GetOption('clean'):
+        conf = Configure(env, custom_tests = {'CheckPointerSize': CheckPointerSize, 'HavePoll': HavePoll, 'HavePipe': HavePipe})
+        result = conf.CheckPointerSize()
+        if not result[0]:
+            if env.GetOption('TARGET'):
+                target = env.GetOption('TARGET')
+                if 'x86_64' in target:
+                    env.Append(CPPDEFINES = {'AIO4C_P_TYPE': 'long'})
+                else:
+                    env.Append(CPPDEFINES = {'AIO4C_P_TYPE': 'int'})
+        else:
+            env.Append(CPPDEFINES = {'AIO4C_P_TYPE': result[1]})
+        if env.GetOption('USE_POLL') and conf.HavePoll():
+            env.Append(CPPDEFINES = {'AIO4C_HAVE_POLL': 1})
+        if env.GetOption('USE_PIPE') and conf.HavePipe():
+            env.Append(CPPDEFINES = {'AIO4C_HAVE_PIPE': 1})
+        conf.Finish()
+    return env
+
+if 'TMP' in os.environ:
+    env.Append(ENV = {'TMP': os.environ['TMP']})
+
+if not GetOption('clean'):
+    if 'JAVA_HOME' not in os.environ:
+        print 'Please set JAVA_HOME to the root of your Java SDK'
         Exit(1)
-else:
-    env.Append(CPPPATH = os.environ['JNI_CPPPATH'].split())
+    else:
+        jni_path = "%s/include" % os.path.normpath(os.environ['JAVA_HOME'])
+        jni_lib_path = "%s/lib" % os.path.normpath(os.environ['JAVA_HOME'])
+        env.Append(LIBPATH = [jni_lib_path])
+        env.Append(CPPPATH = [jni_path])
 
 if GetOption('DEBUG'):
-    env.Append(CCFLAGS = '-ggdb3')
-    env.Append(LINKFLAGS = '-ggdb3')
+    env.Append(CCFLAGS = '-g')
+    env.Append(LINKFLAGS = '-g')
 
-if GetOption('PROFILING'):
-    env.Append(CCFLAGS = '-pg')
-    env.Append(LINKFLAGS = '-pg')
+if GetOption('DEBUG_THREADS'):
+    env.Append(CPPDEFINES = {"AIO4C_DEBUG_THREADS": 1})
 
 if GetOption('STATISTICS'):
     env.Append(CPPDEFINES = {"AIO4C_ENABLE_STATS" : 1})
 
-if sys.platform == 'cygwin':
-    env['CC'] = 'i686-w64-mingw32-gcc'
-
 if GetOption('TARGET'):
     env['CC'] = GetOption('TARGET') + "-gcc"
 
-libs = []
+env.Append(CPPPATH = ['include'])
 
-if sys.platform == 'win32' or sys.platform == 'cygwin' or (GetOption('TARGET') and 'mingw' in GetOption('TARGET')):
+if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TARGET')):
+    AddOption('--windows-version',
+            dest = 'WINVER',
+            metavar = 'WINVER',
+            choices = ['XP', 'VISTA'],
+            default = 'VISTA',
+            help = 'Compile for windows version XP or VISTA (default: %default)')
+
+    if GetOption('WINVER') == 'XP':
+        winver = '0x0501'
+    elif GetOption('WINVER') == 'VISTA':
+        winver = '0x0600'
+
     w32env = env.Clone()
-    w32env['SHOBJSUFFIX'] = '.obj'
-    w32env['SHLIBSUFFIX'] = '.dll'
-    w32env['PROGSUFFIX'] = '.exe'
-    w32env['OBJSUFFIX'] = '.obj'
-    if '-fPIC' in w32env['SHCCFLAGS']:
-        w32env['SHCCFLAGS'].remove('-fPIC')
-    w32env.Append(CPPDEFINES = {"AIO4C_WIN32": 1, "_WIN32_WINNT": 0x0600, "WINVER": 0x0600})
-    libs.append('ws2_32')
+
+    if not GetOption('clean') and not os.path.exists("%s/win32" % jni_path):
+        print "JAVA_HOME = %s does not seems to be a win32 SDK" % os.environ['JAVA_HOME']
+        Exit(1)
+
+    if not GetOption('clean'):
+        w32env.Append(CPPPATH = ["%s/win32" % jni_path])
+
+    if sys.platform != 'win32':
+        w32env['LIBPREFIX'] = '';
+        w32env['SHOBJSUFFIX'] = '.obj'
+        w32env['SHLIBSUFFIX'] = '.dll'
+        w32env['PROGSUFFIX'] = '.exe'
+        w32env['OBJSUFFIX'] = '.obj'
+        if '-fPIC' in w32env['SHCCFLAGS']:
+            w32env['SHCCFLAGS'].remove('-fPIC')
+    elif not GetOption('clean'):
+        env.Append(ENV = {'PATH': "%s/bin:%s" % (os.path.normpath(os.environ['JAVA_HOME']), os.environ['PATH'])})
+
+    if int(winver, 16) < 0x0600:
+        w32env.Append(CPPDEFINES = {"FD_SETSIZE": 4096})
+
+    w32env.Append(CPPDEFINES = {"AIO4C_WIN32": 1, "WINVER": winver, "_WIN32_WINNT": winver})
+    w32env.Append(LIBS = ['ws2_32'])
+
+    w32env = doConfigure(w32env)
+
+    envj = w32env.Clone()
     envlib = w32env.Clone()
     envuser = w32env.Clone()
+
     envlib.Append(CPPDEFINES = {"AIO4C_DLLEXPORT": "'__declspec(dllexport)'"})
     envuser.Append(CPPDEFINES = {"AIO4C_DLLIMPORT": "'__declspec(dllimport)'"})
 else:
+    if not GetOption('clean') and not os.path.exists("%s/linux" % jni_path):
+        print "JAVA_HOME = %s does not seems to be a linux SDK" % os.environ['JAVA_HOME']
+        Exit(1)
+
+    if not GetOption('clean'):
+        env.Append(CPPPATH = ["%s/linux" % jni_path])
+        env.Append(ENV = {'PATH': "%s/bin:%s" % (os.path.normpath(os.environ['JAVA_HOME']), os.environ['PATH'])})
+
+    env.Append(LIBS = ['pthread'])
+
+    env = doConfigure(env)
+
+    envj = env.Clone()
     envlib = env.Clone()
     envuser = env.Clone()
-    libs.append('pthread')
 
-env.Java('build/java', 'java')
-env.JavaH(target = File('include/aio4c/jni/client.h'), source = 'build/java/com/aio4c/Client.class', JAVACLASSDIR = 'build/java')
+envj.Java('build/java', 'java')
+envj.JavaH(target = File('include/aio4c/jni/client.h'), source = 'build/java/com/aio4c/Client.class', JAVACLASSDIR = 'build/java')
 
 libfiles = Glob('build/src/*.c')
 
 if not GetOption('STATISTICS'):
     libfiles.remove(File('build/src/stats.c'))
 
-envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'), LIBS=libs, CPPPATH=['include'])
-envuser.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])
-envuser.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=['include'])
+envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'), CPPPATH=env['CPPPATH'])
+envuser.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])

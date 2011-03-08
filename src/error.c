@@ -41,7 +41,13 @@ char* ErrorStrings[AIO4C_MAX_ERRORS] = {
     "getsockopt",        /* AIO4C_GETSOCKOPT_ERROR */
     "setsockopt",        /* AIO4C_SETSOCKOPT_ERROR */
     "connect",           /* AIO4C_CONNECT_ERROR */
+    "finishing connect", /* AIO4C_FINISH_CONNECT_ERROR */
+    "disconnected",      /* AIO4C_CONNECTION_DISCONNECTED */
+#ifdef AIO4C_HAVE_POLL
     "poll",              /* AIO4C_POLL_ERROR */
+#else /* AIO4C_HAVE_POLL */
+    "select",            /* AIO4C_SELECT_ERROR */
+#endif /* AIO4C_HAVE_POLL */
     "read",              /* AIO4C_READ_ERROR */
     "write",             /* AIO4C_WRITE_ERROR */
     "overflow",          /* AIO4C_BUFFER_OVERFLOW_ERROR */
@@ -67,25 +73,30 @@ char* ErrorStrings[AIO4C_MAX_ERRORS] = {
 
 void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, ErrorCode* code) {
     char* errorMessage = NULL;
-    int errorCode = 0;
+    long errorCode = 0;
 
 #ifndef AIO4C_WIN32
-    errorCode = code->error;
+    errorCode = (long)code->error;
     errorMessage = strerror(code->error);
 #else /* AIO4C_WIN32 */
-    switch (error.source) {
+    switch (code->source) {
         case AIO4C_ERRNO_SOURCE_WSA:
             errorCode = WSAGetLastError();
             break;
         case AIO4C_ERRNO_SOURCE_SYS:
             errorCode = GetLastError();
             break;
+        case AIO4C_ERRNO_SOURCE_SOE:
+            errorCode = code->soError;
+            break;
         default:
             break;
     }
 
-    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-            NULL, errorCode, 0, (LPTSTR)&errorMessage, 0, NULL);
+    if (FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+            NULL, errorCode, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), (LPTSTR)&errorMessage, 0, NULL) != 0) {
+        errorMessage[strlen(errorMessage) - 2] = '\0';
+    }
 #endif /* AIO4C_WIN32 */
 
     switch (type) {
@@ -94,9 +105,13 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
                     (void*)code->buffer->data, code->buffer->size, code->buffer->limit, code->buffer->position);
             break;
         case AIO4C_CONNECTION_ERROR_TYPE:
-            Log(NULL, level, "%s:%d: %s for connection %s[%s]: [0x%08x] %s", file, line, ErrorStrings[error],
-                    code->connection->string, ConnectionStateString[code->connection->state],
-                    errorCode, errorMessage);
+            if (error == AIO4C_CONNECTION_DISCONNECTED) {
+                Log(NULL, level, "connection %s disconnected", code->connection->string);
+            } else {
+                Log(NULL, level, "%s:%d: %s for connection %s[%s]: [%08ld] %s", file, line, ErrorStrings[error],
+                        code->connection->string, ConnectionStateString[code->connection->state],
+                        errorCode, errorMessage);
+            }
             break;
         case AIO4C_EVENT_ERROR_TYPE:
             Log(NULL, level, "%s:%d: %s for connection %s[%s], handlers:{sys:[I:%d/%d,CIP:%d/%d,C:%d/%d,R:%d/%d,ID:%d/%d,W:%d/%d,OD:%d/%d,CL:%d/%d],usr:[I:%d/%d,CIP:%d/%d,C:%d/%d,R:%d/%d,ID:%d/%d,W:%d/%d,OD:%d/%d,CL:%d/%d]}",
@@ -136,54 +151,72 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
                     code->connection->userHandlers->maxHandlers[AIO4C_CLOSE_EVENT]);
             break;
         case AIO4C_THREAD_ERROR_TYPE:
-            Log(NULL, level, "%s:%d: %s for thread %s[r:%p,i:0x%lx,s:%s]: [0x%08x] %s", file, line, ErrorStrings[error],
+            Log(NULL, level, "%s:%d: %s for thread %s[r:%p,i:0x%lx,s:%s]: [%08ld] %s", file, line, ErrorStrings[error],
                     code->thread->name, *(void**)&code->thread->run, (unsigned long)code->thread->id, ThreadStateString[code->thread->state],
                     errorCode, errorMessage);
             break;
         case AIO4C_THREAD_LOCK_ERROR_TYPE:
             if (code->lock->owner != NULL) {
-                Log(NULL, level, "%s:%d: %s lock %p[s:%s,o:%s[r:%p,i:0x%lx,s:%s]]: [0x%08x] %s", file, line, ErrorStrings[error],
+                Log(NULL, level, "%s:%d: %s lock %p[s:%s,o:%s[r:%p,i:0x%lx,s:%s]]: [%08ld] %s", file, line, ErrorStrings[error],
                         (void*)code->lock, LockStateString[code->lock->state], code->lock->owner->name, *(void**)&code->lock->owner->run,
                         (unsigned long)code->lock->owner->id, ThreadStateString[code->lock->owner->state], errorCode, errorMessage);
             } else {
-                Log(NULL, level, "%s:%d: %s lock %p[s:%s,o:none]: [0x%08x] %s", file, line, ErrorStrings[error],
+                Log(NULL, level, "%s:%d: %s lock %p[s:%s,o:none]: [%08ld] %s", file, line, ErrorStrings[error],
                         (void*)code->lock, LockStateString[code->lock->state], errorCode, errorMessage);
             }
             break;
         case AIO4C_THREAD_CONDITION_ERROR_TYPE:
             if (code->condition->owner != NULL) {
-                Log(NULL, level, "%s:%d: %s condition %p[s:%s,o:%s[r:%p,i:0x%lx,s:%s]]: [0x%08x] %s", file, line, ErrorStrings[error],
+                Log(NULL, level, "%s:%d: %s condition %p[s:%s,o:%s[r:%p,i:0x%lx,s:%s]]: [%08ld] %s", file, line, ErrorStrings[error],
                         (void*)code->condition, ConditionStateString[code->condition->state], code->condition->owner->name, *(void**)&code->condition->owner->run,
                         (unsigned long)code->condition->owner->id, ThreadStateString[code->condition->owner->state], errorCode, errorMessage);
             } else {
-                Log(NULL, level, "%s:%d: %s condition %p[s:%s,o:none]: [0x%08x] %s", file, line, ErrorStrings[error],
+                Log(NULL, level, "%s:%d: %s condition %p[s:%s,o:none]: [%08ld] %s", file, line, ErrorStrings[error],
                         (void*)code->condition, ConditionStateString[code->condition->state], errorCode, errorMessage);
             }
             break;
         case AIO4C_THREAD_SELECTOR_ERROR_TYPE:
-#ifndef AIO4C_WIN32
-            Log(NULL, level, "%s:%d: %s selector %p[k:%d/%d,p:%d/%d]: [0x%08x] %s", file, line, ErrorStrings[error],
+#ifdef AIO4C_HAVE_POLL
+#ifdef AIO4C_HAVE_PIPE
+            Log(NULL, level, "%s:%d: %s selector %p[k:%d/%d,p:%d/%d]: [%08ld] %s", file, line, ErrorStrings[error],
                     (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->numPolls, code->selector->maxPolls,
                     errorCode, errorMessage);
-#else /* AIO4C_WIN32 */
-            Log(NULL, level, "%s:%d: %s selector %p[k:%d/%d,p:%d/%d,u:%d]: [0x%08x] %s", file, line, ErrorStrings[error],
+#else /* AIO4C_HAVE_PIPE */
+            Log(NULL, level, "%s:%d: %s selector %p[k:%d/%d,p:%d/%d,u:%d]: [%08ld] %s", file, line, ErrorStrings[error],
                     (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->numPolls, code->selector->maxPolls,
                     code->selector->port, errorCode, errorMessage);
-#endif /* AIO4C_WIN32 */
+#endif /* AIO4C_HAVE_PIPE */
+#else /* AIO4C_HAVE_POLL */
+#ifdef AIO4C_HAVE_PIPE
+            Log(NULL, level, "%s:%d: %s selector %p[k:%d/%d]: [%08ld] %s", file, line, ErrorStrings[error],
+                    (void*)code->selector, code->selector->numKeys, code->selector->maxKeys,
+                    errorCode, errorMessage);
+#else /* AIO4C_HAVE_PIPE */
+            Log(NULL, level, "%s:%d: %s selector %p[k:%d/%d,u:%d]: [%08ld] %s", file, line, ErrorStrings[error],
+                    (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->port,
+                    errorCode, errorMessage);
+#endif /* AIO4C_HAVE_PIPE */
+#endif /* AIO4C_HAVE_POLL */
             break;
         case AIO4C_ALLOC_ERROR_TYPE:
-            Log(NULL, level, "%s:%d: %s %s of size %d bytes: [0x%08x] %s", file, line, ErrorStrings[error],
+            Log(NULL, level, "%s:%d: %s %s of size %d bytes: [%08ld] %s", file, line, ErrorStrings[error],
                     code->type, code->size, errorCode, errorMessage);
             break;
+        case AIO4C_CONNECTION_STATE_ERROR_TYPE:
+            Log(NULL, level, "%s:%d: %s for connection %s[%s]", file, line, ErrorStrings[error],
+                    code->connection->string, ConnectionStateString[code->connection->state]);
+            break;
         case AIO4C_SOCKET_ERROR_TYPE:
-            Log(NULL, level, "%s:%d: %s: [0x%08x] %s", file, line, ErrorStrings[error], errorCode, errorMessage);
+            Log(NULL, level, "%s:%d: %s: [%08ld] %s", file, line, ErrorStrings[error], errorCode, errorMessage);
             break;
         default:
             break;
     }
 
 #ifdef AIO4C_WIN32
-    LocalFree(errorMessage);
+    if (errorMessage != NULL) {
+        LocalFree(errorMessage);
+    }
 #endif
 }
 

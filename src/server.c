@@ -29,10 +29,10 @@
 #include <string.h>
 
 static void _serverInit(Server* server) {
-    ConnectionAddHandler(server->factory, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), true);
-    ConnectionAddHandler(server->factory, AIO4C_INBOUND_DATA_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), false);
-    ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), false);
-    ConnectionAddHandler(server->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(server->handler), aio4c_connection_handler_arg(server->handlerArg), true);
+    ConnectionAddHandler(server->factory, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(server->handler), NULL, true);
+    ConnectionAddHandler(server->factory, AIO4C_INBOUND_DATA_EVENT, aio4c_connection_handler(server->handler), NULL, false);
+    ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), NULL, false);
+    ConnectionAddHandler(server->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(server->handler), NULL, true);
     server->acceptor = NewAcceptor(server->address, server->factory);
     Log(server->thread, AIO4C_LOG_LEVEL_INFO, "listening on %s", server->address->string);
 }
@@ -66,7 +66,7 @@ static void _serverExit(Server* server) {
     aio4c_free(server);
 }
 
-Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg) {
+Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, void (*handler)(Event,Connection*,void*), void* (*dataFactory)(Connection*)) {
     Server* server = NULL;
 
     if ((server = aio4c_malloc(sizeof(Server))) == NULL) {
@@ -78,11 +78,10 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel leve
 
     server->address    = NewAddress(type, host, port);
     server->pool       = NewBufferPool(2, bufferSize);
-    server->factory    = NewConnectionFactory(server->pool);
+    server->factory    = NewConnectionFactory(server->pool, dataFactory);
     server->acceptor   = NULL;
     server->thread     = NULL;
     server->handler    = handler;
-    server->handlerArg = handlerArg;
     server->queue      = NewQueue();
     server->thread     = NewThread("server",
             aio4c_thread_handler(_serverInit),

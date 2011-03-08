@@ -120,7 +120,7 @@ void EventHandlerRemove(EventQueue* queue, Event event, void (*handler)(Event,vo
     }
 }
 
-void CopyEventQueue(EventQueue* dst, EventQueue* src) {
+void CopyEventQueue(EventQueue* dst, EventQueue* src, void* arg) {
     int i = 0, j = 0;
     EventHandler* handler = NULL;
 
@@ -128,7 +128,11 @@ void CopyEventQueue(EventQueue* dst, EventQueue* src) {
         for (j = 0; j < src->handlersCount[i]; j++) {
             handler = src->eventHandlers[i][j];
             if (handler != NULL) {
-                EventHandlerAdd(dst, NewEventHandler(handler->event, handler->handler, handler->arg, handler->once));
+                if (arg != NULL) {
+                    EventHandlerAdd(dst, NewEventHandler(handler->event, handler->handler, arg, handler->once));
+                } else {
+                    EventHandlerAdd(dst, NewEventHandler(handler->event, handler->handler, handler->arg, handler->once));
+                }
             }
         }
     }

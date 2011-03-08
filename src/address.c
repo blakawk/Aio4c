@@ -87,8 +87,10 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
 #ifndef AIO4C_WIN32
     struct sockaddr_un* un = NULL;
 #endif
-    aio4c_bool_t addPort = false;
-    aio4c_size_t addrLen = 0, stringLen = 0;
+    char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+
+    memset(hbuf, 0, NI_MAXHOST * sizeof(char));
+    memset(sbuf, 0, NI_MAXSERV * sizeof(char));
 
     if ((pAddress = aio4c_malloc(sizeof(Address))) == NULL) {
         return NULL;
@@ -123,10 +125,9 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv4->sin_family = AF_INET;
             ipv4->sin_port = htons(port);
             ResolveIP(type, address, (struct sockaddr*)ipv4);
-            if ((pAddress->string = aio4c_malloc(INET_ADDRSTRLEN * sizeof(char))) != NULL) {
-                if (getnameinfo((struct sockaddr*)ipv4, sizeof(struct sockaddr_in), pAddress->string, INET_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST) == 0) {
-                    addrLen = strlen(pAddress->string);
-                    addPort = true;
+            if (getnameinfo((struct sockaddr*)ipv4, sizeof(struct sockaddr_in), hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+                if ((pAddress->string = aio4c_malloc((strlen(hbuf) + strlen(sbuf) + 2) * sizeof(char))) != NULL) {
+                    snprintf(pAddress->string, strlen(hbuf) + strlen(sbuf) + 2, "%s:%s", hbuf, sbuf);
                 }
             }
             break;
@@ -137,11 +138,9 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv6->sin6_flowinfo = 0;
             ipv6->sin6_scope_id = 0;
             ResolveIP(type, address, (struct sockaddr*)ipv6);
-            if ((pAddress->string = aio4c_malloc((INET6_ADDRSTRLEN + 1) * sizeof(char))) != NULL) {
-                if (getnameinfo((struct sockaddr*)ipv6, sizeof(struct sockaddr_in6), &pAddress->string[1], INET6_ADDRSTRLEN, NULL, 0, NI_NUMERICHOST) == 0) {
-                    pAddress->string[0] = '[';
-                    addrLen = strlen(pAddress->string);
-                    addPort = true;
+            if (getnameinfo((struct sockaddr*)ipv6, sizeof(struct sockaddr_in6), hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+                if ((pAddress->string = aio4c_malloc((strlen(hbuf) + strlen(sbuf) + 4) * sizeof(char))) != NULL) {
+                    snprintf(pAddress->string, strlen(hbuf) + strlen(sbuf) + 4, "[%s]:%s", hbuf, sbuf);
                 }
             }
             break;
@@ -155,18 +154,6 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
         default:
             FreeAddress(&pAddress);
             break;
-    }
-
-    if (addPort) {
-        if (type == AIO4C_ADDRESS_IPV4) {
-            stringLen = snprintf(&pAddress->string[addrLen], 0, ":%u", port);
-            pAddress->string = aio4c_realloc(pAddress->string, (addrLen + stringLen + 1) * sizeof(char));
-            snprintf(&pAddress->string[addrLen], stringLen + 1, ":%u", port);
-        } else if (type == AIO4C_ADDRESS_IPV6) {
-            stringLen = snprintf(&pAddress->string[addrLen], 0, "]:%u", port);
-            pAddress->string = aio4c_realloc(pAddress->string, (addrLen + stringLen + 1) * sizeof(char));
-            snprintf(&pAddress->string[addrLen], stringLen + 1, "]:%u", port);
-        }
     }
 
     return pAddress;

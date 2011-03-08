@@ -36,6 +36,7 @@
 #else /* AIO4C_WIN32 */
 
 #include <winbase.h>
+
 #include <winsock2.h>
 
 #endif /* AIO4C_WIN32 */
@@ -99,7 +100,7 @@ Lock* NewLock(void) {
         return NULL;
     }
 #else /* AIO4C_WIN32 */
-#error "pthread_mutex_init not implemented for win32"
+    InitializeCriticalSection(&pLock->mutex);
 #endif /* AIO4C_WIN32 */
 
     pLock->state = AIO4C_LOCK_STATE_FREE;
@@ -107,8 +108,10 @@ Lock* NewLock(void) {
     return pLock;
 }
 
-Lock* TakeLock(Lock* lock) {
+Lock* _TakeLock(char* file, int line, Lock* lock) {
+#ifndef AIO4C_WIN32
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+#endif /* AIO4C_WIN32 */
     Thread* current = ThreadSelf();
 
     ProbeTimeStart(AIO4C_TIME_PROBE_BLOCK);
@@ -116,6 +119,8 @@ Lock* TakeLock(Lock* lock) {
     if (current != NULL) {
         current->state = AIO4C_THREAD_STATE_BLOCKED;
     }
+
+    dthread("%s:%d: %s lock %p\n", file, line, (current!=NULL)?current->name:NULL, (void*)lock);
 
 #ifndef AIO4C_WIN32
     if ((code.error = pthread_mutex_lock(&lock->mutex)) != 0) {
@@ -129,7 +134,7 @@ Lock* TakeLock(Lock* lock) {
         return NULL;
     }
 #else /* AIO4C_WIN32 */
-#error "pthread_mutex_lock not implemented for win32"
+    EnterCriticalSection(&lock->mutex);
 #endif /* AIO4C_WIN32 */
 
     lock->owner = current;
@@ -144,8 +149,12 @@ Lock* TakeLock(Lock* lock) {
     return lock;
 }
 
-Lock* ReleaseLock(Lock* lock) {
+Lock* _ReleaseLock(char* file, int line, Lock* lock) {
+#ifndef AIO4C_WIN32
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+#endif /* AIO4C_WIN32 */
+
+    dthread("%s:%d: %s unlock %p\n", file, line, (ThreadSelf()!=NULL)?ThreadSelf()->name:NULL, (void*)lock);
 
     lock->state = AIO4C_LOCK_STATE_FREE;
     lock->owner = NULL;
@@ -157,14 +166,17 @@ Lock* ReleaseLock(Lock* lock) {
         return NULL;
     }
 #else /* AIO4C_WIN32 */
-#error "pthread_mutex_unlock not implemented for win32"
+    LeaveCriticalSection(&lock->mutex);
 #endif /* AIO4C_WIN32 */
+
     return lock;
 }
 
 void FreeLock(Lock** lock) {
     Lock * pLock = NULL;
+#ifndef AIO4C_WIN32
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+#endif /* AIO4C_WIN32 */
 
     if (lock != NULL && (pLock = *lock) != NULL) {
         pLock->state = AIO4C_LOCK_STATE_DESTROYED;
@@ -175,7 +187,7 @@ void FreeLock(Lock** lock) {
             Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_LOCK_ERROR_TYPE, AIO4C_THREAD_LOCK_DESTROY_ERROR, &code);
         }
 #else /* AIO4C_WIN32 */
-#error "pthread_mutex_destroy not implemented for win32"
+        DeleteCriticalSection(&pLock->mutex);
 #endif /* AIO4C_WIN32 */
 
         aio4c_free(pLock);
@@ -210,7 +222,26 @@ Condition* NewCondition(void) {
         return NULL;
     }
 #else /* AIO4C_WIN32 */
-#error "pthread_cond_init not implemented for win32"
+#if WINVER >= 0x0600
+    InitializeConditionVariable(&condition->condition);
+#else /* WINVER */
+    if ((condition->mutex = CreateMutex(NULL, FALSE, NULL)) == NULL) {
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+        code.condition = condition;
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_INIT_ERROR, &code);
+        aio4c_free(condition);
+        return NULL;
+    }
+
+    if ((condition->event = CreateEvent(NULL, FALSE, FALSE, NULL)) == NULL) {
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+        code.condition = condition;
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_INIT_ERROR, &code);
+        CloseHandle(condition->mutex);
+        aio4c_free(condition);
+        return NULL;
+    }
+#endif /* WINVER */
 #endif /* AIO4C_WIN32 */
 
     condition->state = AIO4C_COND_STATE_FREE;
@@ -218,16 +249,22 @@ Condition* NewCondition(void) {
     return condition;
 }
 
-aio4c_bool_t WaitCondition(Condition* condition, Lock* lock) {
+aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     Thread* current = ThreadSelf();
+    char* name = (current!=NULL)?current->name:NULL;
 
     condition->owner = current;
     condition->state = AIO4C_COND_STATE_WAITED;
 
+    lock->owner = NULL;
+    lock->state = AIO4C_COND_STATE_FREE;
+
     if (current != NULL) {
         current->state = AIO4C_THREAD_STATE_IDLE;
     }
+
+    dthread("%s:%d: %s WAIT CONDITION %p\n", file, line, name, (void*)condition);
 
 #ifndef AIO4C_WIN32
     if ((code.error = pthread_cond_wait(&condition->condition, &lock->mutex)) != 0) {
@@ -241,8 +278,85 @@ aio4c_bool_t WaitCondition(Condition* condition, Lock* lock) {
         return false;
     }
 #else /* AIO4C_WIN32 */
-#error "pthread_cond_wait not implemented for win32"
+#if WINVER >= 0x0600
+    if (SleepConditionVariableCS(&condition->condition, &lock->mutex, INFINITE) == 0) {
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+        code.condition = condition;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_WAIT_ERROR, &code);
+        condition->owner = NULL;
+        condition->state = AIO4C_COND_STATE_FREE;
+        if (current != NULL) {
+            current->state = AIO4C_THREAD_STATE_RUNNING;
+        }
+        return false;
+    }
+#else /* WINVER */
+    dthread("[WAIT CONDITION %p] %s about to wait for mutex\n", (void*)condition, name);
+    switch (WaitForSingleObject(condition->mutex, INFINITE)) {
+        case WAIT_OBJECT_0:
+            dthread("[WAIT CONDITION %p] %s gained mutex\n", (void*)condition, name);
+            break;
+        case WAIT_ABANDONED:
+            dthread("[WAIT CONDITION %p] %s abandoned mutex\n", (void*)condition, name);
+            Log(NULL, AIO4C_LOG_LEVEL_WARN, "%s:%d: WaitForSingleObject: abandon", __FILE__, __LINE__);
+            condition->owner = NULL;
+            condition->state = AIO4C_COND_STATE_FREE;
+            if (current != NULL) {
+                current->state = AIO4C_THREAD_STATE_RUNNING;
+            }
+            return false;
+        case WAIT_FAILED:
+            dthread("[WAIT CONDITION %p] %s failed mutex with code 0x%08lx\n", (void*)condition, name, GetLastError());
+            code.source = AIO4C_ERRNO_SOURCE_SYS;
+            code.condition = condition;
+            Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_WAIT_ERROR, &code);
+            condition->owner = NULL;
+            condition->state = AIO4C_COND_STATE_FREE;
+            if (current != NULL) {
+                current->state = AIO4C_THREAD_STATE_RUNNING;
+            }
+            return false;
+        default:
+            break;
+    }
+
+    LeaveCriticalSection(&lock->mutex);
+
+    dthread("[WAIT CONDITION %p] %s about to wait for event\n", (void*)condition, name);
+    switch (SignalObjectAndWait(condition->mutex, condition->event, INFINITE, FALSE)) {
+        case WAIT_OBJECT_0:
+            dthread("[WAIT CONDITION %p] %s received event\n", (void*)condition, name);
+            break;
+        case WAIT_ABANDONED:
+            dthread("[WAIT CONDITION %p] %s abandoned event\n", (void*)condition, name);
+            Log(NULL, AIO4C_LOG_LEVEL_WARN, "%s:%d: SignalObjectAndWait: abandon", __FILE__, __LINE__);
+            condition->owner = NULL;
+            condition->state = AIO4C_COND_STATE_FREE;
+            if (current != NULL) {
+                current->state = AIO4C_THREAD_STATE_RUNNING;
+            }
+            return false;
+        case WAIT_FAILED:
+            dthread("[WAIT CONDITION %p] %s failed event with code 0x%08lx\n", (void*)condition, name, GetLastError());
+            code.source = AIO4C_ERRNO_SOURCE_SYS;
+            code.condition = condition;
+            Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_WAIT_ERROR, &code);
+            condition->owner = NULL;
+            condition->state = AIO4C_COND_STATE_FREE;
+            if (current != NULL) {
+                current->state = AIO4C_THREAD_STATE_RUNNING;
+            }
+            return false;
+        default:
+            break;
+    }
+
+    EnterCriticalSection(&lock->mutex);
+#endif /* WINVER */
 #endif /* AIO4C_WIN32 */
+
+    lock->owner = current;
+    lock->state = AIO4C_LOCK_STATE_LOCKED;
 
     condition->owner = NULL;
     condition->state = AIO4C_COND_STATE_FREE;
@@ -254,22 +368,64 @@ aio4c_bool_t WaitCondition(Condition* condition, Lock* lock) {
     return true;
 }
 
-void NotifyCondition(Condition* condition) {
-    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+void _NotifyCondition(char* file, int line, Condition* condition) {
+    char* name = (ThreadSelf()!=NULL)?ThreadSelf()->name:NULL;
+    dthread("%s:%d: %s NOTIFY %s ON %p\n", file, line, name, (condition->owner!=NULL)?condition->owner->name:NULL, (void*)condition);
 
 #ifndef AIO4C_WIN32
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     if ((code.error = pthread_cond_signal(&condition->condition)) != 0) {
         code.condition = condition;
         Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_NOTIFY_ERROR, &code);
     }
 #else /* AIO4C_WIN32 */
-#error "pthread_cond_signal not implemented for win32"
+#if WINVER >= 0x0600
+    WakeConditionVariable(&condition->condition);
+#else /* WINVER */
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    if (PulseEvent(condition->event) == 0) {
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+        code.condition = condition;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_NOTIFY_ERROR, &code);
+    }
+
+    dthread("[NOTIFY CONDITION %p] %s about to wait on mutex\n", (void*)condition, name);
+
+    switch (WaitForSingleObject(condition->mutex, INFINITE)) {
+        case WAIT_OBJECT_0:
+            dthread("[NOTIFY CONDITION %p] %s gained mutex\n", (void*)condition, name);
+            break;
+        case WAIT_ABANDONED:
+            dthread("[NOTIFY CONDITION %p] %s abandoned mutex\n", (void*)condition, name);
+            Log(NULL, AIO4C_LOG_LEVEL_WARN, "%s:%d: WaitForSingleObject: abandon", __FILE__, __LINE__);
+            return;
+        case WAIT_FAILED:
+            dthread("[NOTIFY CONDITION %p] %s failed mutex with code 0x%08lx\n", (void*)condition, name, GetLastError());
+            code.source = AIO4C_ERRNO_SOURCE_SYS;
+            code.condition = condition;
+            Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_NOTIFY_ERROR, &code);
+            return;
+        default:
+            break;
+    }
+
+    dthread("[NOTIFY CONDITION %p] %s releasing mutex\n", (void*)condition, name);
+    if (ReleaseMutex(condition->mutex) == 0) {
+        dthread("[NOTIFY CONDITION %p] %s failed releasing mutex with code 0x%08lx\n", (void*)condition, name, GetLastError());
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+        code.condition = condition;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_NOTIFY_ERROR, &code);
+    }
+    dthread("[NOTIFY CONDITION %p] %s released mutex\n", (void*)condition, name);
+#endif /* WINVER */
 #endif /* AIO4C_WIN32 */
 }
 
 void FreeCondition(Condition** condition) {
     Condition* pCondition = NULL;
+#ifndef AIO4C_WIN32
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+#endif /* AIO4C_WIN32 */
 
     if (condition != NULL && (pCondition = *condition) != NULL) {
 #ifndef AIO4C_WIN32
@@ -278,7 +434,10 @@ void FreeCondition(Condition** condition) {
             Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_DESTROY_ERROR, &code);
         }
 #else /* AIO4C_WIN32 */
-#error "pthread_cond_destroy not implemented for win32"
+#if WINVER < 0x0600
+        CloseHandle(pCondition->mutex);
+        CloseHandle(pCondition->event);
+#endif /* WINVER */
 #endif /* AIO4C_WIN32 */
 
         aio4c_free(pCondition);
@@ -540,9 +699,9 @@ void FreeQueue(Queue** queue) {
     }
 }
 
-#ifdef AIO4C_WIN32
-static int _selectorNextPort = 50000;
-#endif /* AIO4C_WIN32 */
+#ifndef AIO4C_HAVE_PIPE
+static int _selectorNextPort = 8000;
+#endif /* AIO4C_HAVE_PIPE */
 
 Selector* NewSelector(void) {
     Selector* selector = NULL;
@@ -560,26 +719,40 @@ Selector* NewSelector(void) {
         return NULL;
     }
 
+#ifdef AIO4C_HAVE_POLL
     if ((selector->polls = aio4c_malloc(sizeof(aio4c_poll_t))) == NULL) {
+#else /* AIO4C_HAVE_POLL */
+    if ((selector->polls = aio4c_malloc(sizeof(Poll))) == NULL) {
+#endif /* AIO4C_HAVE_POLL */
 #ifndef AIO4C_WIN32
         code.error = errno;
 #else /* AIO4C_WIN32 */
         code.source = AIO4C_ERRNO_SOURCE_SYS;
 #endif /* AIO4C_WIN32 */
+#ifdef AIO4C_HAVE_POLL
         code.size = sizeof(aio4c_poll_t);
         code.type = "aio4c_poll_t";
+#else /* AIO4C_HAVE_POLL */
+        code.size = sizeof(Poll);
+        code.type = "Poll";
+#endif /* AIO4C_HAVE_POLL */
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
         aio4c_free(selector);
         return NULL;
     }
 
-#ifndef AIO4C_WIN32
+#ifdef AIO4C_HAVE_PIPE
     if (pipe(selector->pipe) != 0) {
+        code.error = errno;
+#else /* AIO4C_HAVE_PIPE */
+#ifndef AIO4C_WIN32
+    if ((selector->pipe[AIO4C_PIPE_READ] = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         code.error = errno;
 #else /* AIO4C_WIN32 */
     if ((selector->pipe[AIO4C_PIPE_READ] = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET) {
         code.source = AIO4C_ERRNO_SOURCE_WSA;
 #endif /* AIO4C_WIN32 */
+#endif /* AIO4C_HAVE_PIPE */
         code.selector = selector;
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_SELECTOR_ERROR_TYPE, AIO4C_THREAD_SELECTOR_INIT_ERROR, &code);
         aio4c_free(selector->polls);
@@ -587,17 +760,26 @@ Selector* NewSelector(void) {
         return NULL;
     }
 
-#ifdef AIO4C_WIN32
+#ifndef AIO4C_HAVE_PIPE
+#ifndef AIO4C_WIN32
+    if ((selector->pipe[AIO4C_PIPE_WRITE] = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
+        code.error = errno;
+#else /* AIO4C_WIN32 */
     if ((selector->pipe[AIO4C_PIPE_WRITE] = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET) {
         code.source = AIO4C_ERRNO_SOURCE_WSA;
+#endif /* AIO4C_WIN32 */
         code.selector = selector;
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_SELECTOR_ERROR_TYPE, AIO4C_THREAD_SELECTOR_INIT_ERROR, &code);
+#ifndef AIO4C_WIN32
+        close(selector->pipe[AIO4C_PIPE_READ]);
+#else /* AIO4C_WIN32 */
         closesocket(selector->pipe[AIO4C_PIPE_READ]);
+#endif /* AIO4C_WIN32 */
         aio4c_free(selector->polls);
         aio4c_free(selector);
         return NULL;
     }
-#endif /* AIO4C_WIN32 */
+#endif /* AIO4C_HAVE_PIPE */
 
 #ifndef AIO4C_WIN32
     if (fcntl(selector->pipe[AIO4C_PIPE_READ], F_SETFL, O_NONBLOCK) != 0) {
@@ -640,21 +822,60 @@ Selector* NewSelector(void) {
         return NULL;
     }
 
-#ifdef AIO4C_WIN32
-    selector->port = htons(_selectorNextPort++);
+#ifndef AIO4C_HAVE_PIPE
+    struct sockaddr_in sa;
+    memset(&sa, 0, sizeof(struct sockaddr_in));
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    while (true) {
+        selector->port = _selectorNextPort++;
+        sa.sin_port = htons(selector->port);
+#ifndef AIO4C_WIN32
+        if (bind(selector->pipe[AIO4C_PIPE_READ], (struct sockaddr*)&sa, sizeof(struct sockaddr_in)) == -1) {
+            if (errno != EADDRINUSE) {
+                code.error = errno;
+#else /* AIO4C_WIN32 */
+        if (bind(selector->pipe[AIO4C_PIPE_READ], (struct sockaddr*)&sa, sizeof(struct sockaddr_in)) == SOCKET_ERROR) {
+            if (WSAGetLastError() != WSAEADDRINUSE) {
+                code.source = AIO4C_ERRNO_SOURCE_WSA;
 #endif /* AIO4C_WIN32 */
+                code.selector = selector;
+                Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_SELECTOR_ERROR_TYPE, AIO4C_THREAD_SELECTOR_INIT_ERROR, &code);
+#ifndef AIO4C_WIN32
+                close(selector->pipe[AIO4C_PIPE_READ]);
+                close(selector->pipe[AIO4C_PIPE_WRITE]);
+#else /* AIO4C_WIN32 */
+                closesocket(selector->pipe[AIO4C_PIPE_READ]);
+                closesocket(selector->pipe[AIO4C_PIPE_WRITE]);
+#endif /* AIO4C_WIN32 */
+                aio4c_free(selector->polls);
+                aio4c_free(selector);
+                return NULL;
+            } else {
+                continue;
+            }
+        }
+
+        break;
+    }
+#endif /* AIO4C_HAVE_PIPE */
 
     selector->keys = NULL;
     selector->numKeys = 0;
     selector->maxKeys = 0;
 
+#ifdef AIO4C_HAVE_POLL
     memset(selector->polls, 0, sizeof(aio4c_poll_t));
+#else /* AIO4C_HAVE_POLL */
+    memset(selector->polls, 0, sizeof(Poll));
+#endif /* AIO4C_HAVE_POLL */
 
     selector->polls[0].fd = selector->pipe[AIO4C_PIPE_READ];
     selector->polls[0].events = AIO4C_OP_READ;
 
     selector->numPolls = 1;
     selector->maxPolls = 1;
+
     selector->curKey = -1;
     selector->curKeyCount = -1;
 
@@ -682,12 +903,18 @@ SelectionKey* _NewSelectionKey(void) {
 
     memset(key, 0, sizeof(SelectionKey));
 
+    key->poll = -1;
+
     return key;
 }
 
 SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_socket_t fd, void* attachment) {
     SelectionKey** keys = NULL;
+#ifdef AIO4C_HAVE_POLL
     aio4c_poll_t* polls = NULL;
+#else /* AIO4C_HAVE_POLL */
+    Poll*         polls = NULL;
+#endif /* AIO4C_HAVE_POLL */
     SelectionKey* key = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     int keyPresent = -1;
@@ -727,14 +954,25 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
         }
 
         if (selector->numPolls == selector->maxPolls) {
+#ifdef AIO4C_HAVE_POLL
             if ((polls = aio4c_realloc(selector->polls, (selector->maxPolls + 1) * sizeof(aio4c_poll_t))) == NULL) {
+#else /* AIO4C_HAVE_POLL */
+            if ((polls = aio4c_realloc(selector->polls, (selector->maxPolls + 1) * sizeof(Poll))) == NULL) {
+#endif /* AIO4C_HAVE_POLL */
+
 #ifndef AIO4C_WIN32
                 code.error = errno;
 #else /* AIO4C_WIN32 */
                 code.source = AIO4C_ERRNO_SOURCE_SYS;
 #endif /* AIO4C_WIN32 */
+
+#ifdef AIO4C_HAVE_POLL
                 code.size = (selector->maxPolls + 1) * sizeof(aio4c_poll_t);
                 code.type = "aio4c_poll_t";
+#else /* AIO4C_HAVE_POLL */
+                code.size = (selector->maxPolls + 1) * sizeof(Poll);
+                code.type = "Poll";
+#endif /* AIO4C_HAVE_POLL */
                 Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
                 ReleaseLock(selector->lock);
                 return NULL;
@@ -742,12 +980,17 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
 
             selector->polls = polls;
 
+#ifdef AIO4C_HAVE_POLL
             memset(&selector->polls[selector->maxPolls], 0, sizeof(aio4c_poll_t));
+#else /* AIO4C_HAVE_POLL */
+            memset(&selector->polls[selector->maxPolls], 0, sizeof(Poll));
+#endif /* AIO4C_HAVE_POLL */
 
             selector->maxPolls++;
         }
 
         memset(selector->keys[selector->numKeys], 0, sizeof(SelectionKey));
+        selector->keys[selector->numKeys]->poll = -1;
 
         selector->keys[selector->numKeys]->index = selector->numKeys;
         selector->keys[selector->numKeys]->operation = operation;
@@ -755,9 +998,13 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
         selector->keys[selector->numKeys]->attachment = attachment;
         keyPresent = selector->numKeys;
 
+#ifdef AIO4C_HAVE_POLL
         memset(&selector->polls[selector->numPolls], 0, sizeof(aio4c_poll_t));
-        selector->polls[selector->numPolls].fd = fd;
+#else /* AIO4C_HAVE_POLL */
+        memset(&selector->polls[selector->numPolls], 0, sizeof(Poll));
+#endif /* AIO4C_HAVE_POLL */
         selector->polls[selector->numPolls].events = operation;
+        selector->polls[selector->numPolls].fd = fd;
         selector->keys[selector->numKeys]->poll = selector->numPolls;
         selector->numPolls++;
 
@@ -774,7 +1021,7 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
 
 void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAll) {
     int i = 0, j = 0;
-    aio4c_size_t pollIndex = key->poll;
+    int pollIndex = key->poll;
 
     TakeLock(selector->lock);
 
@@ -812,41 +1059,112 @@ void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAl
             }
         }
 
+#ifdef AIO4C_HAVE_POLL
         memcpy(&selector->polls[i], &selector->polls[i + 1], sizeof(aio4c_poll_t));
+#else /* AIO4C_HAVE_POLL */
+        memcpy(&selector->polls[i], &selector->polls[i + 1], sizeof(Poll));
+#endif /* AIO4C_HAVE_POLL */
     }
 
+#ifdef AIO4C_HAVE_POLL
     memset(&selector->polls[i], 0, sizeof(aio4c_poll_t));
+#else /* AIO4C_HAVE_POLL */
+    memset(&selector->polls[i], 0, sizeof(Poll));
+#endif /* AIO4C_HAVE_POLL */
 
     selector->numPolls--;
 
     ReleaseLock(selector->lock);
 }
 
-aio4c_size_t Select(Selector* selector) {
+aio4c_size_t _Select(char* file, int line, Selector* selector) {
     int nbPolls = 0;
     unsigned char dummy = 0;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    char* name = (ThreadSelf()!=NULL)?ThreadSelf()->name:NULL;
+
+    TakeLock(selector->lock);
+
+#ifndef AIO4C_HAVE_POLL
+    fd_set wSet, rSet, eSet;
+    int i = 0, maxFd = 0;
+    aio4c_bool_t fdAdded = false;
+
+    FD_ZERO(&wSet);
+    FD_ZERO(&rSet);
+    FD_ZERO(&eSet);
+
+    FD_SET(selector->pipe[AIO4C_PIPE_READ], &rSet);
+    maxFd = selector->pipe[AIO4C_PIPE_READ];
+
+    for (i = 0; i < selector->numPolls; i++) {
+        fdAdded = false;
+
+        if (selector->polls[i].fd >= FD_SETSIZE) {
+            Log(NULL, AIO4C_LOG_LEVEL_WARN, "descriptor %d overpasses FD_SETSIZE (%d), ignoring", selector->polls[i].fd, FD_SETSIZE);
+            continue;
+        }
+
+        if (selector->polls[i].events & AIO4C_OP_READ) {
+            FD_SET(selector->polls[i].fd, &rSet);
+            fdAdded = true;
+        }
+
+        if (selector->polls[i].events & AIO4C_OP_WRITE) {
+            FD_SET(selector->polls[i].fd, &wSet);
+            fdAdded = true;
+        }
+
+        if (fdAdded) {
+            FD_SET(selector->polls[i].fd, &eSet);
+            if (selector->polls[i].fd > maxFd) {
+                maxFd = selector->polls[i].fd;
+            }
+        }
+    }
+
+    maxFd++;
+#endif /* AIO4C_HAVE_POLL */
+
+    dthread("%s:%d: %s SELECT ON %p\n", file, line, name, (void*)selector);
 
 #ifndef AIO4C_WIN32
+
+#ifdef AIO4C_HAVE_POLL
     while ((nbPolls = poll(selector->polls, selector->numPolls, -1)) < 0) {
+#else /* AIO4C_HAVE_POLL */
+    while ((nbPolls = select(maxFd, &rSet, &wSet, &eSet, NULL)) < 0) {
+#endif /* AIO4C_HAVE_POLL */
         if (errno != EINTR) {
             code.error = errno;
             code.selector = selector;
             Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_SELECTOR_ERROR_TYPE, AIO4C_THREAD_SELECTOR_SELECT_ERROR, &code);
+            ReleaseLock(selector->lock);
             return 0;
         }
 #else /* AIO4C_WIN32 */
+
+#ifdef AIO4C_HAVE_POLL
     while ((nbPolls = WSAPoll(selector->polls, selector->numPolls, -1)) == SOCKET_ERROR) {
+#else /* AIO4C_HAVE_POLL */
+    while ((nbPolls = select(maxFd, &rSet, &wSet, &eSet, NULL)) == SOCKET_ERROR) {
+#endif /* AIO4C_HAVE_POLL */
         code.source = AIO4C_ERRNO_SOURCE_WSA;
         code.selector = selector;
         Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_SELECTOR_ERROR_TYPE, AIO4C_THREAD_SELECTOR_SELECT_ERROR, &code);
+        ReleaseLock(selector->lock);
         return 0;
 #endif /* AIO4C_WIN32 */
     }
 
-    TakeLock(selector->lock);
-
+#ifdef AIO4C_HAVE_POLL
     if (selector->polls[0].revents & AIO4C_OP_READ) {
+#else /* AIO4C_HAVE_POLL */
+    if (FD_ISSET(selector->pipe[AIO4C_PIPE_READ], &rSet)) {
+#endif /* AIO4C_HAVE_POLL */
+
+        dthread("[SELECT SELECTOR %p] %s woken up\n", (void*)selector, name);
+
 #ifndef AIO4C_WIN32
         if (read(selector->pipe[AIO4C_PIPE_READ], &dummy, sizeof(unsigned char)) < 0) {
             code.error = errno;
@@ -857,25 +1175,70 @@ aio4c_size_t Select(Selector* selector) {
             code.selector = selector;
             Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_SELECTOR_ERROR_TYPE, AIO4C_THREAD_SELECTOR_SELECT_ERROR, &code);
         }
+
+#ifdef AIO4C_HAVE_POLL
         selector->polls[0].revents = 0;
+#endif /* AIO4C_HAVE_POLL */
+
         nbPolls--;
     }
+
+#ifndef AIO4C_HAVE_POLL
+    for (i = 0; i < selector->numPolls; i++) {
+        selector->polls[i].revents = 0;
+
+        if (FD_ISSET(selector->polls[i].fd, &rSet)) {
+            selector->polls[i].revents |= AIO4C_OP_READ;
+        }
+        if (FD_ISSET(selector->polls[i].fd, &wSet)) {
+            selector->polls[i].revents |= AIO4C_OP_WRITE;
+        }
+        if (FD_ISSET(selector->polls[i].fd, &eSet)) {
+            selector->polls[i].revents |= AIO4C_OP_ERROR;
+        }
+    }
+#endif /* AIO4C_HAVE_POLL */
+
+    dthread("[SELECT SELECTOR %p] %s select resulted in %d descriptor(s) ready\n", (void*)selector, name, nbPolls);
 
     ReleaseLock(selector->lock);
 
     return nbPolls;
 }
 
-void SelectorWakeUp(Selector* selector) {
+void _SelectorWakeUp(char* file, int line, Selector* selector) {
     unsigned char dummy = 1;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    char* name = (ThreadSelf()!=NULL)?ThreadSelf()->name:NULL;
+
+    dthread("%s:%d: %s WAKING UP %p\n", file, line, name, (void*)selector);
+
+#ifdef AIO4C_HAVE_POLL
     aio4c_poll_t polls[1] = { { .fd = selector->pipe[AIO4C_PIPE_WRITE], .events = AIO4C_OP_WRITE, .revents = 0 } };
+#else /* AIO4C_HAVE_POLL */
+    fd_set wSet, eSet;
+    struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
+
+    FD_ZERO(&wSet);
+    FD_ZERO(&eSet);
+
+    FD_SET(selector->pipe[AIO4C_PIPE_WRITE], &wSet);
+    FD_SET(selector->pipe[AIO4C_PIPE_WRITE], &eSet);
+#endif /* AIO4C_HAVE_POLL */
 
 #ifndef AIO4C_WIN32
+#ifdef AIO4C_HAVE_POLL
     if (poll(polls, 1, 0) < 0) {
+#else /* AIO4C_HAVE_POLL */
+    if (select(selector->pipe[AIO4C_PIPE_WRITE] + 1, NULL, &wSet, &eSet, &tv) < 0) {
+#endif /* AIO4C_HAVE_POLL */
         code.error = errno;
 #else /* AIO4C_WIN32 */
+#ifdef AIO4C_HAVE_POLL
     if (WSAPoll(polls, 1, 0) == SOCKET_ERROR) {
+#else /* AIO4C_HAVE_POLL */
+    if (select(selector->pipe[AIO4C_PIPE_WRITE] + 1, NULL, &wSet, &eSet, &tv) < 0) {
+#endif /* AIO4C_HAVE_POLL */
         code.source = AIO4C_ERRNO_SOURCE_WSA;
 #endif /* AIO4C_WIN32 */
         code.selector = selector;
@@ -883,15 +1246,29 @@ void SelectorWakeUp(Selector* selector) {
         return;
     }
 
+#ifdef AIO4C_HAVE_POLL
     if (polls[0].revents & AIO4C_OP_WRITE) {
-#ifndef AIO4C_WIN32
+#else /* AIO4C_HAVE_POLL */
+    if (FD_ISSET(selector->pipe[AIO4C_PIPE_WRITE], &wSet)) {
+#endif /* AIO4C_HAVE_POLL */
+
+#ifdef AIO4C_HAVE_PIPE
         if ((write(selector->pipe[AIO4C_PIPE_WRITE], &dummy, sizeof(unsigned char))) < 0) {
             code.error = errno;
+#else /* AIO4C_HAVE_PIPE */
+        struct sockaddr_in sa;
+        memset(&sa, 0, sizeof(struct sockaddr_in));
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons(selector->port);
+        sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+#ifndef AIO4C_WIN32
+        if (sendto(selector->pipe[AIO4C_PIPE_WRITE], (void*)&dummy, sizeof(unsigned char), 0, (struct sockaddr*)&sa, sizeof(struct sockaddr_in)) == -1) {
+            code.error = errno;
 #else /* AIO4C_WIN32 */
-        struct sockaddr_in sa = { .sin_family = AF_INET, .sin_port = selector->port, .sin_addr = { .s_addr = INADDR_LOOPBACK } };
         if (sendto(selector->pipe[AIO4C_PIPE_WRITE], (void*)&dummy, sizeof(unsigned char), 0, (struct sockaddr*)&sa, sizeof(struct sockaddr_in)) == SOCKET_ERROR) {
             code.source = AIO4C_ERRNO_SOURCE_WSA;
 #endif /* AIO4C_WIN32 */
+#endif /* AIO4C_HAVE_PIPE */
             code.selector = selector;
             Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_SELECTOR_ERROR_TYPE, AIO4C_THREAD_SELECTOR_WAKE_UP_ERROR, &code);
         }
@@ -935,7 +1312,16 @@ void FreeSelector(Selector** pSelector) {
 aio4c_bool_t SelectionKeyReady (Selector* selector, SelectionKey** key) {
     int i = 0;
     aio4c_bool_t result = true;
+#ifdef AIO4C_HAVE_POLL
     aio4c_poll_t polls[1] = { { .fd = 0, .events = 0, .revents = 0 } };
+#else /* AIO4C_HAVE_POLL */
+    fd_set set, eSet;
+    FD_ZERO(&set);
+    FD_ZERO(&eSet);
+    fd_set* wSet = NULL;
+    fd_set* rSet = NULL;
+    struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
+#endif /* AIO4C_HAVE_POLL */
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
     TakeLock(selector->lock);
@@ -953,21 +1339,49 @@ aio4c_bool_t SelectionKeyReady (Selector* selector, SelectionKey** key) {
 
     if (result) {
         if (selector->curKeyCount >= 1 && selector->keys[selector->curKey]->count > selector->curKeyCount) {
+#ifdef AIO4C_HAVE_POLL
             polls[0].fd = selector->keys[selector->curKey]->fd;
             polls[0].events = selector->keys[selector->curKey]->operation;
+#else /* AIO4C_HAVE_POLL */
+            FD_SET(selector->keys[selector->curKey]->fd, &set);
+            FD_SET(selector->keys[selector->curKey]->fd, &eSet);
+            if (selector->keys[selector->curKey]->operation & AIO4C_OP_READ) {
+                rSet = &set;
+            } else {
+                wSet = &set;
+            }
+#endif /* AIO4C_HAVE_POLL */
+
 #ifndef AIO4C_WIN32
+#ifdef AIO4C_HAVE_POLL
             if (poll(polls, 1, 0) < 0) {
+#else /* AIO4C_HAVE_POLL */
+            if (select(selector->keys[selector->curKey]->fd + 1, rSet, wSet, &eSet, &tv) < 0) {
+#endif /* AIO4C_HAVE_POLL */
                 code.error = errno;
 #else /* AIO4C_WIN32 */
+#ifdef AIO4C_HAVE_POLL
             if (WSAPoll(polls, 1, 0) == SOCKET_ERROR) {
+#else /* AIO4C_HAVE_POLL */
+            if (select(selector->keys[selector->curKey]->fd + 1, rSet, wSet, &eSet, &tv) == SOCKET_ERROR) {
+#endif /* AIO4C_HAVE_POLL */
                 code.source = AIO4C_ERRNO_SOURCE_WSA;
 #endif /* AIO4C_WIN32 */
                 code.selector = selector;
                 Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_SELECTOR_ERROR_TYPE, AIO4C_THREAD_SELECTOR_SELECT_ERROR, &code);
+#ifdef AIO4C_HAVE_POLL
             } else if (polls[0].revents & polls[0].events) {
                 selector->keys[selector->curKey]->result = polls[0].revents;
+#else /* AIO4C_HAVE_POLL */
+            } else if (FD_ISSET(selector->keys[selector->curKey]->fd, &set)) {
+                if (FD_ISSET(selector->keys[selector->curKey]->fd, &eSet)) {
+                    selector->keys[selector->curKey]->result |= AIO4C_OP_ERROR;
+                }
+                selector->keys[selector->curKey]->result |= selector->keys[selector->curKey]->operation;
+#endif /* AIO4C_HAVE_POLL */
                 selector->curKeyCount++;
                 *key = selector->keys[selector->curKey];
+                ReleaseLock(selector->lock);
                 return true;
             } else {
                 selector->curKeyCount = 0;
@@ -976,7 +1390,11 @@ aio4c_bool_t SelectionKeyReady (Selector* selector, SelectionKey** key) {
         }
 
         for (i = selector->curKey; i < selector->numKeys; i++) {
+#ifdef AIO4C_HAVE_POLL
             if (selector->polls[selector->keys[i]->poll].revents > 0) {
+#else /* AIO4C_HAVE_POLL */
+            if (selector->polls[selector->keys[i]->poll].revents > 0) {
+#endif /* AIO4C_HAVE_POLL */
                 selector->keys[i]->result = selector->polls[selector->keys[i]->poll].revents;
                 *key = selector->keys[i];
                 selector->curKeyCount++;
@@ -1002,6 +1420,8 @@ static Thread* _MainThread = NULL;
 static void _ThreadCleanup(Thread* thread) {
     int i = 0;
 
+    ReleaseLock(thread->lock);
+
     if (thread->exit != NULL) {
         thread->exit(thread->arg);
     }
@@ -1009,8 +1429,6 @@ static void _ThreadCleanup(Thread* thread) {
     thread->state = AIO4C_THREAD_STATE_EXITED;
 
     _numThreadsRunning--;
-
-    ReleaseLock(thread->lock);
 
     for (i = 0; i < _numThreads; i++) {
         if (_threads[i] == thread) {
@@ -1033,7 +1451,7 @@ static Thread* _runThread(Thread* thread) {
 #ifndef AIO4C_WIN32
     pthread_cleanup_push((void(*)(void*))_ThreadCleanup, (void*)thread);
 #else /* AIO4C_WIN32 */
-#error "pthread_cleanup_push not implemented for win32"
+    /* no thread cleanup on Win32 */
 #endif /* AIO4C_WIN32 */
 
     while (thread->running) {
@@ -1050,17 +1468,62 @@ static Thread* _runThread(Thread* thread) {
 #ifndef AIO4C_WIN32
     pthread_cleanup_pop(1);
 #else /* AIO4C_WIN32 */
-#error "pthread_cleanup_pop not implemented for win32"
+    _ThreadCleanup(thread);
 #endif /* AIO4C_WIN32 */
 
 #ifndef AIO4C_WIN32
     pthread_exit(thread);
 #else /* AIO4C_WIN32 */
-#error "pthread_exit not implemented for win32"
+    ExitThread((DWORD)thread);
 #endif /* AIO4C_WIN32 */
 
     return thread;
 }
+
+#ifdef AIO4C_WIN32
+static void _InitWinSock(void) __attribute__((constructor));
+
+static void _CleanupWinSock(void) __attribute__((destructor));
+
+static void _RetrieveWinVer(void) __attribute__((constructor));
+
+static void _InitWinSock(void) {
+    WORD v = MAKEWORD(2,2);
+    WSADATA d;
+    if (WSAStartup(v, &d) != 0) {
+        fprintf(stderr, "Cannot initialize WinSock2: 0x%08d\n", WSAGetLastError());
+        exit(EXIT_FAILURE);
+    }
+
+    dthread("WinSock2 started up (version %d.%d)\n", LOBYTE(d.wVersion), HIBYTE(d.wVersion));
+}
+
+static void _CleanupWinSock(void) {
+    if (WSACleanup() == SOCKET_ERROR) {
+        dthread("WinSock2 cannot be cleaned up: 0x%08d\n", WSAGetLastError());
+    } else {
+        if (AIO4C_DEBUG_THREADS) {
+            fprintf(stderr, "WinSock2 cleaned up\n");
+        }
+    }
+}
+
+static void _RetrieveWinVer(void) {
+    DWORD version = 0;
+    WORD  majorMinor = 0;
+
+    version = GetVersion();
+    majorMinor = MAKEWORD(HIBYTE(LOWORD(version)), LOBYTE(LOWORD(version)));
+ 
+    if (majorMinor < WINVER) {
+        fprintf(stderr, "Windows version 0x%04x is too old (required: at least 0x%04x)\n",
+                majorMinor, WINVER);
+        exit(EXIT_FAILURE);
+    }
+
+    dthread("Windows version detected: 0x%04x (required: 0x%04x)\n", majorMinor, WINVER);
+}
+#endif /* AIO4C_WIN32 */
 
 Thread* ThreadMain(char* name) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
@@ -1089,7 +1552,7 @@ Thread* ThreadMain(char* name) {
 #ifndef AIO4C_WIN32
     _MainThread->id = pthread_self();
 #else /* AIO4C_WIN32 */
-#error "pthread_self not implemented for win32"
+    _MainThread->id = GetCurrentThreadId();
 #endif /* AIO4C_WIN32 */
     _MainThread->lock = NewLock();
     _MainThread->run = NULL;
@@ -1102,12 +1565,6 @@ Thread* ThreadMain(char* name) {
     _numThreads++;
 
 #ifdef AIO4C_WIN32
-    WORD v = MAKEWORD(2,2);
-    WSADATA d;
-    if (WSAStartup(v, &d) != 0) {
-        Log(_MainThread, AIO4C_LOG_LEVEL_FATAL, "cannot start winsock: %s", strerror(WSAGetLastError()));
-        return NULL;
-    }
 #endif /* AIO4C_WIN32 */
 
     return _MainThread;
@@ -1128,7 +1585,10 @@ Thread* ThreadSelf(void) {
                 return _threads[i];
             }
 #else /* AIO4C_WIN32 */
-#error "pthread_self not implemented for win32"
+            DWORD tid = GetCurrentThreadId();
+            if (memcmp(&_threads[i]->id, &tid, sizeof(DWORD)) == 0) {
+                return _threads[i];
+            }
 #endif /* AIO4C_WIN32 */
         }
     }
@@ -1171,15 +1631,17 @@ Thread* NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), v
 #ifndef AIO4C_WIN32
     if ((code.error = pthread_create(&thread->id, NULL, (void*(*)(void*))_runThread, (void*)thread)) != 0) {
         code.thread = thread;
+#else /* AIO4C_WIN32 */
+    thread->handle = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)_runThread, (LPVOID)thread, 0, &thread->id);
+    if (thread->handle == NULL) {
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+#endif /* AIO4C_WIN32 */
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_CREATE_ERROR, &code);
         ReleaseLock(thread->lock);
         FreeLock(&thread->lock);
         aio4c_free(thread);
         return NULL;
     }
-#else /* AIO4C_WIN32 */
-#error "pthread_create not implemented for win32"
-#endif /* AIO4C_WIN32 */
 
     _threads[_numThreads++] = thread;
 
@@ -1201,31 +1663,6 @@ aio4c_bool_t ThreadRunning(Thread* thread) {
     return running;
 }
 
-Thread* ThreadCancel(Thread* thread, aio4c_bool_t force) {
-    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-
-    TakeLock(thread->lock);
-
-    if (ThreadRunning(thread)) {
-        thread->running = false;
-
-        if (force) {
-#ifndef AIO4C_WIN32
-            if ((code.error = pthread_cancel(thread->id)) != 0) {
-                code.thread = thread;
-                Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_CANCEL_ERROR, &code);
-            }
-#else /* AIO4C_WIN32 */
-#error "pthread_cancel not implemented for win32"
-#endif /* AIO4C_WIN32 */
-        }
-    }
-
-    ReleaseLock(thread->lock);
-
-    return thread;
-}
-
 Thread* ThreadJoin(Thread* thread) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     void* returnValue = NULL;
@@ -1242,7 +1679,29 @@ Thread* ThreadJoin(Thread* thread) {
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_JOIN_ERROR, &code);
     }
 #else /* AIO4C_WIN32 */
-#error "pthread_join not implemented for win32"
+    switch (WaitForSingleObject(thread->handle, INFINITE)) {
+        case WAIT_OBJECT_0:
+            break;
+        case WAIT_ABANDONED:
+            Log(NULL, AIO4C_LOG_LEVEL_ERROR, "%s:%d: join thread %p[%s]: abandon",
+                    __FILE__, __LINE__, (void*)thread, ThreadStateString[thread->state]);
+            break;
+        case WAIT_FAILED:
+            code.source = AIO4C_ERRNO_SOURCE_SYS;
+            code.thread = thread;
+            Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_JOIN_ERROR, &code);
+            break;
+        default:
+            break;
+    }
+
+    if (GetExitCodeThread(thread->handle, (LPDWORD)&returnValue) == 0) {
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+        code.thread = thread;
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_JOIN_ERROR, &code);
+    }
+
+    CloseHandle(thread->handle);
 #endif /* AIO4C_WIN32 */
 
     _numThreadsRunning++;
@@ -1262,10 +1721,6 @@ void FreeThread(Thread** thread) {
     if (thread != NULL && (pThread = *thread) != NULL) {
         if (pThread != _MainThread) {
             if (pThread->state != AIO4C_THREAD_STATE_JOINED) {
-                if (pThread->state != AIO4C_THREAD_STATE_EXITED) {
-                    ThreadCancel(pThread, true);
-                }
-
                 ThreadJoin(pThread);
             }
         }

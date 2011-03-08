@@ -31,6 +31,7 @@
 #else /* AIO4C_WIN32 */
 
 #include <winbase.h>
+
 #include <winsock2.h>
 
 #endif /* AIO4C_WIN32 */
@@ -51,6 +52,16 @@
 
 #define aio4c_remove_discriminant(discriminant) \
     (void*)discriminant
+
+#ifndef AIO4C_DEBUG_THREADS
+#define AIO4C_DEBUG_THREADS 0
+#endif
+
+#define dthread(fmt,...) {                 \
+    if (AIO4C_DEBUG_THREADS) {             \
+        fprintf(stderr, fmt, __VA_ARGS__); \
+    }                                      \
+}
 
 #define AIO4C_MAX_THREADS 32
 
@@ -91,6 +102,7 @@ typedef struct s_Thread {
     pthread_t         id;
 #else /* AIO4C_WIN32 */
     DWORD             id;
+    HANDLE            handle;
 #endif /* AIO4C_WIN32 */
     ThreadState       state;
     aio4c_bool_t      running;
@@ -102,12 +114,12 @@ typedef struct s_Thread {
 } Thread;
 
 struct s_Lock {
-    LockState       state;
-    Thread*         owner;
+    LockState        state;
+    Thread*          owner;
 #ifndef AIO4C_WIN32
-    pthread_mutex_t mutex;
+    pthread_mutex_t  mutex;
 #else /* AIO4C_WIN32 */
-#error "pthread_mutex_t not implemented for win32"
+    CRITICAL_SECTION mutex;
 #endif /* AIO4C_WIN32 */
 };
 
@@ -115,9 +127,14 @@ typedef struct s_Condition {
     ConditionState state;
     Thread*        owner;
 #ifndef AIO4C_WIN32
-    pthread_cond_t condition;
+    pthread_cond_t     condition;
 #else /* AIO4C_WIN32 */
-#error "pthread_cond_t not implemented for win32"
+#if WINVER >= 0x0600
+    CONDITION_VARIABLE condition;
+#else /* WINVER */
+    HANDLE             mutex;
+    HANDLE             event;
+#endif /* WINVER */
 #endif /* AIO4C_WIN32 */
 } Condition;
 
@@ -179,6 +196,7 @@ typedef struct s_Queue {
 } Queue;
 
 typedef enum e_SelectionOperation {
+#ifdef AIO4C_HAVE_POLL
 #ifndef AIO4C_WIN32
     AIO4C_OP_READ = POLLIN,
     AIO4C_OP_WRITE = POLLOUT
@@ -186,6 +204,11 @@ typedef enum e_SelectionOperation {
     AIO4C_OP_READ = POLLRDNORM,
     AIO4C_OP_WRITE = POLLWRNORM
 #endif /* AIO4C_WIN32 */
+#else /* AIO4C_HAVE_POLL */
+    AIO4C_OP_READ  = 0x01,
+    AIO4C_OP_WRITE = 0x02,
+    AIO4C_OP_ERROR = 0x04
+#endif /* AIO4C_HAVE_POLL */
 } SelectionOperation;
 
 typedef struct s_SelectionKey {
@@ -198,37 +221,57 @@ typedef struct s_SelectionKey {
     short              result;
 } SelectionKey;
 
+#ifndef AIO4C_HAVE_POLL
+typedef struct s_Poll {
+    aio4c_socket_t fd;
+    short          events;
+    short          revents;
+} Poll;
+#endif /* AIO4C_HAVE_POLL */
+
 typedef struct s_Selector {
-    aio4c_pipe_t   pipe;
-    SelectionKey** keys;
-    int            numKeys;
-    int            maxKeys;
-    int            curKey;
-    int            curKeyCount;
-    aio4c_poll_t*  polls;
-    int            numPolls;
-    int            maxPolls;
-    Lock*          lock;
-#ifdef AIO4C_WIN32
-    int            port;
-#endif /* AIO4C_WIN32 */
+    aio4c_pipe_t    pipe;
+    SelectionKey**  keys;
+    int             numKeys;
+    int             maxKeys;
+    int             curKey;
+    int             curKeyCount;
+#ifdef AIO4C_HAVE_POLL
+    aio4c_poll_t*   polls;
+#else /* AIO4C_HAVE_POLL */
+    Poll*           polls;
+#endif /* AIO4C_HAVE_POLL */
+    int             numPolls;
+    int             maxPolls;
+    Lock*           lock;
+#ifndef AIO4C_HAVE_PIPE
+    int             port;
+#endif /* AIO4C_HAVE_PIPE */
 } Selector;
 
 extern int GetNumThreads(void);
 
 extern Lock* NewLock(void);
 
-extern Lock* TakeLock(Lock* lock);
+#define TakeLock(lock) \
+    _TakeLock(__FILE__, __LINE__, lock)
+extern Lock* _TakeLock(char* file, int line, Lock* lock);
 
-extern Lock* ReleaseLock(Lock* lock);
+#define ReleaseLock(lock) \
+    _ReleaseLock(__FILE__, __LINE__, lock)
+extern Lock* _ReleaseLock(char* file, int line, Lock* lock);
 
 extern void FreeLock(Lock** lock);
 
 extern Condition* NewCondition(void);
 
-extern aio4c_bool_t WaitCondition(Condition* condition, Lock* lock);
+#define WaitCondition(condition,lock) \
+    _WaitCondition(__FILE__, __LINE__, condition, lock)
+extern aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lock);
 
-extern void NotifyCondition(Condition* condition);
+#define NotifyCondition(condition) \
+    _NotifyCondition(__FILE__, __LINE__, condition)
+extern void _NotifyCondition(char* file, int line, Condition* condition);
 
 extern void FreeCondition(Condition** condition);
 
@@ -254,9 +297,13 @@ extern SelectionKey* Register(Selector* selector, SelectionOperation operation, 
 
 extern void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAll);
 
-extern aio4c_size_t Select(Selector* selector);
+#define Select(selector) \
+    _Select(__FILE__, __LINE__, selector)
+extern aio4c_size_t _Select(char* file, int line, Selector* selector);
 
-extern void SelectorWakeUp(Selector* selector);
+#define SelectorWakeUp(selector) \
+    _SelectorWakeUp(__FILE__, __LINE__, selector)
+extern void _SelectorWakeUp(char* file, int line, Selector* selector);
 
 extern aio4c_bool_t SelectionKeyReady(Selector* selector, SelectionKey** key);
 
@@ -267,8 +314,6 @@ extern Thread* ThreadMain(char* name);
 extern Thread* NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg);
 
 extern aio4c_bool_t ThreadRunning(Thread* thread);
-
-extern Thread* ThreadCancel(Thread* thread, aio4c_bool_t force);
 
 extern Thread* ThreadSelf(void);
 

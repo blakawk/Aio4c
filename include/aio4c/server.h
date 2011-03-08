@@ -28,6 +28,9 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
+#define aio4c_server_handler(handler) \
+    (void(*)(Event,Connection*,void*))handler
+
 typedef struct s_Server {
     Thread*     main;
     Address*    address;
@@ -36,11 +39,10 @@ typedef struct s_Server {
     Connection* factory;
     Thread*     thread;
     void      (*handler)(Event,Connection*,void*);
-    void*       handlerArg;
     Queue*      queue;
 } Server;
 
-extern AIO4C_DLLEXPORT Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg);
+extern AIO4C_DLLEXPORT Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, void (*handler)(Event,Connection*,void*), void* (*dataFactory)(Connection*));
 
 extern AIO4C_DLLEXPORT void ServerEnd(Server* server);
 

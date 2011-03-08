@@ -6,3 +6,4 @@ tags
 *.pyc
 include/aio4c/jni
 *.csv
+.sconf_temp/

@@ -102,7 +102,7 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
             connection = (Connection*)key->attachment;
             unregister = true;
 
-            if (key->result & (int)key->operation) {
+            if (key->result & key->operation) {
                 ConnectionWrite(connection);
 
                 if (BufferHasRemaining(connection->writeBuffer) && connection->state != AIO4C_CONNECTION_STATE_CLOSED) {
@@ -184,6 +184,7 @@ static void _WriterCloseHandler(Event event, Connection* source, Writer* writer)
 static void _WriterEventHandler(Event event, Connection* source, Writer* writer) {
     if (source->state != AIO4C_CONNECTION_STATE_CLOSED) {
         if (!EnqueueEventItem(writer->queue, event, source)) {
+            Log(writer->thread, AIO4C_LOG_LEVEL_WARN, "event %d for connection %s lost", event, source->string);
             return;
         }
 

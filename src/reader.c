@@ -55,6 +55,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
             case AIO4C_QUEUE_ITEM_DATA:
                 connection = (Connection*)item.content.data;
                 connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
+                Log(reader->thread, AIO4C_LOG_LEVEL_DEBUG, "managing connection %s", connection->string);
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
@@ -131,6 +132,7 @@ static void _ReaderEventHandler(Event event, Connection* connection, Reader* rea
 
 void ReaderManageConnection(Reader* reader, Connection* connection) {
     if (!EnqueueDataItem(reader->queue, connection)) {
+        Log(NULL, AIO4C_LOG_LEVEL_WARN, "reader will not manage connection %s", connection->string);
         return;
     }
 

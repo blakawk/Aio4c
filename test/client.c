@@ -83,7 +83,6 @@ void handler(Event event, Connection* source, void* c) {
             EnableWriteInterest(source);
             break;
         default:
-            Log(NULL, AIO4C_LOG_LEVEL_DEBUG, "received event %d", event);
             break;
     }
 }

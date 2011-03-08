@@ -96,9 +96,9 @@ static aio4c_bool_t _clientRun(Client* client) {
                             ProbeTimeStart(AIO4C_TIME_PROBE_IDLE);
 #ifdef AIO4C_WIN32
                             Sleep(client->interval * 1000);
-#else
+#else /* AIO4C_WIN32 */
                             sleep(client->interval);
-#endif
+#endif /* AIO4C_WIN32 */
                             ProbeTimeEnd(AIO4C_TIME_PROBE_IDLE);
                             Log(client->thread, AIO4C_LOG_LEVEL_WARN, "connection with %s lost, retrying (%d/%d)", client->address->string, client->retryCount, client->retries);
                             if (!client->connected) {
@@ -146,7 +146,7 @@ Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel l
         return NULL;
     }
 
-    client->main       = ThreadMain("aio4c-main");
+    client->main       = ThreadMain("main");
     LogInit(client->main, level, log);
 
     client->address    = NewAddress(type, address, port);

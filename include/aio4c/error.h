@@ -32,7 +32,13 @@ typedef enum e_Error {
     AIO4C_GETSOCKOPT_ERROR,
     AIO4C_SETSOCKOPT_ERROR,
     AIO4C_CONNECT_ERROR,
+    AIO4C_FINISH_CONNECT_ERROR,
+    AIO4C_CONNECTION_DISCONNECTED,
+#ifdef AIO4C_HAVE_POLL
     AIO4C_POLL_ERROR,
+#else /* AIO4C_HAVE_POLL */
+    AIO4C_SELECT_ERROR,
+#endif /* AIO4C_HAVE_POLL */
     AIO4C_READ_ERROR,
     AIO4C_WRITE_ERROR,
     AIO4C_BUFFER_OVERFLOW_ERROR,
@@ -60,6 +66,7 @@ typedef enum e_Error {
 typedef enum e_ErrorType {
     AIO4C_BUFFER_ERROR_TYPE,
     AIO4C_CONNECTION_ERROR_TYPE,
+    AIO4C_CONNECTION_STATE_ERROR_TYPE,
     AIO4C_SOCKET_ERROR_TYPE,
     AIO4C_EVENT_ERROR_TYPE,
     AIO4C_THREAD_ERROR_TYPE,
@@ -76,6 +83,7 @@ typedef enum e_ErrnoSource {
     AIO4C_ERRNO_SOURCE_NONE,
     AIO4C_ERRNO_SOURCE_SYS,
     AIO4C_ERRNO_SOURCE_WSA,
+    AIO4C_ERRNO_SOURCE_SOE,
     AIO4C_ERRNO_SOURCE_MAX
 } ErrnoSource;
 
@@ -96,6 +104,7 @@ typedef struct s_ErrorCode {
     int         error;
 #else /* AIO4C_WIN32 */
     ErrnoSource source;
+    int         soError;
 #endif /* AIO4C_WIN32 */
     Buffer*     buffer;
     Thread*     thread;
@@ -125,6 +134,7 @@ typedef struct s_ErrorCode {
 
 #define AIO4C_ERROR_CODE_INITIALIZER {     \
     .source     = AIO4C_ERRNO_SOURCE_NONE, \
+    .soError    = 0,                       \
     .buffer     = NULL,                    \
     .thread     = NULL,                    \
     .condition  = NULL,                    \

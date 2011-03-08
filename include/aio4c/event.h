@@ -63,7 +63,7 @@ extern void EventHandle(EventQueue* queue, Event event, void* source);
 
 extern void EventHandlerRemove(EventQueue* queue, Event event, void (*handler)(Event,void*,void*));
 
-extern void CopyEventQueue(EventQueue* dst, EventQueue* src);
+extern void CopyEventQueue(EventQueue* dst, EventQueue* src, void* arg);
 
 extern void FreeEventQueue(EventQueue** queue);
 
