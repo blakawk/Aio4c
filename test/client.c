@@ -47,6 +47,8 @@ void onRead(Connection* source) {
         buffer->position += sizeof(int);
         ProbeSize(AIO4C_PROBE_LATENCY_COUNT, 1);
         ProbeTime(AIO4C_TIME_PROBE_LATENCY, &ping, &pong);
+    } else {
+        Log(AIO4C_LOG_LEVEL_DEBUG, "unexpected answer %.*s from server on connection %s", 6, &buffer->data[buffer->position], source->string);
     }
 
     EnableWriteInterest(source);
@@ -92,6 +94,7 @@ int main (void) {
 
     client = NewClient(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "client.log", 3, 3, 8192, handler, NULL);
     ClientEnd(client);
+    LogEnd();
 
     return EXIT_SUCCESS;
 }

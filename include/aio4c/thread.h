@@ -129,12 +129,12 @@ typedef struct s_Condition {
 #ifndef AIO4C_WIN32
     pthread_cond_t     condition;
 #else /* AIO4C_WIN32 */
-#if WINVER >= 0x0600
+#ifdef AIO4C_HAVE_CONDITION
     CONDITION_VARIABLE condition;
-#else /* WINVER */
+#else /* AIO4C_HAVE_CONDITION */
     HANDLE             mutex;
     HANDLE             event;
-#endif /* WINVER */
+#endif /* AIO4C_HAVE_CONDITION */
 #endif /* AIO4C_WIN32 */
 } Condition;
 
@@ -309,16 +309,12 @@ extern aio4c_bool_t SelectionKeyReady(Selector* selector, SelectionKey** key);
 
 extern void FreeSelector(Selector** selector);
 
-extern Thread* ThreadMain(char* name);
-
-extern Thread* NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg);
+extern void NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread);
 
 extern aio4c_bool_t ThreadRunning(Thread* thread);
 
 extern Thread* ThreadSelf(void);
 
 extern Thread* ThreadJoin(Thread* thread);
-
-extern void FreeThread(Thread** thread);
 
 #endif

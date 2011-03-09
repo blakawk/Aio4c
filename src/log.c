@@ -59,7 +59,7 @@ static void _LogPrintMessage(Logger* logger, char* message) {
 }
 
 static void _LogInit(Logger* logger) {
-    Log(logger->thread, AIO4C_LOG_LEVEL_INFO, "logging is initialized");
+    Log(AIO4C_LOG_LEVEL_INFO, "logging is initialized, logger tid is 0x%08lx", logger->thread->id);
 }
 
 static aio4c_bool_t _LogRun(Logger* logger) {
@@ -83,7 +83,7 @@ static aio4c_bool_t _LogRun(Logger* logger) {
 }
 
 static void _LogExit(Logger* logger) {
-    Log(logger->thread, AIO4C_LOG_LEVEL_INFO, "logging finished");
+    Log(AIO4C_LOG_LEVEL_INFO, "logging finished");
 
     _LogRun(logger);
 
@@ -93,7 +93,7 @@ static void _LogExit(Logger* logger) {
     FreeQueue(&logger->queue);
 }
 
-void LogInit(Thread* parent, LogLevel level, char* filename) {
+void LogInit(LogLevel level, char* filename) {
     _logger.level = level;
     _logger.thread = NULL;
     _logger.exiting = false;
@@ -101,18 +101,24 @@ void LogInit(Thread* parent, LogLevel level, char* filename) {
     if (filename != NULL) {
         if ((_logger.file = fopen(filename, "a")) == NULL) {
             _logger.file = stderr;
-            Log(parent, AIO4C_LOG_LEVEL_WARN, "open %s: %s, therefore logging will be performed on console instead", filename, strerror(errno));
+            Log(AIO4C_LOG_LEVEL_WARN, "open %s: %s, therefore logging will be performed on console instead", filename, strerror(errno));
         }
     } else {
         _logger.file = stderr;
     }
 
     if ((_logger.queue = NewQueue()) == NULL) {
-        Log(parent, AIO4C_LOG_LEVEL_WARN, "cannot create log messages queue: %s, therefore no thread will be used", strerror(errno));
+        Log(AIO4C_LOG_LEVEL_WARN, "cannot create log messages queue: %s, therefore no thread will be used", strerror(errno));
     } else {
-        _logger.thread = NewThread("logger", (void(*)(void*))_LogInit, (aio4c_bool_t(*)(void*))_LogRun, (void(*)(void*))_LogExit, (void*)&_logger);
+        _logger.thread = NULL;
+        NewThread("logger",
+               aio4c_thread_handler(_LogInit),
+               aio4c_thread_run(_LogRun),
+               aio4c_thread_handler(_LogExit),
+               aio4c_thread_arg(&_logger),
+               &_logger.thread);
         if (_logger.thread == NULL) {
-            Log(parent, AIO4C_LOG_LEVEL_WARN, "cannot create logging thread, logging may slow down performances");
+            Log(AIO4C_LOG_LEVEL_WARN, "cannot create logging thread, logging may slow down performances");
         }
     }
 }
@@ -171,8 +177,9 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
     return prefixLen + fromLen;
 }
 
-void Log(Thread* from, LogLevel level, char* message, ...) {
+void Log(LogLevel level, char* message, ...) {
     va_list args;
+    Thread* from = ThreadSelf();
     Logger* logger = &_logger;
     char* pMessage = NULL;
     aio4c_size_t messageLen = 0, prefixLen = 0;
@@ -219,13 +226,14 @@ void LogEnd(void) {
         logger->exiting = true;
         if (EnqueueExitItem(logger->queue)) {
             ThreadJoin(logger->thread);
-            FreeThread(&logger->thread);
+            fprintf(stderr, "logger exited\n");
         }
     }
 }
 
-void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
+void LogBuffer(LogLevel level, Buffer* buffer) {
     int i = 0, j = 0;
+    Thread* from = ThreadSelf();
     char c = '.';
     Logger* logger = &_logger;
     aio4c_size_t prefixLen = 0;
@@ -235,7 +243,7 @@ void LogBuffer(Thread* from, LogLevel level, Buffer* buffer) {
         return;
     }
 
-    Log(from, level, "dumping buffer %p [pos: %u, lim: %u, cap: %u]", (void*)buffer, buffer->position, buffer->limit, buffer->size);
+    Log(level, "dumping buffer %p [pos: %u, lim: %u, cap: %u]", (void*)buffer, buffer->position, buffer->limit, buffer->size);
 
     if (buffer->limit >= 16) {
         for (i = buffer->position; i < buffer->limit; i += 16) {

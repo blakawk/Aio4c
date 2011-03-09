@@ -142,5 +142,4 @@ JNIEXPORT void JNICALL Java_com_aio4c_Client_End(JNIEnv* jvm, jobject client) {
 
     tClient = cClient->thread;
     ThreadJoin(tClient);
-    FreeThread(&tClient);
 }

@@ -28,6 +28,7 @@
 #else /* AIO4C_WIN32 */
 
 #include <pthread.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #endif /* AIO4C_WIN32 */
@@ -49,9 +50,18 @@ static CRITICAL_SECTION _sizeProbesLock;
 
 static void _statsInit(void* dummy) {
     dummy = NULL;
-    _statsFile = fopen("stats.csv", "w");
+#ifndef AIO4C_WIN32
+    pid_t pid = getpid();
+#else /* AIO4C_WIN32 */
+    DWORD pid = GetCurrentProcessId();
+#endif /* AIO4C_WIN32 */
+
+    char filename[128];
+    memset(filename, 0, 128);
+    snprintf(filename, 128, "stats-%ld.csv", pid);
+    _statsFile = fopen(filename, "w");
     if (_statsFile != NULL) {
-        fprintf(_statsFile, "TIME (s);ALLOCATED MEMORY (kb);READ DATA (kb/s);WRITTEN DATA (kb/s);PROCESSED DATA (kb/s);CONNECTIONS;IDLE TIME (ms);LATENCY (ms)\r\n");
+        fprintf(_statsFile, "TIME (s);ALLOCATED MEMORY (kb);READ DATA (kb/s);WRITTEN DATA (kb/s);PROCESSED DATA (kb/s);CONNECTIONS;IDLE TIME (ms);LATENCY (ms)\n");
     }
 }
 
@@ -81,7 +91,9 @@ static void _statsExit(void* dummy) {
     fclose(_statsFile);
 }
 
-void _InitProbes(void) {
+static void _InitProbes(void) __attribute__((constructor));
+
+static void _InitProbes(void) {
     memset(_timeProbes, 0, AIO4C_TIME_MAX_PROBE_TYPE * sizeof(double));
     memset(_sizeProbes, 0, AIO4C_PROBE_MAX_SIZE_TYPE * sizeof(double));
 
@@ -93,7 +105,12 @@ void _InitProbes(void) {
     InitializeCriticalSection(&_sizeProbesLock);
 #endif /* AIO4C_WIN32 */
 
-    _statsThread = NewThread("stats", aio4c_thread_handler(_statsInit), aio4c_thread_run(_statsRun), aio4c_thread_handler(_statsExit), aio4c_thread_arg(NULL));
+    NewThread("stats",
+            aio4c_thread_handler(_statsInit),
+            aio4c_thread_run(_statsRun),
+            aio4c_thread_handler(_statsExit),
+            aio4c_thread_arg(NULL),
+            &_statsThread);
 }
 
 void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop) {
@@ -280,6 +297,10 @@ void _WriteStats(void) {
     static double lastRead = 0.0, lastWrite = 0.0, lastProcess = 0.0, lastIdle = 0.0, lastLatency = 0.0, lastLatencyCount = 0.0;
     double read = 0.0, write = 0.0, process = 0.0, idle = 0.0, allocated = 0.0, connections = 0.0, latency = 0.0, latencyCount = 0.0;
 
+    if (_statsFile == NULL) {
+        return;
+    }
+
     if (!_initialized) {
         _initialized = true;
         gettimeofday(&_start, NULL);
@@ -318,19 +339,16 @@ void _WriteStats(void) {
     LeaveCriticalSection(&_timeProbesLock);
 #endif /* AIO4C_WIN32 */
 
-    fprintf(_statsFile, "%u;%d,%d;%d,%d;%d,%d;%d,%d;%d;%d,%d;%d,%d\r\n", (unsigned int)(time.tv_sec - _start.tv_sec),
+    fprintf(_statsFile, "%u;%d,%d;%d,%d;%d,%d;%d,%d;%d;%d,%d;%d,%d\n", (unsigned int)(time.tv_sec - _start.tv_sec),
             floatWithComma(allocated / 1024.0),
             floatWithComma(read / 1024.0), floatWithComma(write / 1024.0), floatWithComma(process / 1024.0), (int)connections,
             floatWithComma(idle / 1000.0), floatWithComma(latencyCount>0?(latency / 1000.0 / latencyCount):0.0));
 }
 
-void _StatsEnd(void) {
-    if (_statsThread != NULL) {
-        _statsThread->running = false;
-        ThreadJoin(_statsThread);
-        FreeThread(&_statsThread);
-    }
+static void _StatsEnd(void) __attribute__((destructor));
 
+static void _StatsEnd(void) {
+    _statsExit(NULL);
     _PrintStats();
 }
 

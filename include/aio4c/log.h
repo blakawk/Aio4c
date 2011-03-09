@@ -49,12 +49,12 @@ typedef struct s_Logger {
     aio4c_bool_t      exiting;
 } Logger;
 
-extern void LogInit(Thread* parent, LogLevel level, char* filename);
+extern void LogInit(LogLevel level, char* filename);
 
-extern AIO4C_DLLEXPORT void Log(Thread* from, LogLevel level, char* message, ...) __attribute__((format(printf, 3, 4)));
+extern AIO4C_DLLEXPORT void Log(LogLevel level, char* message, ...) __attribute__((format(printf, 2, 3)));
 
-extern void LogBuffer(Thread* from, LogLevel level, Buffer* buffer);
+extern void LogBuffer(LogLevel level, Buffer* buffer);
 
-extern void LogEnd(void);
+extern AIO4C_DLLEXPORT void LogEnd(void);
 
 #endif

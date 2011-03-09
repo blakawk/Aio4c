@@ -22,6 +22,7 @@
 
 #ifndef AIO4C_WIN32
 
+#include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
 
@@ -40,6 +41,14 @@
 #ifndef AIO4C_DLLEXPORT
 #define AIO4C_DLLEXPORT
 #endif /* AIO4C_DLLEXPORT */
+
+#ifndef NI_MAXHOST
+#define NI_MAXHOST 1025
+#endif /* NI_MAXHOST */
+
+#ifndef NI_MAXSERV
+#define NI_MAXSERV 32
+#endif /* NI_MAXSERV */
 
 typedef unsigned char aio4c_byte_t;
 

@@ -180,6 +180,7 @@ static Connection* __ConnectionHandleError(char* file, int line, Connection* con
             _Raise(file, line, level, AIO4C_BUFFER_ERROR_TYPE, error, code);
             break;
         case AIO4C_CONNECTION_STATE_ERROR:
+            code->connection = connection;
             _Raise(file, line, level, AIO4C_CONNECTION_STATE_ERROR_TYPE, error, code);
         default:
             code->connection = connection;
@@ -234,6 +235,7 @@ Connection* ConnectionConnect(Connection* connection) {
     TakeLock(connection->lock);
 
     if (connection->state != AIO4C_CONNECTION_STATE_INITIALIZED) {
+        code.expected = AIO4C_CONNECTION_STATE_INITIALIZED;
         return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_DEBUG, AIO4C_CONNECTION_STATE_ERROR, &code);
     }
 
@@ -343,6 +345,7 @@ Connection* ConnectionRead(Connection* connection) {
     TakeLock(connection->lock);
 
     if (connection->state != AIO4C_CONNECTION_STATE_CONNECTED && connection->state != AIO4C_CONNECTION_STATE_CONNECTING) {
+        code.expected = AIO4C_CONNECTION_STATE_CONNECTED;
         return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_DEBUG, AIO4C_CONNECTION_STATE_ERROR, &code);
     }
 
@@ -385,6 +388,7 @@ Connection* ConnectionWrite(Connection* connection) {
     TakeLock(connection->lock);
 
     if (connection->state != AIO4C_CONNECTION_STATE_CONNECTED) {
+        code.expected = AIO4C_CONNECTION_STATE_CONNECTED;
         return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_DEBUG, AIO4C_CONNECTION_STATE_ERROR, &code);
     }
 
@@ -431,7 +435,7 @@ Connection* ConnectionClose(Connection* connection) {
         return connection;
     }
 
-    Log(ThreadSelf(), AIO4C_LOG_LEVEL_DEBUG, "closing connection %s", connection->string);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "closing connection %s", connection->string);
 
 #ifndef AIO4C_WIN32
     shutdown(connection->socket, SHUT_RDWR);

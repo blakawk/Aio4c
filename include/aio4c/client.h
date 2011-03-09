@@ -40,7 +40,6 @@ typedef struct s_Client {
     int          retryCount;
     int          bufferSize;
     aio4c_bool_t connected;
-    Thread*      main;
 } Client;
 
 #define aio4c_client_handler(h) \

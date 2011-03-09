@@ -219,7 +219,7 @@ Buffer* BufferFlip(Buffer* buffer) {
 
 Buffer* BufferPosition(Buffer* buffer, int position) {
     if (position >= buffer->limit) {
-        Log(ThreadSelf(), AIO4C_LOG_LEVEL_ERROR, "invalid position %d for buffer %p [lim: %d]", position, (void*)buffer, buffer->limit);
+        Log(AIO4C_LOG_LEVEL_ERROR, "invalid position %d for buffer %p [lim: %d]", position, (void*)buffer, buffer->limit);
         return NULL;
     } else {
         buffer->position = position;
@@ -230,7 +230,7 @@ Buffer* BufferPosition(Buffer* buffer, int position) {
 
 Buffer* BufferLimit(Buffer* buffer, int limit) {
     if (limit > buffer->size) {
-        Log(ThreadSelf(), AIO4C_LOG_LEVEL_ERROR, "invalid limit %d for buffer %p [cap: %d]", limit, (void*)buffer, buffer->size);
+        Log(AIO4C_LOG_LEVEL_ERROR, "invalid limit %d for buffer %p [cap: %d]", limit, (void*)buffer, buffer->size);
         return NULL;
     } else {
         buffer->limit = limit;

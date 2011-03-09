@@ -49,6 +49,12 @@ AddOption('--use-selector-udp',
           default = True,
           help = 'Use UDP sockets for selector instead of anonymous pipe')
 
+AddOption('--disable-condition',
+          dest = 'USE_CONDITION',
+          action = 'store_false',
+          default = True,
+          help = 'Disable use of condition variables')
+
 AddOption('--target',
           dest = 'TARGET',
           metavar = 'TARGET',
@@ -121,9 +127,46 @@ def HavePipe(context):
     context.Result(result)
     return result
 
+have_condition_src = """
+#ifndef AIO4C_WIN32
+#include <pthread.h>
+#else
+#include <windows.h>
+#include <winbase.h>
+#endif
+
+int main(void) {
+#ifndef AIO4C_WIN32
+    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&mutex);
+    pthread_cond_wait(&cond, &mutex);
+    pthread_mutex_unlock(&mutex);
+#else
+    CONDITION_VARIABLE cond;
+    CRITICAL_SECTION mutex;
+    InitializeConditionVariable(&cond);
+    InitializeCriticalSection(&mutex);
+    EnterCriticalSection(&mutex);
+    SleepConditionVariableCS(&cond, &mutex, INFINITE);
+    LeaveCriticalSection(&mutex);
+#endif
+    return 0;
+}
+"""
+
+def HaveCondition(context):
+    context.Message('Checking if condition variables are useable... ')
+    result = context.TryLink(have_condition_src, '.c')
+    context.Result(result)
+    return result
+
 def doConfigure(env):
     if not env.GetOption('clean'):
-        conf = Configure(env, custom_tests = {'CheckPointerSize': CheckPointerSize, 'HavePoll': HavePoll, 'HavePipe': HavePipe})
+        conf = Configure(env, custom_tests = {'CheckPointerSize': CheckPointerSize,
+                                              'HavePoll'        : HavePoll,
+                                              'HavePipe'        : HavePipe,
+                                              'HaveCondition'   : HaveCondition})
         result = conf.CheckPointerSize()
         if not result[0]:
             if env.GetOption('TARGET'):
@@ -138,6 +181,8 @@ def doConfigure(env):
             env.Append(CPPDEFINES = {'AIO4C_HAVE_POLL': 1})
         if env.GetOption('USE_PIPE') and conf.HavePipe():
             env.Append(CPPDEFINES = {'AIO4C_HAVE_PIPE': 1})
+        if env.GetOption('USE_CONDITION') and conf.HaveCondition():
+            env.Append(CPPDEFINES = {'AIO4C_HAVE_CONDITION': 1})
         conf.Finish()
     return env
 

@@ -53,7 +53,7 @@
 static void _AcceptorInit(Acceptor* acceptor) {
     acceptor->reader = NewReader(acceptor->factory->pool->bufferSize);
     acceptor->key = Register(acceptor->selector, AIO4C_OP_READ, acceptor->socket, NULL);
-    Log(acceptor->thread, AIO4C_LOG_LEVEL_INFO, "initialized");
+    Log(AIO4C_LOG_LEVEL_INFO, "initialized with tid 0x%08lx", acceptor->thread->id);
 }
 
 static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
@@ -95,7 +95,7 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
                         break;
                 }
 
-                Log(acceptor->thread, AIO4C_LOG_LEVEL_INFO, "new connection from %s", address->string);
+                Log(AIO4C_LOG_LEVEL_INFO, "new connection from %s", address->string);
 
                 connection = ConnectionFactoryCreate(acceptor->factory, address, sock);
 
@@ -164,7 +164,7 @@ static void _AcceptorExit(Acceptor* acceptor) {
     ReaderEnd(acceptor->reader);
     FreeSelector(&acceptor->selector);
 
-    Log(acceptor->thread, AIO4C_LOG_LEVEL_INFO, "exited");
+    Log(AIO4C_LOG_LEVEL_INFO, "exited");
 
     aio4c_free(acceptor);
 }
@@ -261,7 +261,12 @@ Acceptor* NewAcceptor(Address* address, Connection* factory) {
     acceptor->thread = NULL;
     acceptor->selector = NewSelector();
 
-    acceptor->thread = NewThread("acceptor", aio4c_thread_handler(_AcceptorInit), aio4c_thread_run(_AcceptorRun), aio4c_thread_handler(_AcceptorExit), aio4c_thread_arg(acceptor));
+    NewThread("acceptor",
+            aio4c_thread_handler(_AcceptorInit),
+            aio4c_thread_run(_AcceptorRun),
+            aio4c_thread_handler(_AcceptorExit),
+            aio4c_thread_arg(acceptor),
+            &acceptor->thread);
 
     return acceptor;
 }
@@ -271,6 +276,5 @@ void AcceptorEnd(Acceptor* acceptor) {
     acceptor->thread->running = false;
     SelectorWakeUp(acceptor->selector);
     ThreadJoin(th);
-    FreeThread(&th);
 }
 

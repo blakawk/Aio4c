@@ -34,7 +34,7 @@ static void _serverInit(Server* server) {
     ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(server->handler), NULL, true);
     server->acceptor = NewAcceptor(server->address, server->factory);
-    Log(server->thread, AIO4C_LOG_LEVEL_INFO, "listening on %s", server->address->string);
+    Log(AIO4C_LOG_LEVEL_INFO, "listening on %s, server tid is 0x%08lx", server->address->string, server->thread->id);
 }
 
 static aio4c_bool_t _serverRun(Server* server) {
@@ -56,13 +56,10 @@ static void _serverExit(Server* server) {
         AcceptorEnd(server->acceptor);
     }
 
-    LogEnd();
-
     FreeAddress(&server->address);
     FreeBufferPool(&server->pool);
     FreeConnection(&server->factory);
     FreeQueue(&server->queue);
-    FreeThread(&server->main);
     aio4c_free(server);
 }
 
@@ -73,8 +70,7 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel leve
         return NULL;
     }
 
-    server->main       = ThreadMain("main");
-    LogInit(server->main, level, log);
+    LogInit(level, log);
 
     server->address    = NewAddress(type, host, port);
     server->pool       = NewBufferPool(2, bufferSize);
@@ -83,11 +79,13 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel leve
     server->thread     = NULL;
     server->handler    = handler;
     server->queue      = NewQueue();
-    server->thread     = NewThread("server",
+    server->thread     = NULL;
+    NewThread("server",
             aio4c_thread_handler(_serverInit),
             aio4c_thread_run(_serverRun),
             aio4c_thread_handler(_serverExit),
-            aio4c_thread_arg(server));
+            aio4c_thread_arg(server),
+            &server->thread);
 
     return server;
 }
@@ -96,5 +94,4 @@ void ServerEnd(Server* server) {
     Thread* sThread = server->thread;
     EnqueueExitItem(server->queue);
     ThreadJoin(sThread);
-    FreeThread(&sThread);
 }

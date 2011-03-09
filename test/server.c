@@ -49,6 +49,8 @@ static void serverHandler(Event event, Connection* source, Data* data) {
                 if (curSeq == data->lastSeq + 1) {
                     data->lastSeq ++;
                     EnableWriteInterest(source);
+                } else {
+                    Log(AIO4C_LOG_LEVEL_DEBUG, "unexpected sequence %d, expected %d for connection %s", curSeq, data->lastSeq + 1, source->string);
                 }
             }
             break;
@@ -73,8 +75,10 @@ static void serverHandler(Event event, Connection* source, Data* data) {
 }
 
 void* dataFactory(Connection* c) {
-    Log(NULL, AIO4C_LOG_LEVEL_DEBUG, "creating data for connection %s", c->string);
-    return malloc(sizeof(Data));
+    Log(AIO4C_LOG_LEVEL_DEBUG, "creating data for connection %s", c->string);
+    void* data = malloc(sizeof(Data));
+    memset(data, 0, sizeof(Data));
+    return data;
 }
 
 int main(void) {
@@ -94,6 +98,7 @@ int main(void) {
     }
 
     ServerEnd(server);
+    LogEnd();
 
     exit(EXIT_SUCCESS);
 }

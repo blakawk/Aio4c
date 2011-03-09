@@ -222,9 +222,9 @@ Condition* NewCondition(void) {
         return NULL;
     }
 #else /* AIO4C_WIN32 */
-#if WINVER >= 0x0600
+#ifdef AIO4C_HAVE_CONDITION
     InitializeConditionVariable(&condition->condition);
-#else /* WINVER */
+#else /* AIO4C_HAVE_CONDITION */
     if ((condition->mutex = CreateMutex(NULL, FALSE, NULL)) == NULL) {
         code.source = AIO4C_ERRNO_SOURCE_SYS;
         code.condition = condition;
@@ -233,7 +233,7 @@ Condition* NewCondition(void) {
         return NULL;
     }
 
-    if ((condition->event = CreateEvent(NULL, FALSE, FALSE, NULL)) == NULL) {
+    if ((condition->event = CreateEvent(NULL, TRUE, FALSE, NULL)) == NULL) {
         code.source = AIO4C_ERRNO_SOURCE_SYS;
         code.condition = condition;
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_INIT_ERROR, &code);
@@ -241,7 +241,7 @@ Condition* NewCondition(void) {
         aio4c_free(condition);
         return NULL;
     }
-#endif /* WINVER */
+#endif /* AIO4C_HAVE_CONDITION */
 #endif /* AIO4C_WIN32 */
 
     condition->state = AIO4C_COND_STATE_FREE;
@@ -278,7 +278,7 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
         return false;
     }
 #else /* AIO4C_WIN32 */
-#if WINVER >= 0x0600
+#ifdef AIO4C_HAVE_CONDITION
     if (SleepConditionVariableCS(&condition->condition, &lock->mutex, INFINITE) == 0) {
         code.source = AIO4C_ERRNO_SOURCE_SYS;
         code.condition = condition;
@@ -290,7 +290,7 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
         }
         return false;
     }
-#else /* WINVER */
+#else /* AIO4C_HAVE_CONDITION */
     dthread("[WAIT CONDITION %p] %s about to wait for mutex\n", (void*)condition, name);
     switch (WaitForSingleObject(condition->mutex, INFINITE)) {
         case WAIT_OBJECT_0:
@@ -298,7 +298,7 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
             break;
         case WAIT_ABANDONED:
             dthread("[WAIT CONDITION %p] %s abandoned mutex\n", (void*)condition, name);
-            Log(NULL, AIO4C_LOG_LEVEL_WARN, "%s:%d: WaitForSingleObject: abandon", __FILE__, __LINE__);
+            Log(AIO4C_LOG_LEVEL_WARN, "%s:%d: WaitForSingleObject: abandon", __FILE__, __LINE__);
             condition->owner = NULL;
             condition->state = AIO4C_COND_STATE_FREE;
             if (current != NULL) {
@@ -329,7 +329,7 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
             break;
         case WAIT_ABANDONED:
             dthread("[WAIT CONDITION %p] %s abandoned event\n", (void*)condition, name);
-            Log(NULL, AIO4C_LOG_LEVEL_WARN, "%s:%d: SignalObjectAndWait: abandon", __FILE__, __LINE__);
+            Log(AIO4C_LOG_LEVEL_WARN, "%s:%d: SignalObjectAndWait: abandon", __FILE__, __LINE__);
             condition->owner = NULL;
             condition->state = AIO4C_COND_STATE_FREE;
             if (current != NULL) {
@@ -351,8 +351,14 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
             break;
     }
 
+    if (ResetEvent(condition->event) == 0) {
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+        code.condition = condition;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_WAIT_ERROR, &code);
+    }
+
     EnterCriticalSection(&lock->mutex);
-#endif /* WINVER */
+#endif /* AIO4C_HAVE_CONDITION */
 #endif /* AIO4C_WIN32 */
 
     lock->owner = current;
@@ -379,15 +385,10 @@ void _NotifyCondition(char* file, int line, Condition* condition) {
         Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_NOTIFY_ERROR, &code);
     }
 #else /* AIO4C_WIN32 */
-#if WINVER >= 0x0600
+#ifdef AIO4C_HAVE_CONDITION
     WakeConditionVariable(&condition->condition);
-#else /* WINVER */
+#else /* AIO4C_HAVE_CONDITION */
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-    if (PulseEvent(condition->event) == 0) {
-        code.source = AIO4C_ERRNO_SOURCE_SYS;
-        code.condition = condition;
-        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_NOTIFY_ERROR, &code);
-    }
 
     dthread("[NOTIFY CONDITION %p] %s about to wait on mutex\n", (void*)condition, name);
 
@@ -397,7 +398,7 @@ void _NotifyCondition(char* file, int line, Condition* condition) {
             break;
         case WAIT_ABANDONED:
             dthread("[NOTIFY CONDITION %p] %s abandoned mutex\n", (void*)condition, name);
-            Log(NULL, AIO4C_LOG_LEVEL_WARN, "%s:%d: WaitForSingleObject: abandon", __FILE__, __LINE__);
+            Log(AIO4C_LOG_LEVEL_WARN, "%s:%d: WaitForSingleObject: abandon", __FILE__, __LINE__);
             return;
         case WAIT_FAILED:
             dthread("[NOTIFY CONDITION %p] %s failed mutex with code 0x%08lx\n", (void*)condition, name, GetLastError());
@@ -409,6 +410,14 @@ void _NotifyCondition(char* file, int line, Condition* condition) {
             break;
     }
 
+    dthread("[NOTIFY CONDITION %p] %s setting event\n", (void*)condition, name);
+
+    if (SetEvent(condition->event) == 0) {
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+        code.condition = condition;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_NOTIFY_ERROR, &code);
+    }
+
     dthread("[NOTIFY CONDITION %p] %s releasing mutex\n", (void*)condition, name);
     if (ReleaseMutex(condition->mutex) == 0) {
         dthread("[NOTIFY CONDITION %p] %s failed releasing mutex with code 0x%08lx\n", (void*)condition, name, GetLastError());
@@ -417,7 +426,7 @@ void _NotifyCondition(char* file, int line, Condition* condition) {
         Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_NOTIFY_ERROR, &code);
     }
     dthread("[NOTIFY CONDITION %p] %s released mutex\n", (void*)condition, name);
-#endif /* WINVER */
+#endif /* AIO4C_HAVE_CONDITION */
 #endif /* AIO4C_WIN32 */
 }
 
@@ -434,10 +443,10 @@ void FreeCondition(Condition** condition) {
             Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_DESTROY_ERROR, &code);
         }
 #else /* AIO4C_WIN32 */
-#if WINVER < 0x0600
+#ifndef AIO4C_HAVE_CONDITION
         CloseHandle(pCondition->mutex);
         CloseHandle(pCondition->event);
-#endif /* WINVER */
+#endif /* AIO4C_HAVE_CONDITION */
 #endif /* AIO4C_WIN32 */
 
         aio4c_free(pCondition);
@@ -485,7 +494,6 @@ aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait) {
         ReleaseLock(queue->lock);
         return false;
     }
-
 
     while (!queue->exit && wait && queue->numItems == 0 && queue->valid) {
         ProbeTimeStart(AIO4C_TIME_PROBE_IDLE);
@@ -1101,7 +1109,7 @@ aio4c_size_t _Select(char* file, int line, Selector* selector) {
         fdAdded = false;
 
         if (selector->polls[i].fd >= FD_SETSIZE) {
-            Log(NULL, AIO4C_LOG_LEVEL_WARN, "descriptor %d overpasses FD_SETSIZE (%d), ignoring", selector->polls[i].fd, FD_SETSIZE);
+            Log(AIO4C_LOG_LEVEL_WARN, "descriptor %d overpasses FD_SETSIZE (%d), ignoring", selector->polls[i].fd, FD_SETSIZE);
             continue;
         }
 
@@ -1131,9 +1139,9 @@ aio4c_size_t _Select(char* file, int line, Selector* selector) {
 #ifndef AIO4C_WIN32
 
 #ifdef AIO4C_HAVE_POLL
-    while ((nbPolls = poll(selector->polls, selector->numPolls, -1)) < 0) {
+    if ((nbPolls = poll(selector->polls, selector->numPolls, -1)) < 0) {
 #else /* AIO4C_HAVE_POLL */
-    while ((nbPolls = select(maxFd, &rSet, &wSet, &eSet, NULL)) < 0) {
+    if ((nbPolls = select(maxFd, &rSet, &wSet, &eSet, NULL)) < 0) {
 #endif /* AIO4C_HAVE_POLL */
         if (errno != EINTR) {
             code.error = errno;
@@ -1145,9 +1153,9 @@ aio4c_size_t _Select(char* file, int line, Selector* selector) {
 #else /* AIO4C_WIN32 */
 
 #ifdef AIO4C_HAVE_POLL
-    while ((nbPolls = WSAPoll(selector->polls, selector->numPolls, -1)) == SOCKET_ERROR) {
+    if ((nbPolls = WSAPoll(selector->polls, selector->numPolls, -1)) == SOCKET_ERROR) {
 #else /* AIO4C_HAVE_POLL */
-    while ((nbPolls = select(maxFd, &rSet, &wSet, &eSet, NULL)) == SOCKET_ERROR) {
+    if ((nbPolls = select(maxFd, &rSet, &wSet, &eSet, NULL)) == SOCKET_ERROR) {
 #endif /* AIO4C_HAVE_POLL */
         code.source = AIO4C_ERRNO_SOURCE_WSA;
         code.selector = selector;
@@ -1415,7 +1423,7 @@ aio4c_bool_t SelectionKeyReady (Selector* selector, SelectionKey** key) {
     return result;
 }
 
-static Thread* _MainThread = NULL;
+static Thread _MainThread;
 
 static void _ThreadCleanup(Thread* thread) {
     int i = 0;
@@ -1481,24 +1489,23 @@ static Thread* _runThread(Thread* thread) {
 }
 
 #ifdef AIO4C_WIN32
-static void _InitWinSock(void) __attribute__((constructor));
-
-static void _CleanupWinSock(void) __attribute__((destructor));
-
 static void _RetrieveWinVer(void) __attribute__((constructor));
+static void _InitWinSock(void) __attribute__((constructor));
+static void _CleanUpWinSock(void) __attribute__((destructor));
 
 static void _InitWinSock(void) {
     WORD v = MAKEWORD(2,2);
     WSADATA d;
-    if (WSAStartup(v, &d) != 0) {
-        fprintf(stderr, "Cannot initialize WinSock2: 0x%08d\n", WSAGetLastError());
+    int result = WSAStartup(v, &d);
+    if (result != 0) {
+        fprintf(stderr, "Cannot initialize WinSock2: 0x%08d\n", result);
         exit(EXIT_FAILURE);
     }
 
     dthread("WinSock2 started up (version %d.%d)\n", LOBYTE(d.wVersion), HIBYTE(d.wVersion));
 }
 
-static void _CleanupWinSock(void) {
+static void _CleanUpWinSock(void) {
     if (WSACleanup() == SOCKET_ERROR) {
         dthread("WinSock2 cannot be cleaned up: 0x%08d\n", WSAGetLastError());
     } else {
@@ -1525,49 +1532,28 @@ static void _RetrieveWinVer(void) {
 }
 #endif /* AIO4C_WIN32 */
 
-Thread* ThreadMain(char* name) {
-    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+static void _ThreadMain(void) __attribute__((constructor));
 
-    if (_MainThread != NULL) {
-        return NULL;
-    }
-
-    if ((_MainThread = aio4c_malloc(sizeof(Thread))) == NULL) {
-#ifndef AIO4C_WIN32
-        code.error = errno;
-#else /* AIO4C_WIN32 */
-        code.source = AIO4C_ERRNO_SOURCE_SYS;
-#endif /* AIO4C_WIN32 */
-        code.size = sizeof(Thread);
-        code.type = "Thread";
-        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
-        return NULL;
-    }
-
-    _threadsInitialized = true;
+static void _ThreadMain(void) {
+    _threadsInitialized  = true;
     memset(_threads, 0, AIO4C_MAX_THREADS * sizeof(Thread*));
 
-    _MainThread->state = AIO4C_THREAD_STATE_RUNNING;
-    _MainThread->name = name;
+    _MainThread.state    = AIO4C_THREAD_STATE_RUNNING;
+    _MainThread.name     = "aio4c";
 #ifndef AIO4C_WIN32
-    _MainThread->id = pthread_self();
+    _MainThread.id       = pthread_self();
 #else /* AIO4C_WIN32 */
-    _MainThread->id = GetCurrentThreadId();
+    _MainThread.id       = GetCurrentThreadId();
 #endif /* AIO4C_WIN32 */
-    _MainThread->lock = NewLock();
-    _MainThread->run = NULL;
-    _MainThread->exit = NULL;
-    _MainThread->init = NULL;
-    _MainThread->arg = NULL;
-    _MainThread->running = true;
+    _MainThread.lock     = NULL;
+    _MainThread.run      = NULL;
+    _MainThread.exit     = NULL;
+    _MainThread.init     = NULL;
+    _MainThread.arg      = NULL;
+    _MainThread.running  = true;
 
-    _threads[0] = _MainThread;
+    _threads[0] = &_MainThread;
     _numThreads++;
-
-#ifdef AIO4C_WIN32
-#endif /* AIO4C_WIN32 */
-
-    return _MainThread;
 }
 
 Thread* ThreadSelf(void) {
@@ -1596,7 +1582,7 @@ Thread* ThreadSelf(void) {
     return NULL;
 }
 
-Thread* NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg) {
+void NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread) {
     Thread* thread = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -1609,13 +1595,13 @@ Thread* NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), v
         code.size = sizeof(Thread);
         code.type = "Thread";
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
-        return NULL;
+        return;
     }
 
     if (_numThreads >= AIO4C_MAX_THREADS) {
-        Log(ThreadSelf(), AIO4C_LOG_LEVEL_FATAL, "too much threads (%d), cannot create more", _numThreads);
+        Log(AIO4C_LOG_LEVEL_FATAL, "too much threads (%d), cannot create more", _numThreads);
         aio4c_free(thread);
-        return NULL;
+        return;
     }
 
     thread->name = name;
@@ -1640,14 +1626,13 @@ Thread* NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), v
         ReleaseLock(thread->lock);
         FreeLock(&thread->lock);
         aio4c_free(thread);
-        return NULL;
+        return;
     }
 
+    *pThread = thread;
     _threads[_numThreads++] = thread;
 
     ReleaseLock(thread->lock);
-
-    return thread;
 }
 
 aio4c_bool_t ThreadRunning(Thread* thread) {
@@ -1663,13 +1648,19 @@ aio4c_bool_t ThreadRunning(Thread* thread) {
     return running;
 }
 
+static void _FreeThread(Thread** thread) {
+    Thread* pThread = NULL;
+
+    if (thread != NULL && (pThread = *thread) != NULL) {
+        FreeLock(&pThread->lock);
+        aio4c_free(pThread);
+        *thread = NULL;
+    }
+}
+
 Thread* ThreadJoin(Thread* thread) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     void* returnValue = NULL;
-
-    if (thread->state == AIO4C_THREAD_STATE_JOINED) {
-        return thread;
-    }
 
     _numThreadsRunning--;
 
@@ -1683,7 +1674,7 @@ Thread* ThreadJoin(Thread* thread) {
         case WAIT_OBJECT_0:
             break;
         case WAIT_ABANDONED:
-            Log(NULL, AIO4C_LOG_LEVEL_ERROR, "%s:%d: join thread %p[%s]: abandon",
+            Log(AIO4C_LOG_LEVEL_ERROR, "%s:%d: join thread %p[%s]: abandon",
                     __FILE__, __LINE__, (void*)thread, ThreadStateString[thread->state]);
             break;
         case WAIT_FAILED:
@@ -1706,35 +1697,10 @@ Thread* ThreadJoin(Thread* thread) {
 
     _numThreadsRunning++;
 
-    TakeLock(thread->lock);
-
     thread->state = AIO4C_THREAD_STATE_JOINED;
 
-    ReleaseLock(thread->lock);
+    _FreeThread(&thread);
 
     return thread;
-}
-
-void FreeThread(Thread** thread) {
-    Thread* pThread = NULL;
-
-    if (thread != NULL && (pThread = *thread) != NULL) {
-        if (pThread != _MainThread) {
-            if (pThread->state != AIO4C_THREAD_STATE_JOINED) {
-                ThreadJoin(pThread);
-            }
-        }
-
-#ifdef AIO4C_WIN32
-        if (pThread == _MainThread) {
-            WSACleanup();
-        }
-#endif /* AIO4C_WIN32 */
-
-        FreeLock(&pThread->lock);
-        aio4c_free(pThread);
-
-        *thread = NULL;
-    }
 }
 

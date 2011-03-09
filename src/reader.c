@@ -39,7 +39,7 @@
 #endif
 
 static void _ReaderInit(Reader* reader) {
-    Log(reader->thread, AIO4C_LOG_LEVEL_INFO, "initialized");
+    Log(AIO4C_LOG_LEVEL_INFO, "initialized with tid 0x%08lx", reader->thread->id);
 }
 
 static aio4c_bool_t _ReaderRun(Reader* reader) {
@@ -55,7 +55,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
             case AIO4C_QUEUE_ITEM_DATA:
                 connection = (Connection*)item.content.data;
                 connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
-                Log(reader->thread, AIO4C_LOG_LEVEL_DEBUG, "managing connection %s", connection->string);
+                Log(AIO4C_LOG_LEVEL_DEBUG, "managing connection %s", connection->string);
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
@@ -63,9 +63,9 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                     Unregister(reader->selector, connection->readKey, true);
                     connection->readKey = NULL;
                 }
-                Log(reader->thread, AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
                 if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_READER)) {
-                    Log(reader->thread, AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
+                    Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
                 }
                 break;
@@ -99,7 +99,7 @@ static void _ReaderExit(Reader* reader) {
     FreeQueue(&reader->queue);
     FreeSelector(&reader->selector);
 
-    Log(reader->thread, AIO4C_LOG_LEVEL_INFO, "exited");
+    Log(AIO4C_LOG_LEVEL_INFO, "exited");
 
     aio4c_free(reader);
 }
@@ -108,7 +108,7 @@ Reader* NewReader(aio4c_size_t bufferSize) {
     Reader* reader = NULL;
 
     if ((reader = aio4c_malloc(sizeof(Reader))) == NULL) {
-        Log(ThreadSelf(), AIO4C_LOG_LEVEL_ERROR, "reader allocation: %s", strerror(errno));
+        Log(AIO4C_LOG_LEVEL_ERROR, "reader allocation: %s", strerror(errno));
         return NULL;
     }
 
@@ -117,7 +117,12 @@ Reader* NewReader(aio4c_size_t bufferSize) {
     reader->worker = NULL;
     reader->worker = NewWorker(bufferSize);
     reader->thread = NULL;
-    reader->thread = NewThread("reader", aio4c_thread_handler(_ReaderInit), aio4c_thread_run(_ReaderRun), aio4c_thread_handler(_ReaderExit), aio4c_thread_arg(reader));
+    NewThread("reader",
+           aio4c_thread_handler(_ReaderInit),
+           aio4c_thread_run(_ReaderRun),
+           aio4c_thread_handler(_ReaderExit),
+           aio4c_thread_arg(reader),
+           &reader->thread);
 
     return reader;
 }
@@ -132,7 +137,7 @@ static void _ReaderEventHandler(Event event, Connection* connection, Reader* rea
 
 void ReaderManageConnection(Reader* reader, Connection* connection) {
     if (!EnqueueDataItem(reader->queue, connection)) {
-        Log(NULL, AIO4C_LOG_LEVEL_WARN, "reader will not manage connection %s", connection->string);
+        Log(AIO4C_LOG_LEVEL_WARN, "reader will not manage connection %s", connection->string);
         return;
     }
 
@@ -153,7 +158,5 @@ void ReaderEnd(Reader* reader) {
     SelectorWakeUp(reader->selector);
 
     ThreadJoin(th);
-
-    FreeThread(&th);
 }
 

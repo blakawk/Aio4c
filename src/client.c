@@ -61,7 +61,7 @@ static void _connection(Client* client) {
 }
 
 static void _clientInit(Client* client) {
-    Log(client->thread, AIO4C_LOG_LEVEL_INFO, "started");
+    Log(AIO4C_LOG_LEVEL_INFO, "started with tid 0x%08lx", client->thread->id);
 
     client->pool = NewBufferPool(2, client->bufferSize);
     client->reader = NewReader(client->bufferSize);
@@ -80,15 +80,15 @@ static aio4c_bool_t _clientRun(Client* client) {
             case AIO4C_QUEUE_ITEM_EVENT:
                 switch (item.content.event.type) {
                     case AIO4C_INIT_EVENT:
-                        Log(client->thread, AIO4C_LOG_LEVEL_DEBUG, "connection %s initialized", client->address->string);
+                        Log(AIO4C_LOG_LEVEL_DEBUG, "connection %s initialized", client->address->string);
                         ConnectionConnect((Connection*)item.content.event.source);
                         break;
                     case AIO4C_CONNECTING_EVENT:
-                        Log(client->thread, AIO4C_LOG_LEVEL_DEBUG, "finishing connection to %s", client->address->string);
+                        Log(AIO4C_LOG_LEVEL_DEBUG, "finishing connection to %s", client->address->string);
                         ConnectionFinishConnect((Connection*)item.content.event.source);
                         break;
                     case AIO4C_CONNECTED_EVENT:
-                        Log(client->thread, AIO4C_LOG_LEVEL_INFO, "connection established with success on %s", client->address->string);
+                        Log(AIO4C_LOG_LEVEL_INFO, "connection established with success on %s", client->address->string);
                         break;
                     case AIO4C_CLOSE_EVENT:
                         if (client->retryCount < client->retries) {
@@ -100,7 +100,7 @@ static aio4c_bool_t _clientRun(Client* client) {
                             sleep(client->interval);
 #endif /* AIO4C_WIN32 */
                             ProbeTimeEnd(AIO4C_TIME_PROBE_IDLE);
-                            Log(client->thread, AIO4C_LOG_LEVEL_WARN, "connection with %s lost, retrying (%d/%d)", client->address->string, client->retryCount, client->retries);
+                            Log(AIO4C_LOG_LEVEL_WARN, "connection with %s lost, retrying (%d/%d)", client->address->string, client->retryCount, client->retries);
                             if (!client->connected) {
                                 FreeConnection(&client->connection);
                             } else {
@@ -108,7 +108,7 @@ static aio4c_bool_t _clientRun(Client* client) {
                             }
                             _connection(client);
                         } else {
-                            Log(client->thread, AIO4C_LOG_LEVEL_ERROR, "retried too many times to connect %s, giving up", client->address->string);
+                            Log(AIO4C_LOG_LEVEL_ERROR, "retried too many times to connect %s, giving up", client->address->string);
                             FreeConnection(&client->connection);
                             return false;
                         }
@@ -130,12 +130,9 @@ static void _clientExit(Client* client) {
         ReaderEnd(client->reader);
     }
 
-    LogEnd();
-
     FreeQueue(&client->queue);
     FreeBufferPool(&client->pool);
     FreeAddress(&client->address);
-    FreeThread(&client->main);
     aio4c_free(client);
 }
 
@@ -146,8 +143,7 @@ Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel l
         return NULL;
     }
 
-    client->main       = ThreadMain("main");
-    LogInit(client->main, level, log);
+    LogInit(level, log);
 
     client->address    = NewAddress(type, address, port);
     client->retries    = retries;
@@ -163,11 +159,12 @@ Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel l
     client->bufferSize = bufferSize;
     client->connected  = false;
 
-    client->thread     = NewThread("client",
+    NewThread("client",
             aio4c_thread_handler(_clientInit),
             aio4c_thread_run(_clientRun),
             aio4c_thread_handler(_clientExit),
-            aio4c_thread_arg(client));
+            aio4c_thread_arg(client),
+            &client->thread);
 
     return client;
 }
@@ -176,6 +173,5 @@ void ClientEnd(Client* client) {
     Thread* tClient = client->thread;
 
     ThreadJoin(tClient);
-    FreeThread(&tClient);
 }
 

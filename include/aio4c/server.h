@@ -32,7 +32,6 @@
     (void(*)(Event,Connection*,void*))handler
 
 typedef struct s_Server {
-    Thread*     main;
     Address*    address;
     Acceptor*   acceptor;
     BufferPool* pool;

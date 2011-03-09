@@ -34,7 +34,7 @@
 #include <string.h>
 
 static void _WorkerInit(Worker* worker) {
-    Log(worker->thread, AIO4C_LOG_LEVEL_INFO, "initialized");
+    Log(AIO4C_LOG_LEVEL_INFO, "initialized with tid 0x%08lx", worker->thread->id);
 }
 
 static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
@@ -70,9 +70,9 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
-                Log(worker->thread, AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
                 if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WORKER)) {
-                    Log(worker->thread, AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
+                    Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
                 }
                 break;
@@ -90,7 +90,7 @@ static void _WorkerExit(Worker* worker) {
 
     WriterEnd(worker->writer);
 
-    Log(worker->thread, AIO4C_LOG_LEVEL_INFO, "exited");
+    Log(AIO4C_LOG_LEVEL_INFO, "exited");
 
     aio4c_free(worker);
 }
@@ -107,7 +107,12 @@ Worker* NewWorker(aio4c_size_t bufferSize) {
     worker->writer = NULL;
     worker->writer = NewWriter(worker->bufferSize);
     worker->thread = NULL;
-    worker->thread = NewThread("worker", aio4c_thread_handler(_WorkerInit), aio4c_thread_run(_WorkerRun), aio4c_thread_handler(_WorkerExit), aio4c_thread_arg(worker));
+    NewThread("worker",
+            aio4c_thread_handler(_WorkerInit),
+            aio4c_thread_run(_WorkerRun),
+            aio4c_thread_handler(_WorkerExit),
+            aio4c_thread_arg(worker),
+            &worker->thread);
     worker->pool = NewBufferPool(4, bufferSize);
 
     return worker;
@@ -163,6 +168,5 @@ void WorkerEnd(Worker* worker) {
     }
 
     ThreadJoin(th);
-    FreeThread(&th);
 }
 
