@@ -26,7 +26,10 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
+#define AIO4C_WRITER_NAME_SUFFIX "-w%04d"
+
 typedef struct s_Writer {
+    char*         name;
     Thread*       thread;
     aio4c_size_t  bufferSize;
     Selector*     selector;
@@ -34,7 +37,7 @@ typedef struct s_Writer {
     Queue*        toUnregister;
 } Writer;
 
-extern Writer* NewWriter(aio4c_size_t bufferSize);
+extern Writer* NewWriter(int writerIndex, aio4c_size_t bufferSize);
 
 extern void WriterManageConnection(Writer* writer, Connection* connection);
 

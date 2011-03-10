@@ -58,8 +58,9 @@ static void _LogPrintMessage(Logger* logger, char* message) {
     aio4c_free(message);
 }
 
-static void _LogInit(Logger* logger) {
+static aio4c_bool_t _LogInit(Logger* logger) {
     Log(AIO4C_LOG_LEVEL_INFO, "logging is initialized, logger tid is 0x%08lx", logger->thread->id);
+    return true;
 }
 
 static aio4c_bool_t _LogRun(Logger* logger) {
@@ -94,6 +95,12 @@ static void _LogExit(Logger* logger) {
 }
 
 void LogInit(LogLevel level, char* filename) {
+    static unsigned char initialized = 0;
+
+    if (initialized || initialized++) {
+        return;
+    }
+
     _logger.level = level;
     _logger.thread = NULL;
     _logger.exiting = false;
@@ -112,9 +119,9 @@ void LogInit(LogLevel level, char* filename) {
     } else {
         _logger.thread = NULL;
         NewThread("logger",
-               aio4c_thread_handler(_LogInit),
+               aio4c_thread_init(_LogInit),
                aio4c_thread_run(_LogRun),
-               aio4c_thread_handler(_LogExit),
+               aio4c_thread_exit(_LogExit),
                aio4c_thread_arg(&_logger),
                &_logger.thread);
         if (_logger.thread == NULL) {
@@ -226,7 +233,6 @@ void LogEnd(void) {
         logger->exiting = true;
         if (EnqueueExitItem(logger->queue)) {
             ThreadJoin(logger->thread);
-            fprintf(stderr, "logger exited\n");
         }
     }
 }

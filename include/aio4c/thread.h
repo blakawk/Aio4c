@@ -41,8 +41,11 @@
 #define aio4c_thread_run(run) \
     (aio4c_bool_t(*)(void*))run
 
-#define aio4c_thread_handler(handler) \
-    (void(*)(void*))handler
+#define aio4c_thread_init(init) \
+    (aio4c_bool_t(*)(void*))init
+
+#define aio4c_thread_exit(exit) \
+    (void(*)(void*))exit
 
 #define aio4c_thread_arg(arg) \
     (void*)arg
@@ -62,8 +65,6 @@
         fprintf(stderr, fmt, __VA_ARGS__); \
     }                                      \
 }
-
-#define AIO4C_MAX_THREADS 32
 
 typedef enum e_ThreadState {
     AIO4C_THREAD_STATE_RUNNING,
@@ -107,7 +108,7 @@ typedef struct s_Thread {
     ThreadState       state;
     aio4c_bool_t      running;
     Lock*             lock;
-    void            (*init)(void*);
+    aio4c_bool_t    (*init)(void*);
     aio4c_bool_t    (*run)(void*);
     void            (*exit)(void*);
     void*             arg;
@@ -309,7 +310,9 @@ extern aio4c_bool_t SelectionKeyReady(Selector* selector, SelectionKey** key);
 
 extern void FreeSelector(Selector** selector);
 
-extern void NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread);
+extern char* BuildThreadName(int suffixLen, char* suffix, ...) __attribute__((format(printf, 2, 3)));
+
+extern void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread);
 
 extern aio4c_bool_t ThreadRunning(Thread* thread);
 

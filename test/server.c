@@ -51,6 +51,7 @@ static void serverHandler(Event event, Connection* source, Data* data) {
                     EnableWriteInterest(source);
                 } else {
                     Log(AIO4C_LOG_LEVEL_DEBUG, "unexpected sequence %d, expected %d for connection %s", curSeq, data->lastSeq + 1, source->string);
+                    ConnectionClose(source);
                 }
             }
             break;
@@ -85,7 +86,7 @@ int main(void) {
     char buffer[32];
     ssize_t nbRead = 0;
 
-    Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "server.log", 8192, aio4c_server_handler(serverHandler), dataFactory);
+    Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "server.log", 8192, 16, aio4c_server_handler(serverHandler), dataFactory);
 
     while ((nbRead = read(STDIN_FILENO, buffer, 31)) > 0) {
         buffer[nbRead] = '\0';

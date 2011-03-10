@@ -60,6 +60,13 @@ AddOption('--target',
           metavar = 'TARGET',
           help = 'Compile for target TARGET')
 
+AddOption('--max-threads',
+          dest = 'NUM_THREADS',
+          metavar = 'NUM_THREADS',
+          type = int,
+          default = 32,
+          help = 'Allow NUM_THREADS creation (default: %default)')
+
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L',
                   ENV = {'PATH': os.environ['PATH']})
 
@@ -202,6 +209,9 @@ if not GetOption('clean'):
 if GetOption('DEBUG'):
     env.Append(CCFLAGS = '-g')
     env.Append(LINKFLAGS = '-g')
+else:
+    env.Append(CCFLAGS = '-march=native -mtune=native -O3')
+    env.Append(LINKFLAGS = '-march=native -mtune=native -O3')
 
 if GetOption('DEBUG_THREADS'):
     env.Append(CPPDEFINES = {"AIO4C_DEBUG_THREADS": 1})
@@ -213,6 +223,7 @@ if GetOption('TARGET'):
     env['CC'] = GetOption('TARGET') + "-gcc"
 
 env.Append(CPPPATH = ['include'])
+env.Append(CPPDEFINES = {"AIO4C_MAX_THREADS": GetOption('NUM_THREADS')})
 
 if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TARGET')):
     AddOption('--windows-version',

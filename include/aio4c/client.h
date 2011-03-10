@@ -26,7 +26,10 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
+#define AIO4C_CLIENT_NAME_SUFFIX "-client%04d"
+
 typedef struct s_Client {
+    char*        name;
     Address*     address;
     Connection*  connection;
     Thread*      thread;
@@ -48,7 +51,7 @@ typedef struct s_Client {
 #define aio4c_client_handler_arg(h) \
     (void*)h
 
-extern AIO4C_DLLEXPORT Client* NewClient(AddressType type, char* address, aio4c_port_t port, LogLevel level, char* log, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
+extern AIO4C_DLLEXPORT Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t port, LogLevel level, char* log, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
 
 extern AIO4C_DLLEXPORT void ClientEnd(Client* client);
 

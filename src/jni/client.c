@@ -121,7 +121,7 @@ JNIEXPORT jlong JNICALL Java_com_aio4c_Client_Create(JNIEnv *jvm, jobject client
     (*jvm)->GetJavaVM(jvm, &myJClient->jvm);
     myJClient->jClient = myClient;
 
-    result = p2j(myJClient->client = NewClient(addressType, address, port, logLevel, log, retries, retryInterval, bufferSize, aio4c_client_handler(_jniClientEventHandler), aio4c_client_handler_arg(myJClient)));
+    result = p2j(myJClient->client = NewClient(0, addressType, address, port, logLevel, log, retries, retryInterval, bufferSize, aio4c_client_handler(_jniClientEventHandler), aio4c_client_handler_arg(myJClient)));
 
     (*jvm)->ReleaseStringUTFChars(jvm, oAddress, address);
     (*jvm)->ReleaseStringUTFChars(jvm, oLog, log);

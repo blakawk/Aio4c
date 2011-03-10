@@ -22,6 +22,7 @@
 #include <aio4c/alloc.h>
 #include <aio4c/buffer.h>
 #include <aio4c/connection.h>
+#include <aio4c/error.h>
 #include <aio4c/event.h>
 #include <aio4c/log.h>
 #include <aio4c/stats.h>
@@ -29,12 +30,15 @@
 #include <aio4c/types.h>
 #include <aio4c/writer.h>
 
-#include <errno.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef AIO4C_WIN32
 
-static void _WorkerInit(Worker* worker) {
-    Log(AIO4C_LOG_LEVEL_INFO, "initialized with tid 0x%08lx", worker->thread->id);
+#include <errno.h>
+
+#endif /* AIO4C_WIN32 */
+
+static aio4c_bool_t _WorkerInit(Worker* worker) {
+    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", worker->thread->id);
+    return true;
 }
 
 static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
@@ -90,29 +94,54 @@ static void _WorkerExit(Worker* worker) {
 
     WriterEnd(worker->writer);
 
-    Log(AIO4C_LOG_LEVEL_INFO, "exited");
-
-    aio4c_free(worker);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Worker* NewWorker(aio4c_size_t bufferSize) {
+Worker* NewWorker(int workerIndex, aio4c_size_t bufferSize) {
     Worker* worker = NULL;
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
     if ((worker = aio4c_malloc(sizeof(Worker))) == NULL) {
+#ifndef AIO4C_WIN32
+        code.error = errno;
+#else /* AIO4C_WIN32 */
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+#endif /* AIO4C_WIN32 */
+        code.size = sizeof(Worker);
+        code.type = "Worker";
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
         return NULL;
     }
 
     worker->queue = NewQueue();
     worker->bufferSize = bufferSize;
-    worker->writer = NULL;
-    worker->writer = NewWriter(worker->bufferSize);
+
+    worker->writer = NewWriter(workerIndex, worker->bufferSize);
+    if (worker->writer == NULL) {
+        FreeQueue(&worker->queue);
+        aio4c_free(worker);
+        return NULL;
+    }
+
+    worker->name = BuildThreadName(sizeof(AIO4C_WORKER_NAME_SUFFIX), AIO4C_WORKER_NAME_SUFFIX, workerIndex);
+
     worker->thread = NULL;
-    NewThread("worker",
-            aio4c_thread_handler(_WorkerInit),
+    NewThread(worker->name,
+            aio4c_thread_init(_WorkerInit),
             aio4c_thread_run(_WorkerRun),
-            aio4c_thread_handler(_WorkerExit),
+            aio4c_thread_exit(_WorkerExit),
             aio4c_thread_arg(worker),
             &worker->thread);
+    if (worker->thread == NULL) {
+        WriterEnd(worker->writer);
+        FreeQueue(&worker->queue);
+        if (worker->name != NULL) {
+            aio4c_free(worker->name);
+        }
+        aio4c_free(worker);
+        return NULL;
+    }
+
     worker->pool = NewBufferPool(4, bufferSize);
 
     return worker;
@@ -161,12 +190,15 @@ void WorkerManageConnection(Worker* worker, Connection* connection) {
 }
 
 void WorkerEnd(Worker* worker) {
-    Thread* th = worker->thread;
-
-    if (!EnqueueExitItem(worker->queue)) {
-        return;
+    if (worker->thread != NULL) {
+        EnqueueExitItem(worker->queue);
+        ThreadJoin(worker->thread);
     }
 
-    ThreadJoin(th);
+    if (worker->name != NULL) {
+        aio4c_free(worker->name);
+    }
+
+    aio4c_free(worker);
 }
 

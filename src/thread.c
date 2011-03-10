@@ -41,6 +41,7 @@
 
 #endif /* AIO4C_WIN32 */
 
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -68,6 +69,11 @@ static Thread*      _threads[AIO4C_MAX_THREADS];
 static aio4c_bool_t _threadsInitialized = false;
 static int          _numThreads = 0;
 static int          _numThreadsRunning = 0;
+#ifndef AIO4C_WIN32
+static pthread_mutex_t  _threadsLock = PTHREAD_MUTEX_INITIALIZER;
+#else /* AIO4C_WIN32 */
+static CRITICAL_SECTION _threadsLock;
+#endif /* AIO4C_WIN32 */
 
 int GetNumThreads(void) {
     return _numThreadsRunning;
@@ -1438,23 +1444,25 @@ static void _ThreadCleanup(Thread* thread) {
 
     _numThreadsRunning--;
 
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_threadsLock);
+#else /* AIO4C_WIN32 */
+    EnterCriticalSection(&_threadsLock);
+#endif /* AIO4C_WIN32 */
     for (i = 0; i < _numThreads; i++) {
         if (_threads[i] == thread) {
             _threads[i] = NULL;
         }
     }
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_threadsLock);
+#else /* AIO4C_WIN32 */
+    LeaveCriticalSection(&_threadsLock);
+#endif /* AIO4C_WIN32 */
 }
 
 static Thread* _runThread(Thread* thread) {
     TakeLock(thread->lock);
-
-    _numThreadsRunning++;
-
-    thread->running = true;
-
-    if (thread->init != NULL) {
-        thread->init(thread->arg);
-    }
 
 #ifndef AIO4C_WIN32
     pthread_cleanup_push((void(*)(void*))_ThreadCleanup, (void*)thread);
@@ -1462,15 +1470,28 @@ static Thread* _runThread(Thread* thread) {
     /* no thread cleanup on Win32 */
 #endif /* AIO4C_WIN32 */
 
-    while (thread->running) {
-        ReleaseLock(thread->lock);
+    aio4c_bool_t run = true;
 
-        if (!thread->run(thread->arg)) {
+    _numThreadsRunning++;
+
+    thread->running = true;
+
+    if (thread->init != NULL) {
+        run = thread->init(thread->arg);
+    }
+
+    if (run) {
+        while (thread->running) {
+            ReleaseLock(thread->lock);
+
+            if (!thread->run(thread->arg)) {
+                TakeLock(thread->lock);
+                break;
+            }
+
             TakeLock(thread->lock);
-            break;
         }
 
-        TakeLock(thread->lock);
     }
 
 #ifndef AIO4C_WIN32
@@ -1537,6 +1558,9 @@ static void _ThreadMain(void) __attribute__((constructor));
 static void _ThreadMain(void) {
     _threadsInitialized  = true;
     memset(_threads, 0, AIO4C_MAX_THREADS * sizeof(Thread*));
+#ifdef AIO4C_WIN32
+    InitializeCriticalSection(&_threadsLock);
+#endif /* AIO4C_WIN32 */
 
     _MainThread.state    = AIO4C_THREAD_STATE_RUNNING;
     _MainThread.name     = "aio4c";
@@ -1556,33 +1580,82 @@ static void _ThreadMain(void) {
     _numThreads++;
 }
 
+static void _addThread(Thread* thread) {
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_threadsLock);
+#else /* AIO4C_WIN32 */
+    EnterCriticalSection(&_threadsLock);
+#endif /* AIO4C_WIN32 */
+
+    _threads[_numThreads++] = thread;
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_threadsLock);
+#else /* AIO4C_WIN32 */
+    LeaveCriticalSection(&_threadsLock);
+#endif /* AIO4C_WIN32 */
+}
+
 Thread* ThreadSelf(void) {
     int i = 0;
+    Thread* self = NULL;
 
     if (_threadsInitialized == false) {
         return NULL;
     }
+
+#ifndef AIO4C_WIN32
+    pthread_mutex_lock(&_threadsLock);
+#else /* AIO4C_WIN32 */
+    EnterCriticalSection(&_threadsLock);
+#endif /* AIO4C_WIN32 */
 
     for (i = 0; i < _numThreads; i++) {
         if (_threads[i] != NULL) {
 #ifndef AIO4C_WIN32
             pthread_t tid = pthread_self();
             if (memcmp(&_threads[i]->id, &tid, sizeof(pthread_t)) == 0) {
-                return _threads[i];
+                self = _threads[i];
+                break;
             }
 #else /* AIO4C_WIN32 */
             DWORD tid = GetCurrentThreadId();
             if (memcmp(&_threads[i]->id, &tid, sizeof(DWORD)) == 0) {
-                return _threads[i];
+                self = _threads[i];
+                break;
             }
 #endif /* AIO4C_WIN32 */
         }
     }
 
-    return NULL;
+#ifndef AIO4C_WIN32
+    pthread_mutex_unlock(&_threadsLock);
+#else /* AIO4C_WIN32 */
+    LeaveCriticalSection(&_threadsLock);
+#endif /* AIO4C_WIN32 */
+
+    return self;
 }
 
-void NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread) {
+char* BuildThreadName(int suffixLen, char* suffix, ...) {
+    va_list args;
+    char* parentName = (ThreadSelf()==NULL)?NULL:ThreadSelf()->name;
+    int parentNameLen = (parentName==NULL)?0:strlen(parentName);
+    char* name = NULL;
+    int nameLen = parentNameLen + suffixLen;
+
+    if ((name = aio4c_malloc(nameLen)) != NULL) {
+        memcpy(name, parentName, parentNameLen);
+        memset(&name[parentNameLen], 0, suffixLen);
+        va_start(args, suffix);
+        vsnprintf(&name[parentNameLen], suffixLen, suffix, args);
+        va_end(args);
+    }
+
+    return name;
+}
+
+void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread) {
     Thread* thread = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -1630,7 +1703,8 @@ void NewThread(char* name, void (*init)(void*), aio4c_bool_t (*run)(void*), void
     }
 
     *pThread = thread;
-    _threads[_numThreads++] = thread;
+
+    _addThread(thread);
 
     ReleaseLock(thread->lock);
 }

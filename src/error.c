@@ -151,14 +151,14 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
                     code->connection->userHandlers->maxHandlers[AIO4C_CLOSE_EVENT]);
             break;
         case AIO4C_THREAD_ERROR_TYPE:
-            Log(level, "%s:%d: %s for thread %s[r:%p,i:0x%lx,s:%s]: [%08ld] %s", file, line, ErrorStrings[error],
-                    code->thread->name, *(void**)&code->thread->run, (unsigned long)code->thread->id, ThreadStateString[code->thread->state],
+            Log(level, "%s:%d: %s for thread %s[i:0x%lx,s:%s]: [%08ld] %s", file, line, ErrorStrings[error],
+                    code->thread->name, (unsigned long)code->thread->id, ThreadStateString[code->thread->state],
                     errorCode, errorMessage);
             break;
         case AIO4C_THREAD_LOCK_ERROR_TYPE:
             if (code->lock->owner != NULL) {
-                Log(level, "%s:%d: %s lock %p[s:%s,o:%s[r:%p,i:0x%lx,s:%s]]: [%08ld] %s", file, line, ErrorStrings[error],
-                        (void*)code->lock, LockStateString[code->lock->state], code->lock->owner->name, *(void**)&code->lock->owner->run,
+                Log(level, "%s:%d: %s lock %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", file, line, ErrorStrings[error],
+                        (void*)code->lock, LockStateString[code->lock->state], code->lock->owner->name,
                         (unsigned long)code->lock->owner->id, ThreadStateString[code->lock->owner->state], errorCode, errorMessage);
             } else {
                 Log(level, "%s:%d: %s lock %p[s:%s,o:none]: [%08ld] %s", file, line, ErrorStrings[error],
@@ -167,8 +167,8 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
             break;
         case AIO4C_THREAD_CONDITION_ERROR_TYPE:
             if (code->condition->owner != NULL) {
-                Log(level, "%s:%d: %s condition %p[s:%s,o:%s[r:%p,i:0x%lx,s:%s]]: [%08ld] %s", file, line, ErrorStrings[error],
-                        (void*)code->condition, ConditionStateString[code->condition->state], code->condition->owner->name, *(void**)&code->condition->owner->run,
+                Log(level, "%s:%d: %s condition %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", file, line, ErrorStrings[error],
+                        (void*)code->condition, ConditionStateString[code->condition->state], code->condition->owner->name,
                         (unsigned long)code->condition->owner->id, ThreadStateString[code->condition->owner->state], errorCode, errorMessage);
             } else {
                 Log(level, "%s:%d: %s condition %p[s:%s,o:none]: [%08ld] %s", file, line, ErrorStrings[error],

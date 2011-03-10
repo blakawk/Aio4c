@@ -26,18 +26,22 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
+#define AIO4C_ACCEPTOR_NAME_SUFFIX "%s"
+
 typedef struct s_Acceptor {
+    char*          name;
     Thread*        thread;
     Address*       address;
     aio4c_socket_t socket;
-    Reader*        reader;
+    Reader**       readers;
+    int            nbReaders;
     Selector*      selector;
     SelectionKey*  key;
     Connection*    factory;
     Queue*         queue;
 } Acceptor;
 
-extern Acceptor* NewAcceptor(Address* address, Connection* factory);
+extern Acceptor* NewAcceptor(Address* address, Connection* factory, int nbPipes);
 
 extern void AcceptorEnd(Acceptor* acceptor);
 

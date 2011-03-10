@@ -48,7 +48,7 @@ static CRITICAL_SECTION _timeProbesLock;
 static CRITICAL_SECTION _sizeProbesLock;
 #endif /* AIO4C_WIN32 */
 
-static void _statsInit(void* dummy) {
+static aio4c_bool_t _statsInit(void* dummy) {
     dummy = NULL;
 #ifndef AIO4C_WIN32
     pid_t pid = getpid();
@@ -58,11 +58,15 @@ static void _statsInit(void* dummy) {
 
     char filename[128];
     memset(filename, 0, 128);
-    snprintf(filename, 128, "stats-%ld.csv", pid);
+    snprintf(filename, 128, "stats-%ld.csv", (long)pid);
     _statsFile = fopen(filename, "w");
     if (_statsFile != NULL) {
         fprintf(_statsFile, "TIME (s);ALLOCATED MEMORY (kb);READ DATA (kb/s);WRITTEN DATA (kb/s);PROCESSED DATA (kb/s);CONNECTIONS;IDLE TIME (ms);LATENCY (ms)\n");
+    } else {
+        return false;
     }
+
+    return true;
 }
 
 void _PrintStats(void);
@@ -105,10 +109,11 @@ static void _InitProbes(void) {
     InitializeCriticalSection(&_sizeProbesLock);
 #endif /* AIO4C_WIN32 */
 
+    _statsThread = NULL;
     NewThread("stats",
-            aio4c_thread_handler(_statsInit),
+            aio4c_thread_init(_statsInit),
             aio4c_thread_run(_statsRun),
-            aio4c_thread_handler(_statsExit),
+            aio4c_thread_exit(_statsExit),
             aio4c_thread_arg(NULL),
             &_statsThread);
 }

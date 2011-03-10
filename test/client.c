@@ -26,11 +26,10 @@
 #include <aio4c/types.h>
 #include <aio4c/stats.h>
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
-
-static int seq = 0;
 
 void onRead(Connection* source) {
     Buffer* buffer = source->dataBuffer;
@@ -54,32 +53,28 @@ void onRead(Connection* source) {
     EnableWriteInterest(source);
 }
 
-void onWrite(Connection* source) {
+void onWrite(Connection* source, int* seq) {
     Buffer* buffer = source->writeBuffer;
     struct timeval ping;
 
-    seq ++;
+    (*seq) ++;
 
     gettimeofday(&ping, NULL);
     memcpy(&buffer->data[buffer->position], "PING ", 6);
     buffer->position += 6;
     memcpy(&buffer->data[buffer->position], &ping, sizeof(struct timeval));
     buffer->position += sizeof(struct timeval);
-    memcpy(&buffer->data[buffer->position], &seq, sizeof(int));
+    memcpy(&buffer->data[buffer->position], seq, sizeof(int));
     buffer->position += sizeof(int);
 }
 
-void handler(Event event, Connection* source, void* c) {
-    if (c != NULL) {
-        return;
-    }
-
+void handler(Event event, Connection* source, int* seq) {
     switch (event) {
         case AIO4C_INBOUND_DATA_EVENT:
             onRead(source);
             break;
         case AIO4C_WRITE_EVENT:
-            onWrite(source);
+            onWrite(source,seq);
             break;
         case AIO4C_CONNECTED_EVENT:
             EnableWriteInterest(source);
@@ -89,12 +84,66 @@ void handler(Event event, Connection* source, void* c) {
     }
 }
 
-int main (void) {
-    Client* client = NULL;
+int main (int argc, char* argv[]) {
+    char* endptr = NULL;
+    long int nbClients = 0;
+    Client** clients = NULL;
+    int i = 0;
+    int* seq = NULL;
 
-    client = NewClient(AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "client.log", 3, 3, 8192, handler, NULL);
-    ClientEnd(client);
+    if (argc != 2) {
+        fprintf(stderr, "usage: client nbClient\n");
+        exit(EXIT_FAILURE);
+    }
+
+    errno = 0;
+
+    nbClients = strtol(argv[1], &endptr, 0);
+
+    if (errno != 0) {
+        perror("nbClient is not a valid integer");
+        fprintf(stderr, "usage: client nbClient\n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (endptr == argv[1]) {
+        fprintf(stderr, "nbClients must be an integer\n");
+        fprintf(stderr, "usage: client nbClient\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("starting %ld clients...\n", nbClients);
+
+    clients = malloc(nbClients * sizeof(Client*));
+    seq = malloc(nbClients * sizeof(int));
+
+    memset(clients, 0, nbClients * sizeof(Client*));
+    memset(seq, 0, nbClients * sizeof(int));
+
+    for (i = 0; i < nbClients; i++) {
+        clients[i] = NewClient(i, AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "client.log", 3, 3, 8192, aio4c_client_handler(handler), aio4c_client_handler_arg(&seq[i]));
+        if (clients[i] == NULL) {
+            printf("only %d clients were started !\n", i);
+            break;
+        }
+    }
+
+    if (i == nbClients) {
+        printf ("all clients started !\n");
+    }
+
+    nbClients = i;
+
+    for (i = 0; i < nbClients; i++) {
+        if (clients[i] != NULL) {
+            ClientEnd(clients[i]);
+        }
+    }
+
     LogEnd();
+
+    free(seq);
+    free(clients);
 
     return EXIT_SUCCESS;
 }

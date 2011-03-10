@@ -182,6 +182,7 @@ static Connection* __ConnectionHandleError(char* file, int line, Connection* con
         case AIO4C_CONNECTION_STATE_ERROR:
             code->connection = connection;
             _Raise(file, line, level, AIO4C_CONNECTION_STATE_ERROR_TYPE, error, code);
+            break;
         default:
             code->connection = connection;
             _Raise(file, line, level, AIO4C_CONNECTION_ERROR_TYPE, error, code);

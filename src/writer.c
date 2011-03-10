@@ -22,19 +22,23 @@
 #include <aio4c/alloc.h>
 #include <aio4c/buffer.h>
 #include <aio4c/connection.h>
+#include <aio4c/error.h>
 #include <aio4c/event.h>
 #include <aio4c/log.h>
 #include <aio4c/stats.h>
 #include <aio4c/thread.h>
 
-#include <errno.h>
-#include <fcntl.h>
-#include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
+#ifndef AIO4C_WIN32
 
-static void _WriterInit(Writer* writer) {
-    Log(AIO4C_LOG_LEVEL_INFO, "initialized with tid 0x%08lx", writer->thread->id);
+#include <errno.h>
+
+#endif /* AIO4C_WIN32 */
+
+#include <string.h>
+
+static aio4c_bool_t _WriterInit(Writer* writer) {
+    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", writer->thread->id);
+    return true;
 }
 
 static aio4c_bool_t _WriterRemove(QueueItem* item, Connection* discriminant) {
@@ -130,18 +134,26 @@ static void _WriterExit(Writer* writer) {
     FreeQueue(&writer->queue);
     FreeQueue(&writer->toUnregister);
 
-    Log(AIO4C_LOG_LEVEL_INFO, "exited");
-
-    aio4c_free(writer);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Writer* NewWriter(aio4c_size_t bufferSize) {
+Writer* NewWriter(int writerIndex, aio4c_size_t bufferSize) {
     Writer* writer = NULL;
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
     if ((writer = aio4c_malloc(sizeof(Writer))) == NULL) {
-        Log(AIO4C_LOG_LEVEL_ERROR, "cannot allocate writer: %s", strerror(errno));
+#ifndef AIO4C_WIN32
+        code.error = errno;
+#else /* AIO4C_WIN32 */
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+#endif /* AIO4C_WIN32 */
+        code.size = sizeof(Writer);
+        code.type = "Writer";
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
         return NULL;
     }
+
+    writer->name = BuildThreadName(sizeof(AIO4C_WRITER_NAME_SUFFIX), AIO4C_WRITER_NAME_SUFFIX, writerIndex);
 
     writer->selector = NewSelector();
     writer->queue = NewQueue();
@@ -149,26 +161,39 @@ Writer* NewWriter(aio4c_size_t bufferSize) {
     writer->bufferSize = bufferSize;
 
     writer->thread = NULL;
-    NewThread("writer",
-           aio4c_thread_handler(_WriterInit),
+    NewThread(writer->name,
+           aio4c_thread_init(_WriterInit),
            aio4c_thread_run(_WriterRun),
-           aio4c_thread_handler(_WriterExit),
+           aio4c_thread_exit(_WriterExit),
            aio4c_thread_arg(writer),
            &writer->thread);
+
+    if (writer->thread == NULL) {
+        FreeSelector(&writer->selector);
+        FreeQueue(&writer->queue);
+        FreeQueue(&writer->toUnregister);
+        if (writer->name != NULL) {
+            aio4c_free(writer->name);
+        }
+        aio4c_free(writer);
+        return NULL;
+    }
 
     return writer;
 }
 
 void WriterEnd(Writer* writer) {
-    Thread* th = writer->thread;
-
-    if (!EnqueueExitItem(writer->queue)) {
-        return;
+    if (writer->thread != NULL) {
+        EnqueueExitItem(writer->queue);
+        SelectorWakeUp(writer->selector);
+        ThreadJoin(writer->thread);
     }
 
-    SelectorWakeUp(writer->selector);
+    if (writer->name != NULL) {
+        aio4c_free(writer->name);
+    }
 
-    ThreadJoin(th);
+    aio4c_free(writer);
 }
 
 static void _WriterCloseHandler(Event event, Connection* source, Writer* writer) {

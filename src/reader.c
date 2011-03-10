@@ -21,25 +21,25 @@
 
 #include <aio4c/alloc.h>
 #include <aio4c/connection.h>
+#include <aio4c/error.h>
 #include <aio4c/log.h>
 #include <aio4c/stats.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
+#include <aio4c/worker.h>
+
+#ifndef AIO4C_WIN32
+
+#include <errno.h>
+
+#endif /* AIO4C_WIN32 */
 
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
-#ifndef AIO4C_WIN32
-#include <errno.h>
-#include <fcntl.h>
-#include <poll.h>
-#else
-#include <winsock2.h>
-#endif
-
-static void _ReaderInit(Reader* reader) {
-    Log(AIO4C_LOG_LEVEL_INFO, "initialized with tid 0x%08lx", reader->thread->id);
+static aio4c_bool_t _ReaderInit(Reader* reader) {
+    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", reader->thread->id);
+    return true;
 }
 
 static aio4c_bool_t _ReaderRun(Reader* reader) {
@@ -56,6 +56,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                 connection = (Connection*)item.content.data;
                 connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
                 Log(AIO4C_LOG_LEVEL_DEBUG, "managing connection %s", connection->string);
+                reader->load++;
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
@@ -64,6 +65,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                     connection->readKey = NULL;
                 }
                 Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                reader->load--;
                 if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_READER)) {
                     Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
@@ -99,30 +101,58 @@ static void _ReaderExit(Reader* reader) {
     FreeQueue(&reader->queue);
     FreeSelector(&reader->selector);
 
-    Log(AIO4C_LOG_LEVEL_INFO, "exited");
-
-    aio4c_free(reader);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Reader* NewReader(aio4c_size_t bufferSize) {
+Reader* NewReader(int readerIndex, aio4c_size_t bufferSize) {
     Reader* reader = NULL;
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
     if ((reader = aio4c_malloc(sizeof(Reader))) == NULL) {
-        Log(AIO4C_LOG_LEVEL_ERROR, "reader allocation: %s", strerror(errno));
+#ifndef AIO4C_WIN32
+        code.error = errno;
+#else /* AIO4C_WIN32 */
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+#endif /* AIO4C_WIN32 */
+        code.size = sizeof(Reader);
+        code.type = "Reader";
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
         return NULL;
     }
 
     reader->selector = NewSelector();
     reader->queue = NewQueue();
     reader->worker = NULL;
-    reader->worker = NewWorker(bufferSize);
+    reader->worker = NewWorker(readerIndex, bufferSize);
+    reader->load = 0;
+
+    if (reader->worker == NULL) {
+        FreeSelector(&reader->selector);
+        FreeQueue(&reader->queue);
+        aio4c_free(reader);
+        return NULL;
+    }
+
+    reader->name = BuildThreadName(sizeof(AIO4C_READER_NAME_SUFFIX), AIO4C_READER_NAME_SUFFIX, readerIndex);
+
     reader->thread = NULL;
-    NewThread("reader",
-           aio4c_thread_handler(_ReaderInit),
+    NewThread(reader->name,
+           aio4c_thread_init(_ReaderInit),
            aio4c_thread_run(_ReaderRun),
-           aio4c_thread_handler(_ReaderExit),
+           aio4c_thread_exit(_ReaderExit),
            aio4c_thread_arg(reader),
            &reader->thread);
+
+    if (reader->thread == NULL) {
+        WorkerEnd(reader->worker);
+        FreeSelector(&reader->selector);
+        FreeQueue(&reader->queue);
+        if (reader->name != NULL) {
+            aio4c_free(reader->name);
+        }
+        aio4c_free(reader);
+        return NULL;
+    }
 
     return reader;
 }
@@ -149,14 +179,16 @@ void ReaderManageConnection(Reader* reader, Connection* connection) {
 }
 
 void ReaderEnd(Reader* reader) {
-    Thread* th = reader->thread;
-
-    if (!EnqueueExitItem(reader->queue)) {
-        return;
+    if (reader->thread != NULL) {
+        EnqueueExitItem(reader->queue);
+        SelectorWakeUp(reader->selector);
+        ThreadJoin(reader->thread);
     }
 
-    SelectorWakeUp(reader->selector);
+    if (reader->name != NULL) {
+        aio4c_free(reader->name);
+    }
 
-    ThreadJoin(th);
+    aio4c_free(reader);
 }
 

@@ -114,7 +114,7 @@ extern AIO4C_DLLEXPORT void EnableWriteInterest(Connection* connection);
 
 extern Connection* ConnectionWrite(Connection* connection);
 
-extern Connection* ConnectionClose(Connection* connection);
+extern AIO4C_DLLEXPORT Connection* ConnectionClose(Connection* connection);
 
 extern aio4c_bool_t ConnectionNoMoreUsed(Connection* connection, ConnectionOwner owner);
 
