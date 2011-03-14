@@ -19,12 +19,17 @@
  **/
 package com.aio4c;
 
-public class Client {
-    private int  iPointer = 0;
-    private long lPointer = 0;
-    private native void initialize(ClientConfig config, ConnectionFactory factory);
-    public native void join();
-    public Client(ClientConfig config, ConnectionFactory factory) {
-        initialize(config, factory);
-    }
+public abstract class Connection {
+    private int  iPointer;
+    private long lPointer;
+    public void onInit() {};
+    public void onConnect() {};
+    public void onRead(Buffer data) {};
+    public void onWrite(Buffer data) {};
+    public void onClose() {};
+    public native void enableWriteInterest();
+    public native void close();
+    @Override
+    public native String toString();
+    public Connection() {};
 }

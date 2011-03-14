@@ -42,7 +42,7 @@ typedef struct s_Server {
     Queue*      queue;
 } Server;
 
-extern AIO4C_DLLEXPORT Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* (*dataFactory)(Connection*));
+extern AIO4C_DLLEXPORT Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* (*dataFactory)(Connection*));
 
 extern AIO4C_DLLEXPORT void ServerEnd(Server* server);
 

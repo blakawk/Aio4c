@@ -76,11 +76,9 @@ static void _serverExit(Server* server) {
     FreeQueue(&server->queue);
 }
 
-Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel level, char* log, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* (*dataFactory)(Connection*)) {
+Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* (*dataFactory)(Connection*)) {
     Server* server = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-
-    LogInit(level, log);
 
     if ((server = aio4c_malloc(sizeof(Server))) == NULL) {
 #ifndef AIO4C_WIN32
@@ -95,7 +93,7 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, LogLevel leve
     }
 
     server->address    = NewAddress(type, host, port);
-    server->pool       = NewBufferPool(2, bufferSize);
+    server->pool       = NewBufferPool(bufferSize);
     server->factory    = NewConnectionFactory(server->pool, dataFactory);
     server->acceptor   = NULL;
     server->thread     = NULL;

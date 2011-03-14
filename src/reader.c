@@ -99,7 +99,6 @@ static void _ReaderExit(Reader* reader) {
     WorkerEnd(reader->worker);
 
     FreeQueue(&reader->queue);
-    FreeSelector(&reader->selector);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
@@ -184,6 +183,8 @@ void ReaderEnd(Reader* reader) {
         SelectorWakeUp(reader->selector);
         ThreadJoin(reader->thread);
     }
+
+    FreeSelector(&reader->selector);
 
     if (reader->name != NULL) {
         aio4c_free(reader->name);

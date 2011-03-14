@@ -43,11 +43,6 @@ static aio4c_bool_t _WriterInit(Writer* writer) {
 
 static aio4c_bool_t _WriterRemove(QueueItem* item, Connection* discriminant) {
     switch (item->type) {
-        case AIO4C_QUEUE_ITEM_DATA:
-            if (item->content.data == discriminant) {
-                return true;
-            }
-            break;
         case AIO4C_QUEUE_ITEM_EVENT:
             if (item->content.event.source == discriminant) {
                 return true;
@@ -130,7 +125,6 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
 }
 
 static void _WriterExit(Writer* writer) {
-    FreeSelector(&writer->selector);
     FreeQueue(&writer->queue);
     FreeQueue(&writer->toUnregister);
 
@@ -188,6 +182,8 @@ void WriterEnd(Writer* writer) {
         SelectorWakeUp(writer->selector);
         ThreadJoin(writer->thread);
     }
+
+    FreeSelector(&writer->selector);
 
     if (writer->name != NULL) {
         aio4c_free(writer->name);

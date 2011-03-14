@@ -24,9 +24,9 @@
 #include <aio4c/buffer.h>
 #include <aio4c/error.h>
 #include <aio4c/event.h>
+#include <aio4c/lock.h>
 #include <aio4c/log.h>
 #include <aio4c/stats.h>
-#include <aio4c/thread.h>
 #include <aio4c/types.h>
 
 #include <stdio.h>
@@ -34,29 +34,19 @@
 #include <string.h>
 
 #ifndef AIO4C_WIN32
-
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <errno.h>
-
 #ifdef AIO4C_HAVE_POLL
-
 #include <poll.h>
-
 #else /* AIO4C_HAVE_POLL */
-
 #include <sys/select.h>
-
 #endif /* AIO4C_HAVE_POLL */
-
 #else /* AIO4C_WIN32 */
-
 #include <winsock2.h>
-
 #endif /* AIO4C_WIN32 */
-
 
 char* ConnectionStateString[AIO4C_CONNECTION_STATE_MAX] = {
     "NONE",

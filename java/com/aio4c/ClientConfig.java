@@ -19,12 +19,12 @@
  **/
 package com.aio4c;
 
-public class Client {
-    private int  iPointer = 0;
-    private long lPointer = 0;
-    private native void initialize(ClientConfig config, ConnectionFactory factory);
-    public native void join();
-    public Client(ClientConfig config, ConnectionFactory factory) {
-        initialize(config, factory);
-    }
+public class ClientConfig {
+    public int clientId      = 0;
+    public AddressType type  = AddressType.IPV4;
+    public String address    = "localhost";
+    public short port        = 8080;
+    public int retries       = 3;
+    public int retryInterval = 30;
+    public int bufferSize    = 8192;
 }

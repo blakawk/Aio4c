@@ -91,9 +91,13 @@ typedef enum e_ProbeSizeType {
     AIO4C_PROBE_MAX_SIZE_TYPE
 } ProbeSizeType;
 
+extern void StatsInit(void);
+
 extern AIO4C_DLLEXPORT void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop);
 
 extern AIO4C_DLLEXPORT void _ProbeSize(ProbeSizeType type, int size);
+
+extern void StatsEnd(void);
 
 #endif /* AIO4C_ENABLE_STATS */
 

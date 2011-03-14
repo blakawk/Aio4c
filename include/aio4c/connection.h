@@ -23,7 +23,8 @@
 #include <aio4c/address.h>
 #include <aio4c/buffer.h>
 #include <aio4c/event.h>
-#include <aio4c/thread.h>
+#include <aio4c/lock.h>
+#include <aio4c/selector.h>
 #include <aio4c/types.h>
 
 typedef enum e_ConnectionState {
@@ -64,9 +65,7 @@ typedef enum e_ConnectionOwner {
 
 #ifndef __AIO4C_CONNECTION_DEFINED__
 #define __AIO4C_CONNECTION_DEFINED__
-
 typedef struct s_Connection Connection;
-
 #endif /* __AIO4C_CONNECTION_DEFINED__ */
 
 struct s_Connection {

@@ -23,12 +23,14 @@
 #include <aio4c/types.h>
 
 typedef enum e_AddressType {
-    AIO4C_ADDRESS_IPV4,
-    AIO4C_ADDRESS_IPV6,
+    AIO4C_ADDRESS_IPV4 = 0,
+    AIO4C_ADDRESS_IPV6 = 1,
 #ifndef AIO4C_WIN32
-    AIO4C_ADDRESS_UNIX,
+    AIO4C_ADDRESS_UNIX = 2,
+    AIO4C_ADDRESS_MAX = 3
+#else /* AIO4C_WIN32 */
+    AIO4C_ADDRESS_MAX = 2
 #endif /* AIO4C_WIN32 */
-    AIO4C_ADDRESS_MAX
 } AddressType;
 
 typedef struct s_Address {

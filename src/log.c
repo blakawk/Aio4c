@@ -20,6 +20,8 @@
 #include <aio4c/log.h>
 
 #include <aio4c/alloc.h>
+#include <aio4c/lock.h>
+#include <aio4c/queue.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
@@ -101,6 +103,7 @@ void LogInit(LogLevel level, char* filename) {
         return;
     }
 
+    _logger.lock = NewLock();
     _logger.level = level;
     _logger.thread = NULL;
     _logger.exiting = false;
@@ -144,8 +147,10 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
 
     memset(&tv, 0, sizeof(struct timeval));
 
+    TakeLock(_logger.lock);
+
     gettimeofday(&tv, NULL);
-    tm = localtime((time_t*)&tv.tv_sec);
+    tm = localtime(&tv.tv_sec);
 
     switch(level) {
         case AIO4C_LOG_LEVEL_INFO:
@@ -170,6 +175,8 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
     prefixLen = snprintf(pMessage, AIO4C_MAX_LOG_MESSAGE_SIZE, "[%02d:%02d:%02d.%03d %02d/%02d/%02d] [%s] ",
             tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), tm->tm_mday,
             tm->tm_mon + 1, tm->tm_year % 100, levelString);
+
+    ReleaseLock(_logger.lock);
 
     if (from == NULL) {
         from = ThreadSelf();
@@ -218,7 +225,6 @@ void Log(LogLevel level, char* message, ...) {
     snprintf(&pMessage[messageLen + prefixLen], 2, "\n");
 
     if (logger != NULL && logger->queue != NULL) {
-
         if (!EnqueueDataItem(logger->queue, pMessage)) {
             _LogPrintMessage(logger, pMessage);
         }
@@ -235,6 +241,7 @@ void LogEnd(void) {
             ThreadJoin(logger->thread);
         }
     }
+    FreeLock(&_logger.lock);
 }
 
 void LogBuffer(LogLevel level, Buffer* buffer) {

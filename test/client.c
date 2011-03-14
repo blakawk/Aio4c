@@ -17,14 +17,7 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-#include <aio4c/buffer.h>
-#include <aio4c/client.h>
-#include <aio4c/connection.h>
-#include <aio4c/event.h>
-#include <aio4c/log.h>
-#include <aio4c/thread.h>
-#include <aio4c/types.h>
-#include <aio4c/stats.h>
+#include <aio4c.h>
 
 #include <errno.h>
 #include <stdlib.h>
@@ -33,19 +26,17 @@
 
 void onRead(Connection* source) {
     Buffer* buffer = source->dataBuffer;
-    struct timeval ping, pong;
+    struct timeval ping, pong, now;
     int mySeq = 0;
 
     if (memcmp(&buffer->data[buffer->position], "PONG ", 6) == 0) {
         buffer->position += 6;
-        memcpy(&ping, &buffer->data[buffer->position], sizeof(struct timeval));
-        buffer->position += sizeof(struct timeval);
-        memcpy(&pong, &buffer->data[buffer->position], sizeof(struct timeval));
-        buffer->position += sizeof(struct timeval);
-        memcpy(&mySeq, &buffer->data[buffer->position], sizeof(int));
-        buffer->position += sizeof(int);
+        BufferGet(buffer, &ping, sizeof(struct timeval));
+        BufferGet(buffer, &pong, sizeof(struct timeval));
+        BufferGetInt(buffer, &mySeq);
+        gettimeofday(&now, NULL);
         ProbeSize(AIO4C_PROBE_LATENCY_COUNT, 1);
-        ProbeTime(AIO4C_TIME_PROBE_LATENCY, &ping, &pong);
+        ProbeTime(AIO4C_TIME_PROBE_LATENCY, &ping, &now);
     } else {
         Log(AIO4C_LOG_LEVEL_DEBUG, "unexpected answer %.*s from server on connection %s", 6, &buffer->data[buffer->position], source->string);
     }
@@ -60,12 +51,9 @@ void onWrite(Connection* source, int* seq) {
     (*seq) ++;
 
     gettimeofday(&ping, NULL);
-    memcpy(&buffer->data[buffer->position], "PING ", 6);
-    buffer->position += 6;
-    memcpy(&buffer->data[buffer->position], &ping, sizeof(struct timeval));
-    buffer->position += sizeof(struct timeval);
-    memcpy(&buffer->data[buffer->position], seq, sizeof(int));
-    buffer->position += sizeof(int);
+    BufferPutString(buffer, "PING ");
+    BufferPut(buffer, &ping, sizeof(struct timeval));
+    BufferPutInt(buffer, seq);
 }
 
 void handler(Event event, Connection* source, int* seq) {
@@ -112,6 +100,8 @@ int main (int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    Aio4cInit(AIO4C_LOG_LEVEL_DEBUG, "client.log");
+
     printf("starting %ld clients...\n", nbClients);
 
     clients = malloc(nbClients * sizeof(Client*));
@@ -121,7 +111,7 @@ int main (int argc, char* argv[]) {
     memset(seq, 0, nbClients * sizeof(int));
 
     for (i = 0; i < nbClients; i++) {
-        clients[i] = NewClient(i, AIO4C_ADDRESS_IPV4, "localhost", 11111, AIO4C_LOG_LEVEL_DEBUG, "client.log", 3, 3, 8192, aio4c_client_handler(handler), aio4c_client_handler_arg(&seq[i]));
+        clients[i] = NewClient(i, AIO4C_ADDRESS_IPV4, "localhost", 11111, 3, 3, 8192, aio4c_client_handler(handler), aio4c_client_handler_arg(&seq[i]));
         if (clients[i] == NULL) {
             printf("only %d clients were started !\n", i);
             break;

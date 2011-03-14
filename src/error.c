@@ -19,20 +19,20 @@
  **/
 #include <aio4c/error.h>
 
+#include <aio4c/condition.h>
+#include <aio4c/connection.h>
+#include <aio4c/lock.h>
 #include <aio4c/log.h>
+#include <aio4c/selector.h>
+#include <aio4c/thread.h>
 
-#ifndef AIO4C_WIN32
-
-#include <string.h>
-
-#else /* AIO4C_WIN32 */
-
+#ifdef AIO4C_WIN32
 #include <winbase.h>
 #include <winsock2.h>
-
 #endif
 
 #include <stdio.h>
+#include <string.h>
 
 char* ErrorStrings[AIO4C_MAX_ERRORS] = {
     "success",           /* AIO4C_NO_ERROR */
@@ -68,7 +68,8 @@ char* ErrorStrings[AIO4C_MAX_ERRORS] = {
     "create",            /* AIO4C_THREAD_CREATE_ERROR */
     "cancel",            /* AIO4C_THREAD_CANCEL_ERROR */
     "join",              /* AIO4C_THREAD_JOIN_ERROR */
-    "allocate"           /* AIO4C_ALLOC_ERROR */
+    "allocate",          /* AIO4C_ALLOC_ERROR */
+    "retrieve field"     /* AIO4C_JNI_FIELD_ERROR */
 };
 
 void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, ErrorCode* code) {
@@ -208,6 +209,15 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
             break;
         case AIO4C_SOCKET_ERROR_TYPE:
             Log(level, "%s:%d: %s: [%08ld] %s", file, line, ErrorStrings[error], errorCode, errorMessage);
+            break;
+        case AIO4C_JNI_ERROR_TYPE:
+            switch (error) {
+                case AIO4C_JNI_FIELD_ERROR:
+                    Log(level, "%s:%d: %s %s with signature %s failed", file, line, ErrorStrings[error], code->field, code->signature);
+                    break;
+                default:
+                    break;
+            }
             break;
         default:
             break;

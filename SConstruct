@@ -60,6 +60,16 @@ AddOption('--target',
           metavar = 'TARGET',
           help = 'Compile for target TARGET')
 
+AddOption('--enable-profiling',
+          dest = 'PROFILING',
+          action = 'store_true',
+          help = 'Compile with profiling information')
+
+AddOption('--use-profiling-information',
+          dest = 'USE_PROFILING_INFO',
+          action = 'store_true',
+          help = 'Optimizes using profiling information')
+
 AddOption('--max-threads',
           dest = 'NUM_THREADS',
           metavar = 'NUM_THREADS',
@@ -69,30 +79,6 @@ AddOption('--max-threads',
 
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L',
                   ENV = {'PATH': os.environ['PATH']})
-
-ptr_size_src = """
-#include <stdio.h>
-
-int main(void) {
-    if (sizeof(void*) == sizeof(int)) {
-        printf("int");
-    } else if (sizeof(void*) == sizeof(long)) {
-        printf("long");
-    } else {
-        return 1;
-    }
-    return 0;
-}
-"""
-
-def CheckPointerSize(context):
-    context.Message('Checking size of void*... ')
-    result = context.TryRun(ptr_size_src, '.c')
-    if result[0]:
-        context.Result(result[1])
-    else:
-        context.Result(result[0])
-    return result
 
 have_poll_src = """
 #ifdef AIO4C_WIN32
@@ -123,7 +109,9 @@ have_pipe_src = """
 
 int main(void) {
     int fds[2];
-    pipe(fds);
+    if (pipe(fds) < 0) {
+        return 0;
+    }
     return 0;
 }
 """
@@ -170,20 +158,19 @@ def HaveCondition(context):
 
 def doConfigure(env):
     if not env.GetOption('clean'):
-        conf = Configure(env, custom_tests = {'CheckPointerSize': CheckPointerSize,
-                                              'HavePoll'        : HavePoll,
+        conf = Configure(env, custom_tests = {'HavePoll'        : HavePoll,
                                               'HavePipe'        : HavePipe,
                                               'HaveCondition'   : HaveCondition})
-        result = conf.CheckPointerSize()
-        if not result[0]:
+        result = conf.CheckTypeSize("void*")
+        if not result:
             if env.GetOption('TARGET'):
                 target = env.GetOption('TARGET')
                 if 'x86_64' in target:
-                    env.Append(CPPDEFINES = {'AIO4C_P_TYPE': 'long'})
+                    env.Append(CPPDEFINES = {'AIO4C_P_SIZE': '8'})
                 else:
-                    env.Append(CPPDEFINES = {'AIO4C_P_TYPE': 'int'})
+                    env.Append(CPPDEFINES = {'AIO4C_P_SIZE': '4'})
         else:
-            env.Append(CPPDEFINES = {'AIO4C_P_TYPE': result[1]})
+            env.Append(CPPDEFINES = {'AIO4C_P_SIZE': result})
         if env.GetOption('USE_POLL') and conf.HavePoll():
             env.Append(CPPDEFINES = {'AIO4C_HAVE_POLL': 1})
         if env.GetOption('USE_PIPE') and conf.HavePipe():
@@ -206,12 +193,26 @@ if not GetOption('clean'):
         env.Append(LIBPATH = [jni_lib_path])
         env.Append(CPPPATH = [jni_path])
 
-if GetOption('DEBUG'):
-    env.Append(CCFLAGS = '-g')
-    env.Append(LINKFLAGS = '-g')
+env.Append(CCFLAGS = '-g')
+env.Append(LINKFLAGS = '-g')
+
+if not GetOption('DEBUG'):
+    env.Append(CCFLAGS = '-march=native -mtune=native -O2')
+    env.Append(LINKFLAGS = '-march=native -mtune=native -O2')
 else:
-    env.Append(CCFLAGS = '-march=native -mtune=native -O3')
-    env.Append(LINKFLAGS = '-march=native -mtune=native -O3')
+    env.Append(CPPDEFINES = {'AIO4C_DEBUG': 1})
+
+if GetOption('PROFILING') and GetOption('USE_PROFILING_INFO'):
+    print "Options --use-profiling-information and --enable-profiling are mutually exclusives."
+    Exit(1)
+
+if GetOption('PROFILING'):
+    env.Append(CCFLAGS = '-fprofile-generate')
+    env.Append(LINKFLAGS = '-fprofile-generate')
+
+if GetOption('USE_PROFILING_INFO'):
+    env.Append(CCFLAGS = '-fprofile-use -fprofile-correction')
+    env.Append(LINKFLAGS = '-fprofile-use -fprofile-correction')
 
 if GetOption('DEBUG_THREADS'):
     env.Append(CPPDEFINES = {"AIO4C_DEBUG_THREADS": 1})
@@ -290,6 +291,11 @@ else:
     envuser = env.Clone()
 
 envj.Java('build/java', 'java')
+envj.Jar('build/aio4c.jar', 'build/java', JARCHDIR = 'build/java')
+
+envj.JavaH(target = File('include/aio4c/jni/aio4c.h'), source = 'build/java/com/aio4c/Aio4c.class', JAVACLASSDIR = 'build/java')
+envj.JavaH(target = File('include/aio4c/jni/buffer.h'), source = 'build/java/com/aio4c/Buffer.class', JAVACLASSDIR = 'build/java')
+envj.JavaH(target = File('include/aio4c/jni/connection.h'), source = 'build/java/com/aio4c/Connection.class', JAVACLASSDIR = 'build/java')
 envj.JavaH(target = File('include/aio4c/jni/client.h'), source = 'build/java/com/aio4c/Client.class', JAVACLASSDIR = 'build/java')
 
 libfiles = Glob('build/src/*.c')
@@ -298,5 +304,9 @@ if not GetOption('STATISTICS'):
     libfiles.remove(File('build/src/stats.c'))
 
 envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'), CPPPATH=env['CPPPATH'])
+
 envuser.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
 envuser.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/queue', 'build/test/queue.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
+
+envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')

@@ -17,14 +17,21 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-package com.aio4c;
+#ifndef __AIO4C_JNI_H__
+#define __AIO4C_JNI_H__
 
-public class Client {
-    private int  iPointer = 0;
-    private long lPointer = 0;
-    private native void initialize(ClientConfig config, ConnectionFactory factory);
-    public native void join();
-    public Client(ClientConfig config, ConnectionFactory factory) {
-        initialize(config, factory);
-    }
-}
+#include <aio4c/buffer.h>
+
+#include <jni.h>
+
+extern void GetPointer(JNIEnv* jvm, jobject object, void** pointer);
+
+extern void SetPointer(JNIEnv* jvm, jobject object, void* pointer);
+
+extern void GetField(JNIEnv* jvm, jobject object, char* name, char* signature, void* out);
+
+extern void SetField(JNIEnv* jvm, jobject object, char* name, char* signature, void* out);
+
+extern jobject New_com_aio4c_Buffer(JNIEnv* jvm, Buffer* buffer);
+
+#endif

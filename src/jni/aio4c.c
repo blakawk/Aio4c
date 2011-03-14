@@ -17,34 +17,27 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-#ifndef __AIO4C_WORKER_H__
-#define __AIO4C_WORKER_H__
+#include <aio4c/jni/aio4c.h>
 
-#include <aio4c/buffer.h>
-#include <aio4c/connection.h>
-#include <aio4c/thread.h>
-#include <aio4c/types.h>
-#include <aio4c/writer.h>
+#include <aio4c.h>
 
-#define AIO4C_WORKER_NAME_SUFFIX "-W%04d"
+JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_init(JNIEnv* jvm, jclass aio4c __attribute__((unused)), jobject level, jstring log) {
+    int _level = 0;
+    char* _log = NULL;
+    jclass cLogLevel;
+    jfieldID fLogLevel_value = NULL;
 
-typedef struct s_Task {
-    Connection* connection;
-    Buffer* buffer;
-} Task;
+    cLogLevel = (*jvm)->GetObjectClass(jvm, level);
+    fLogLevel_value = (*jvm)->GetFieldID(jvm, cLogLevel, "value", "I");
+    _level = (int)(*jvm)->GetIntField(jvm, level, fLogLevel_value);
 
-typedef struct s_Worker {
-    char*        name;
-    Thread*      thread;
-    Writer*      writer;
-    Queue*       queue;
-    BufferPool*  pool;
-} Worker;
+    _log = (char*)(*jvm)->GetStringUTFChars(jvm, log, NULL);
 
-extern Worker* NewWorker(int workerIndex, aio4c_size_t bufferSize);
+    Aio4cInit(_level, _log);
 
-extern void WorkerManageConnection(Worker* worker, Connection* connection);
+    (*jvm)->ReleaseStringUTFChars(jvm, log, _log);
+}
 
-extern void WorkerEnd(Worker* worker);
-
-#endif
+JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_end(JNIEnv* jvm __attribute__((unused)), jclass aio4c __attribute__((unused))) {
+    Aio4cEnd();
+}

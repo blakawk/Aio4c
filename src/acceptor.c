@@ -23,14 +23,16 @@
 #include <aio4c/alloc.h>
 #include <aio4c/connection.h>
 #include <aio4c/error.h>
+#include <aio4c/lock.h>
 #include <aio4c/log.h>
+#include <aio4c/queue.h>
 #include <aio4c/reader.h>
+#include <aio4c/selector.h>
 #include <aio4c/stats.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
 #ifndef AIO4C_WIN32
-
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -38,12 +40,9 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
-
 #else /* AIO4C_WIN32 */
-
 #include <winsock2.h>
 #include <ws2tcpip.h>
-
 #endif /* AIO4C_WIN32 */
 
 #include <limits.h>
@@ -278,8 +277,6 @@ static void _AcceptorExit(Acceptor* acceptor) {
         aio4c_free(acceptor->readers);
     }
 
-    FreeSelector(&acceptor->selector);
-
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
@@ -350,9 +347,13 @@ void AcceptorEnd(Acceptor* acceptor) {
         SelectorWakeUp(acceptor->selector);
         ThreadJoin(acceptor->thread);
     }
+
+    FreeSelector(&acceptor->selector);
+
     if (acceptor->name != NULL) {
         aio4c_free(acceptor->name);
     }
+
     aio4c_free(acceptor);
 }
 

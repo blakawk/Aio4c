@@ -19,12 +19,13 @@
  **/
 package com.aio4c;
 
-public class Client {
-    private int  iPointer = 0;
-    private long lPointer = 0;
-    private native void initialize(ClientConfig config, ConnectionFactory factory);
-    public native void join();
-    public Client(ClientConfig config, ConnectionFactory factory) {
-        initialize(config, factory);
+public enum AddressType {
+    IPV4(0),
+    IPV6(1);
+
+    public int value;
+
+    private AddressType(int value) {
+        this.value = value;
     }
 }

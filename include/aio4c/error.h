@@ -60,6 +60,7 @@ typedef enum e_Error {
     AIO4C_THREAD_CANCEL_ERROR,
     AIO4C_THREAD_JOIN_ERROR,
     AIO4C_ALLOC_ERROR,
+    AIO4C_JNI_FIELD_ERROR,
     AIO4C_MAX_ERRORS
 } Error;
 
@@ -74,6 +75,7 @@ typedef enum e_ErrorType {
     AIO4C_THREAD_CONDITION_ERROR_TYPE,
     AIO4C_THREAD_SELECTOR_ERROR_TYPE,
     AIO4C_ALLOC_ERROR_TYPE,
+    AIO4C_JNI_ERROR_TYPE,
     AIO4C_MAX_ERROR_TYPES
 } ErrorType;
 
@@ -115,37 +117,43 @@ typedef struct s_ErrorCode {
     ConnectionState expected;
     int             size;
     char*           type;
+    char*           field;
+    char*           signature;
 } ErrorCode;
 
 #ifndef AIO4C_WIN32
 
-#define AIO4C_ERROR_CODE_INITIALIZER {        \
-    .error      = 0,                          \
-    .buffer     = NULL,                       \
-    .thread     = NULL,                       \
-    .condition  = NULL,                       \
-    .lock       = NULL,                       \
-    .selector   = NULL,                       \
-    .connection = NULL,                       \
-    .size       = 0,                          \
-    .type       = NULL,                       \
-    .expected   = AIO4C_CONNECTION_STATE_NONE \
+#define AIO4C_ERROR_CODE_INITIALIZER {         \
+    .error      = 0,                           \
+    .buffer     = NULL,                        \
+    .thread     = NULL,                        \
+    .condition  = NULL,                        \
+    .lock       = NULL,                        \
+    .selector   = NULL,                        \
+    .connection = NULL,                        \
+    .size       = 0,                           \
+    .type       = NULL,                        \
+    .expected   = AIO4C_CONNECTION_STATE_NONE, \
+    .field      = NULL,                        \
+    .signature  = NULL                         \
 }
 
 #else /* AIO4C_WIN32 */
 
-#define AIO4C_ERROR_CODE_INITIALIZER {        \
-    .source     = AIO4C_ERRNO_SOURCE_NONE,    \
-    .soError    = 0,                          \
-    .buffer     = NULL,                       \
-    .thread     = NULL,                       \
-    .condition  = NULL,                       \
-    .lock       = NULL,                       \
-    .selector   = NULL,                       \
-    .connection = NULL,                       \
-    .size       = 0,                          \
-    .type       = NULL,                       \
-    .expected   = AIO4C_CONNECTION_STATE_NONE \
+#define AIO4C_ERROR_CODE_INITIALIZER {         \
+    .source     = AIO4C_ERRNO_SOURCE_NONE,     \
+    .soError    = 0,                           \
+    .buffer     = NULL,                        \
+    .thread     = NULL,                        \
+    .condition  = NULL,                        \
+    .lock       = NULL,                        \
+    .selector   = NULL,                        \
+    .connection = NULL,                        \
+    .size       = 0,                           \
+    .type       = NULL,                        \
+    .expected   = AIO4C_CONNECTION_STATE_NONE, \
+    .field      = NULL,                        \
+    .signature  = NULL                         \
 }
 
 #endif /* AIO4C_WIN32 */

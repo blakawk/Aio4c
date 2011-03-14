@@ -66,7 +66,7 @@ static void _connection(Client* client) {
 static aio4c_bool_t _clientInit(Client* client) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "started with tid 0x%08lx", client->thread->id);
 
-    client->pool = NewBufferPool(2, client->bufferSize);
+    client->pool = NewBufferPool(client->bufferSize);
     client->reader = NewReader(0, client->bufferSize);
     if (client->reader == NULL) {
         return false;
@@ -146,11 +146,9 @@ static void _clientExit(Client* client) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t port, LogLevel level, char* log, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg) {
+Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg) {
     Client* client = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-
-    LogInit(level, log);
 
     if ((client = aio4c_malloc(sizeof(Client))) == NULL) {
 #ifndef AIO4C_WIN32

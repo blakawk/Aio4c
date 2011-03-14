@@ -17,14 +17,19 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-package com.aio4c;
+#ifndef __AIO4C_H__
+#define __AIO4C_H__
 
-public class Client {
-    private int  iPointer = 0;
-    private long lPointer = 0;
-    private native void initialize(ClientConfig config, ConnectionFactory factory);
-    public native void join();
-    public Client(ClientConfig config, ConnectionFactory factory) {
-        initialize(config, factory);
-    }
-}
+#include <aio4c/alloc.h>
+#include <aio4c/buffer.h>
+#include <aio4c/client.h>
+#include <aio4c/connection.h>
+#include <aio4c/log.h>
+#include <aio4c/server.h>
+#include <aio4c/stats.h>
+
+extern AIO4C_DLLEXPORT void Aio4cInit(LogLevel level, char* filename);
+
+extern AIO4C_DLLEXPORT void Aio4cEnd(void);
+
+#endif

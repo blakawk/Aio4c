@@ -19,12 +19,6 @@
  **/
 package com.aio4c;
 
-public class Client {
-    private int  iPointer = 0;
-    private long lPointer = 0;
-    private native void initialize(ClientConfig config, ConnectionFactory factory);
-    public native void join();
-    public Client(ClientConfig config, ConnectionFactory factory) {
-        initialize(config, factory);
-    }
+public interface ConnectionFactory {
+    public Connection create();
 }

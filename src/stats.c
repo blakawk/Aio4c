@@ -92,12 +92,12 @@ static aio4c_bool_t _statsRun(void* dummy) {
 
 static void _statsExit(void* dummy) {
     dummy = NULL;
-    fclose(_statsFile);
+    if (_statsFile != NULL) {
+        fclose(_statsFile);
+    }
 }
 
-static void _InitProbes(void) __attribute__((constructor));
-
-static void _InitProbes(void) {
+void StatsInit(void) {
     memset(_timeProbes, 0, AIO4C_TIME_MAX_PROBE_TYPE * sizeof(double));
     memset(_sizeProbes, 0, AIO4C_PROBE_MAX_SIZE_TYPE * sizeof(double));
 
@@ -350,10 +350,11 @@ void _WriteStats(void) {
             floatWithComma(idle / 1000.0), floatWithComma(latencyCount>0?(latency / 1000.0 / latencyCount):0.0));
 }
 
-static void _StatsEnd(void) __attribute__((destructor));
-
-static void _StatsEnd(void) {
-    _statsExit(NULL);
+void StatsEnd(void) {
+    if (_statsThread != NULL) {
+        _statsThread->running = false;
+        ThreadJoin(_statsThread);
+    }
     _PrintStats();
 }
 

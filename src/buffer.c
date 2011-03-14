@@ -20,13 +20,14 @@
 #include <aio4c/buffer.h>
 
 #include <aio4c/alloc.h>
+#include <aio4c/error.h>
 #include <aio4c/log.h>
+#include <aio4c/queue.h>
 #include <aio4c/stats.h>
 #include <aio4c/types.h>
-#include <aio4c/thread.h>
 
-#include <stdlib.h>
 #include <string.h>
+#include <wchar.h>
 
 static Buffer* _NewBuffer(int size) {
     Buffer* buffer = NULL;
@@ -61,84 +62,63 @@ static void _FreeBuffer(Buffer** buffer) {
     }
 }
 
-BufferPool* NewBufferPool(int batch, int bufferSize) {
+BufferPool* NewBufferPool(aio4c_size_t bufferSize) {
     BufferPool* pool = NULL;
+    Buffer* buffer = NULL;
     int i = 0;
 
     if ((pool = aio4c_malloc(sizeof(BufferPool))) == NULL) {
         return NULL;
     }
 
-    if ((pool->lock = NewLock()) == NULL) {
-        aio4c_free(pool);
-        return NULL;
-    }
+    pool->buffers = NewQueue();
 
-    if ((pool->buffers = aio4c_malloc(batch * sizeof(Buffer*))) == NULL) {
-        aio4c_free(pool);
-        return NULL;
-    }
+    for (i = 0; i < AIO4C_BUFFER_POOL_BATCH_SIZE; i++) {
+        buffer = _NewBuffer(bufferSize);
 
-    for (i = 0; i < batch; i++) {
-        if ((pool->buffers[i] = _NewBuffer(bufferSize)) == NULL) {
+        if (buffer == NULL) {
             break;
         }
-        pool->buffers[i]->poolIndex = i;
-        pool->buffers[i]->pool = pool;
+
+        buffer->pool = pool;
+
+        EnqueueDataItem(pool->buffers, buffer);
     }
 
-    if (i < batch) {
-        for (; i >= 0; i--) {
-            _FreeBuffer(&pool->buffers[i]);
-        }
-        free(pool->buffers);
-        free(pool);
-        return NULL;
-    }
-
-    pool->size = batch;
-    pool->used = 0;
-    pool->batch = batch;
+    pool->batch = AIO4C_BUFFER_POOL_BATCH_SIZE;
     pool->bufferSize = bufferSize;
 
     return pool;
 }
 
 Buffer* AllocateBuffer(BufferPool* pool) {
-    Buffer** buffers = NULL;
     Buffer* buffer = NULL;
+    QueueItem item;
     int i = 0;
 
     ProbeTimeStart(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
 
-    TakeLock(pool->lock);
-
-    if (pool->used == pool->size) {
-        if ((buffers = aio4c_realloc(pool->buffers, (pool->size + pool->batch) * sizeof(Buffer*))) == NULL) {
-            return NULL;
-        }
-
-        pool->buffers = buffers;
-
+    if (!Dequeue(pool->buffers, &item, false)) {
         for (i = 0; i < pool->batch; i++) {
-            if ((pool->buffers[pool->size + i] = _NewBuffer(pool->bufferSize)) == NULL) {
+            buffer = _NewBuffer(pool->bufferSize);
+
+            if (buffer == NULL) {
                 break;
             }
-            pool->buffers[pool->size + i]->pool = pool;
-            pool->buffers[pool->size + i]->poolIndex = pool->size + i;
+
+            buffer->pool = pool;
+
+            EnqueueDataItem(pool->buffers, buffer);
         }
 
-        pool->size += i;
+        if (!Dequeue(pool->buffers, &item, false)) {
+            return NULL;
+        }
     }
 
-    BufferReset(pool->buffers[pool->used]);
-    buffer = pool->buffers[pool->used];
-    buffer->poolIndex = pool->used;
-    pool->used++;
+    buffer = (Buffer*)item.content.data;
 
     ProbeSize(AIO4C_PROBE_BUFFER_ALLOCATED_SIZE, buffer->size);
-
-    ReleaseLock(pool->lock);
 
     ProbeTimeEnd(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
 
@@ -148,7 +128,6 @@ Buffer* AllocateBuffer(BufferPool* pool) {
 void ReleaseBuffer(Buffer** pBuffer) {
     Buffer* buffer = NULL;
     BufferPool* pool = NULL;
-    int i = 0;
 
     ProbeTimeStart(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
 
@@ -158,20 +137,11 @@ void ReleaseBuffer(Buffer** pBuffer) {
             return;
         }
 
-        TakeLock(pool->lock);
+        BufferReset(buffer);
 
-        for (i = buffer->poolIndex; i < pool->used - 1; i++) {
-            pool->buffers[i] = pool->buffers[i + 1];
-            pool->buffers[i]->poolIndex = i;
-        }
-
-        pool->buffers[i] = buffer;
-        pool->buffers[i]->poolIndex = i;
-        pool->used--;
+        EnqueueDataItem(pool->buffers, buffer);
 
         ProbeSize(AIO4C_PROBE_BUFFER_ALLOCATED_SIZE, -buffer->size);
-
-        ReleaseLock(pool->lock);
 
         *pBuffer = NULL;
     }
@@ -181,28 +151,14 @@ void ReleaseBuffer(Buffer** pBuffer) {
 
 void FreeBufferPool(BufferPool** pPool) {
     BufferPool* pool = NULL;
-    int i = 0;
+    QueueItem item;
 
     if (pPool != NULL && (pool = *pPool) != NULL) {
-        if (pool->lock != NULL) {
-            TakeLock(pool->lock);
+        while (Dequeue(pool->buffers, &item, false)) {
+            _FreeBuffer((Buffer**)&item.content.data);
         }
 
-        for (i = 0; i < pool->size; i++) {
-            if (pool->buffers[i] != NULL) {
-                _FreeBuffer(&pool->buffers[i]);
-            }
-        }
-
-        pool->used = 0;
-        pool->size = 0;
-
-        aio4c_free(pool->buffers);
-
-        if (pool->lock != NULL) {
-            ReleaseLock(pool->lock);
-            FreeLock(&pool->lock);
-        }
+        FreeQueue(&pool->buffers);
 
         aio4c_free(pool);
 
@@ -257,5 +213,73 @@ Buffer* BufferCopy(Buffer* dst, Buffer* src) {
 
 aio4c_bool_t BufferHasRemaining(Buffer* buffer) {
     return (buffer->position < buffer->limit);
+}
+
+aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size) {
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+
+    if (buffer->position + size > buffer->limit) {
+        code.buffer = buffer;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_BUFFER_ERROR_TYPE, AIO4C_BUFFER_UNDERFLOW_ERROR, &code);
+        return false;
+    }
+
+    memcpy(out, &buffer->data[buffer->position], size);
+
+    buffer->position += size;
+
+    return true;
+}
+
+aio4c_bool_t BufferGetString(Buffer* buffer, char** out) {
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    int len = strlen((char*)&buffer->data[buffer->position]) + 1;
+
+    if (len > buffer->limit) {
+        code.buffer = buffer;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_BUFFER_ERROR_TYPE, AIO4C_BUFFER_UNDERFLOW_ERROR, &code);
+        *out = NULL;
+        return false;
+    }
+
+    *out = (char*)&buffer->data[buffer->position];
+
+    buffer->position += len;
+
+    return true;
+}
+
+aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t** out) {
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    int len = (wcslen((wchar_t*)&buffer->data[buffer->position]) + 1) * sizeof(wchar_t);
+
+    if (len > buffer->limit) {
+        code.buffer = buffer;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_BUFFER_ERROR_TYPE, AIO4C_BUFFER_UNDERFLOW_ERROR, &code);
+        *out = NULL;
+        return false;
+    }
+
+    *out = (wchar_t*)&buffer->data[buffer->position];
+
+    buffer->position += len;
+
+    return true;
+}
+
+aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size) {
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+
+    if (buffer->position + size > buffer->limit) {
+        code.buffer = buffer;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_BUFFER_ERROR_TYPE, AIO4C_BUFFER_OVERFLOW_ERROR, &code);
+        return false;
+    }
+
+    memcpy(&buffer->data[buffer->position], in, size);
+
+    buffer->position += size;
+
+    return true;
 }
 

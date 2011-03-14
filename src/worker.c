@@ -42,12 +42,9 @@ static aio4c_bool_t _WorkerInit(Worker* worker) {
 }
 
 static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
-    Task* task = NULL;
-    if (item->type == AIO4C_QUEUE_ITEM_DATA) {
-        task = (Task*)item->content.data;
-        if (task->connection == discriminant) {
-            ReleaseBuffer(&task->buffer);
-            aio4c_free(task);
+    if (item->type == AIO4C_QUEUE_ITEM_TASK) {
+        if (item->content.task.connection == discriminant) {
+            ReleaseBuffer(&item->content.task.buffer);
             return true;
         }
     }
@@ -64,13 +61,15 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
             case AIO4C_QUEUE_ITEM_EXIT:
                 return false;
             case AIO4C_QUEUE_ITEM_TASK:
-                ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
-                item.content.task.connection->dataBuffer = item.content.task.buffer;
-                ConnectionEventHandle(item.content.task.connection, item.content.task.event, item.content.task.connection);
-                item.content.task.connection->dataBuffer = NULL;
-                ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,item.content.task.buffer->position);
-                ReleaseBuffer(&item.content.task.buffer);
-                ProbeTimeEnd(AIO4C_TIME_PROBE_DATA_PROCESS);
+                if (item.content.task.connection->state != AIO4C_CONNECTION_STATE_CLOSED) {
+                    ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
+                    item.content.task.connection->dataBuffer = item.content.task.buffer;
+                    ConnectionEventHandle(item.content.task.connection, item.content.task.event, item.content.task.connection);
+                    item.content.task.connection->dataBuffer = NULL;
+                    ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,item.content.task.buffer->position);
+                    ReleaseBuffer(&item.content.task.buffer);
+                    ProbeTimeEnd(AIO4C_TIME_PROBE_DATA_PROCESS);
+                }
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
@@ -90,9 +89,10 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
 
 static void _WorkerExit(Worker* worker) {
     FreeQueue(&worker->queue);
-    FreeBufferPool(&worker->pool);
 
     WriterEnd(worker->writer);
+
+    FreeBufferPool(&worker->pool);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
@@ -114,9 +114,9 @@ Worker* NewWorker(int workerIndex, aio4c_size_t bufferSize) {
     }
 
     worker->queue = NewQueue();
-    worker->bufferSize = bufferSize;
+    worker->pool  = NewBufferPool(bufferSize);
 
-    worker->writer = NewWriter(workerIndex, worker->bufferSize);
+    worker->writer = NewWriter(workerIndex, bufferSize);
     if (worker->writer == NULL) {
         FreeQueue(&worker->queue);
         aio4c_free(worker);
@@ -141,8 +141,6 @@ Worker* NewWorker(int workerIndex, aio4c_size_t bufferSize) {
         aio4c_free(worker);
         return NULL;
     }
-
-    worker->pool = NewBufferPool(4, bufferSize);
 
     return worker;
 }

@@ -47,14 +47,15 @@ typedef struct s_Logger {
     Queue*            queue;
     Thread*           thread;
     aio4c_bool_t      exiting;
+    Lock*             lock;
 } Logger;
 
 extern void LogInit(LogLevel level, char* filename);
 
 extern AIO4C_DLLEXPORT void Log(LogLevel level, char* message, ...) __attribute__((format(printf, 2, 3)));
 
-extern void LogBuffer(LogLevel level, Buffer* buffer);
+extern AIO4C_DLLEXPORT void LogBuffer(LogLevel level, Buffer* buffer);
 
-extern AIO4C_DLLEXPORT void LogEnd(void);
+extern void LogEnd(void);
 
 #endif

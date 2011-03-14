@@ -19,12 +19,16 @@
  **/
 package com.aio4c;
 
-public class Client {
-    private int  iPointer = 0;
-    private long lPointer = 0;
-    private native void initialize(ClientConfig config, ConnectionFactory factory);
-    public native void join();
-    public Client(ClientConfig config, ConnectionFactory factory) {
-        initialize(config, factory);
+public enum LogLevel {
+    FATAL(0),
+    ERROR(1),
+    WARN(2),
+    INFO(3),
+    DEBUG(4);
+
+    public int value;
+
+    private LogLevel(int value) {
+        this.value = value;
     }
 }

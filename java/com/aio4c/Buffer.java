@@ -19,12 +19,23 @@
  **/
 package com.aio4c;
 
-public class Client {
-    private int  iPointer = 0;
-    private long lPointer = 0;
-    private native void initialize(ClientConfig config, ConnectionFactory factory);
-    public native void join();
-    public Client(ClientConfig config, ConnectionFactory factory) {
-        initialize(config, factory);
-    }
+public class Buffer {
+    public native byte[] array();
+    public native byte get();
+    public native short getShort();
+    public native int getInt();
+    public native long getLong();
+    public native float getFloat();
+    public native double getDouble();
+    public native String getString();
+    public native void put(byte b);
+    public native void putShort(short s);
+    public native void putInt(int i);
+    public native void putLong(long l);
+    public native void putFloat(float f);
+    public native void putDouble(double d);
+    public native void putString(String s);
+    private int  iPointer;
+    private long lPointer;
+    private Buffer() {};
 }

@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void* aio4c_malloc(aio4c_size_t size) {
+void* aio4c_malloc(volatile aio4c_size_t size) {
     void* ptr = NULL;
     aio4c_size_t* sPtr = NULL;
 
@@ -56,8 +56,9 @@ void* aio4c_malloc(aio4c_size_t size) {
     return (void*)(&sPtr[1]);
 }
 
-void* aio4c_realloc(void* ptr, aio4c_size_t size) {
+void* aio4c_realloc(volatile void* ptr, volatile aio4c_size_t size) {
     void* _ptr = NULL;
+    void* __ptr = NULL;
     aio4c_size_t* sPtr = NULL;
     aio4c_size_t prevSize = 0;
     unsigned char* cPtr = NULL;
@@ -71,9 +72,9 @@ void* aio4c_realloc(void* ptr, aio4c_size_t size) {
     sPtr = (aio4c_size_t*)ptr;
 
     prevSize = sPtr[-1];
-    ptr = &sPtr[-1];
+    __ptr = &sPtr[-1];
 
-    if ((_ptr = realloc(ptr, size + sizeof(size))) == NULL) {
+    if ((_ptr = realloc(__ptr, size + sizeof(size))) == NULL) {
         return NULL;
     }
 
@@ -93,17 +94,18 @@ void* aio4c_realloc(void* ptr, aio4c_size_t size) {
     return (void*)(cPtr);
 }
 
-void aio4c_free(void* ptr) {
+void aio4c_free(volatile void* ptr) {
     aio4c_size_t* sPtr = NULL;
     aio4c_size_t size = 0;
+    void* _ptr = NULL;
 
     ProbeTimeStart(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
     sPtr = (aio4c_size_t*)ptr;
     size = sPtr[-1];
-    ptr = &sPtr[-1];
+    _ptr = &sPtr[-1];
 
-    free(ptr);
+    free(_ptr);
 
     ProbeSize(AIO4C_PROBE_MEMORY_ALLOCATED_SIZE, -size);
     ProbeSize(AIO4C_PROBE_MEMORY_FREE_COUNT, 1);

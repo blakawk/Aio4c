@@ -20,21 +20,23 @@
 #ifndef __AIO4C_BUFFER_H__
 #define __AIO4C_BUFFER_H__
 
-#include <aio4c/thread.h>
+#include <aio4c/queue.h>
 #include <aio4c/types.h>
+
+#include <string.h>
+#include <wchar.h>
+
+#define AIO4C_BUFFER_POOL_BATCH_SIZE 16
 
 typedef struct s_BufferPool BufferPool;
 
 #ifndef __AIO4C_BUFFER_DEFINED__
 #define __AIO4C_BUFFER_DEFINED__
-
 typedef struct s_Buffer Buffer;
-
 #endif /* __AIO4C_BUFFER_DEFINED__ */
 
 struct s_Buffer {
     BufferPool*   pool;
-    int           poolIndex;
     int           size;
     aio4c_byte_t* data;
     int           position;
@@ -42,15 +44,12 @@ struct s_Buffer {
 };
 
 struct s_BufferPool {
-    Buffer** buffers;
-    int      size;
-    int      used;
+    Queue*   buffers;
     int      batch;
     int      bufferSize;
-    Lock*    lock;
 };
 
-extern BufferPool* NewBufferPool(int batch, int bufferSize);
+extern BufferPool* NewBufferPool(aio4c_size_t bufferSize);
 
 extern Buffer* AllocateBuffer(BufferPool* pool);
 
@@ -69,5 +68,55 @@ extern Buffer* BufferReset(Buffer* buffer);
 extern Buffer* BufferCopy(Buffer* dst, Buffer* src);
 
 extern aio4c_bool_t BufferHasRemaining(Buffer* buffer);
+
+#define BufferGetByte(buffer,out) \
+    BufferGet(buffer, out, sizeof(aio4c_byte_t))
+
+#define BufferGetShort(buffer,out) \
+    BufferGet(buffer, out, sizeof(short))
+
+#define BufferGetInt(buffer,out) \
+    BufferGet(buffer, out, sizeof(int))
+
+#define BufferGetLong(buffer,out) \
+    BufferGet(buffer, out, sizeof(long))
+
+#define BufferGetFloat(buffer,out) \
+    BufferGet(buffer, out, sizeof(float))
+
+#define BufferGetDouble(buffer,out) \
+    BufferGet(buffer, out, sizeof(double))
+
+extern AIO4C_DLLEXPORT aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size);
+
+extern AIO4C_DLLEXPORT aio4c_bool_t BufferGetString(Buffer* buffer, char** out);
+
+extern AIO4C_DLLEXPORT aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t** out);
+
+#define BufferPutByte(buffer, in) \
+    BufferPut(buffer, in, sizeof(aio4c_byte_t))
+
+#define BufferPutShort(buffer,in) \
+    BufferPut(buffer, in, sizeof(short))
+
+#define BufferPutInt(buffer,in) \
+    BufferPut(buffer, in, sizeof(int))
+
+#define BufferPutLong(buffer,in) \
+    BufferPut(buffer, in, sizeof(long))
+
+#define BufferPutFloat(buffer,in) \
+    BufferPut(buffer, in, sizeof(float))
+
+#define BufferPutDouble(buffer,in) \
+    BufferPut(buffer, in, sizeof(double))
+
+#define BufferPutString(buffer,in) \
+    BufferPut(buffer, in, (strlen(in) + 1) * sizeof(char))
+
+#define BufferPutStringUTF(buffer,in) \
+    BufferPut(buffer, in, (wcslen(in) + 1) * sizeof(wchar_t))
+
+extern AIO4C_DLLEXPORT aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size);
 
 #endif
