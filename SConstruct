@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright © 2011 blakawk <blakawk@gentooist.com>
 # All rights reserved.  Released under GPLv3 License.
 #
