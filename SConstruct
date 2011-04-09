@@ -291,6 +291,8 @@ else:
     envlib = env.Clone()
     envuser = env.Clone()
 
+envj.Append(JAVACFLAGS = '-encoding UTF-8')
+
 envj.Java('build/java', 'java')
 envj.Jar('build/aio4c.jar', 'build/java', JARCHDIR = 'build/java')
 
