@@ -158,7 +158,7 @@ def HaveCondition(context):
     return result
 
 def doConfigure(env):
-    if not env.GetOption('clean'):
+    if not env.GetOption('clean') and not env.GetOption('help'):
         conf = Configure(env, custom_tests = {'HavePoll'        : HavePoll,
                                               'HavePipe'        : HavePipe,
                                               'HaveCondition'   : HaveCondition})
@@ -184,7 +184,7 @@ def doConfigure(env):
 if 'TMP' in os.environ:
     env.Append(ENV = {'TMP': os.environ['TMP']})
 
-if not GetOption('clean'):
+if not GetOption('clean') and not GetOption('help'):
     if 'JAVA_HOME' not in os.environ:
         print 'Please set JAVA_HOME to the root of your Java SDK'
         Exit(1)
@@ -242,11 +242,11 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
 
     w32env = env.Clone()
 
-    if not GetOption('clean') and not os.path.exists("%s/win32" % jni_path):
+    if not GetOption('clean') and not GetOption('help') and not os.path.exists("%s/win32" % jni_path):
         print "JAVA_HOME = %s does not seems to be a win32 SDK" % os.environ['JAVA_HOME']
         Exit(1)
 
-    if not GetOption('clean'):
+    if not GetOption('clean') and not GetOption('help'):
         w32env.Append(CPPPATH = ["%s/win32" % jni_path])
 
     if sys.platform != 'win32':
@@ -257,7 +257,7 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
         w32env['OBJSUFFIX'] = '.obj'
         if '-fPIC' in w32env['SHCCFLAGS']:
             w32env['SHCCFLAGS'].remove('-fPIC')
-    elif not GetOption('clean'):
+    elif not GetOption('clean') and not GetOption('clean'):
         env.Append(ENV = {'PATH': "%s/bin:%s" % (os.path.normpath(os.environ['JAVA_HOME']), os.environ['PATH'])})
 
     if int(winver, 16) < 0x0600:
@@ -275,11 +275,11 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
     envlib.Append(CPPDEFINES = {"AIO4C_DLLEXPORT": "'__declspec(dllexport)'"})
     envuser.Append(CPPDEFINES = {"AIO4C_DLLIMPORT": "'__declspec(dllimport)'"})
 else:
-    if not GetOption('clean') and not os.path.exists("%s/linux" % jni_path):
+    if not GetOption('clean') and not GetOption('help') and not os.path.exists("%s/linux" % jni_path):
         print "JAVA_HOME = %s does not seems to be a linux SDK" % os.environ['JAVA_HOME']
         Exit(1)
 
-    if not GetOption('clean'):
+    if not GetOption('clean') and not GetOption('help'):
         env.Append(CPPPATH = ["%s/linux" % jni_path])
         env.Append(ENV = {'PATH': "%s/bin:%s" % (os.path.normpath(os.environ['JAVA_HOME']), os.environ['PATH'])})
 
