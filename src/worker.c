@@ -203,6 +203,7 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
 void WorkerManageConnection(Worker* worker, Connection* connection) {
     ConnectionAddSystemHandler(connection, AIO4C_READ_EVENT, aio4c_connection_handler(_WorkerReadHandler), aio4c_connection_handler_arg(worker), false);
     ConnectionAddSystemHandler(connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_WorkerCloseHandler), aio4c_connection_handler_arg(worker), true);
+    ConnectionManagedBy(connection, AIO4C_CONNECTION_OWNER_WORKER);
     WriterManageConnection(worker->writer, connection);
 }
 

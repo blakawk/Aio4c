@@ -67,6 +67,8 @@ struct s_Connection {
     char*                string;
     aio4c_bool_t         closedBy[AIO4C_CONNECTION_OWNER_MAX];
     Lock*                closedByLock;
+    aio4c_bool_t         managedBy[AIO4C_CONNECTION_OWNER_MAX];
+    Lock*                managedByLock;
     SelectionKey*        readKey;
     SelectionKey*        writeKey;
     BufferPool*          pool;
@@ -110,6 +112,8 @@ extern aio4c_bool_t ConnectionWrite(Connection* connection);
 extern AIO4C_DLLEXPORT Connection* ConnectionClose(Connection* connection, aio4c_bool_t force);
 
 extern aio4c_bool_t ConnectionNoMoreUsed(Connection* connection, ConnectionOwner owner);
+
+extern void ConnectionManagedBy(Connection* connection, ConnectionOwner owner);
 
 extern Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
 

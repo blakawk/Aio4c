@@ -223,8 +223,6 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
 
                 ReaderManageConnection(_ChooseReader(acceptor), connection);
 
-                ConnectionState(connection, AIO4C_CONNECTION_STATE_CONNECTED);
-
                 ProbeSize(AIO4C_PROBE_CONNECTION_COUNT, 1);
             }
         }

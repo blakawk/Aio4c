@@ -39,16 +39,11 @@
 #include <string.h>
 
 static void _clientEventHandler(Event event, Connection* source, Client* client) {
-    if (event == AIO4C_CONNECTED_EVENT) {
-        ReaderManageConnection(client->reader, source);
-        client->connected = true;
-        client->retryCount = 0;
-    }
-
     EnqueueEventItem(client->queue, event, source);
 }
 
 static void _connection(Client* client) {
+    client->connected = false;
     client->connection = NewConnection(client->pool, client->address, false);
     ProbeSize(AIO4C_PROBE_CONNECTION_COUNT, 1);
     ConnectionAddSystemHandler(client->connection, AIO4C_INIT_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
@@ -106,9 +101,14 @@ static aio4c_bool_t _clientRun(Client* client) {
                     case AIO4C_CONNECTING_EVENT:
                         Log(AIO4C_LOG_LEVEL_DEBUG, "finishing connection to %s", client->address->string);
                         ConnectionFinishConnect(connection);
+                        if (connection->state != AIO4C_CONNECTION_STATE_CLOSED) {
+                            ReaderManageConnection(client->reader, connection);
+                        }
                         break;
                     case AIO4C_CONNECTED_EVENT:
                         Log(AIO4C_LOG_LEVEL_INFO, "connection established with success on %s", client->address->string);
+                        client->connected = true;
+                        client->retryCount = 0;
                         break;
                     case AIO4C_CLOSE_EVENT:
                         closedForError = (connection)->closedForError;

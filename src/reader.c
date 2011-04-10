@@ -69,6 +69,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                 connection = (Connection*)item.content.data;
                 connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
                 Log(AIO4C_LOG_LEVEL_DEBUG, "managing connection %s", connection->string);
+                ConnectionManagedBy(connection, AIO4C_CONNECTION_OWNER_READER);
                 reader->load++;
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:

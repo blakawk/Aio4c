@@ -80,6 +80,10 @@ Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeA
     memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
     connection->closedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR] = true;
     connection->closedByLock = NewLock();
+    memset(connection->managedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
+    connection->managedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR] = true;
+    connection->managedBy[AIO4C_CONNECTION_OWNER_CLIENT] = true;
+    connection->managedByLock = NewLock();
     connection->readKey = NULL;
     connection->writeKey = NULL;
     connection->pool = NULL;
@@ -113,6 +117,8 @@ Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connecti
     connection->string = "factory";
     memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
     connection->closedByLock = NULL;
+    memset(connection->managedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
+    connection->managedByLock = NULL;
     connection->readKey = NULL;
     connection->writeKey = NULL;
     connection->freeAddress = false;
@@ -191,24 +197,24 @@ void _ConnectionState(char* file, int line, Connection* connection, ConnectionSt
             _ConnectionEventHandle(connection, AIO4C_INIT_EVENT);
             break;
         case AIO4C_CONNECTION_STATE_CONNECTING:
-            _ConnectionEventHandle(connection, AIO4C_CONNECTING_EVENT);
-            connection->canRead = true;
-            connection->canWrite = true;
-            break;
-        case AIO4C_CONNECTION_STATE_CONNECTED:
-            _ConnectionEventHandle(connection, AIO4C_CONNECTED_EVENT);
-            connection->canRead = true;
-            connection->canWrite = true;
-            break;
-        case AIO4C_CONNECTION_STATE_PENDING_CLOSE:
-            _ConnectionEventHandle(connection, AIO4C_PENDING_CLOSE_EVENT);
-            connection->canRead = false;
-            connection->canWrite = true;
-            break;
-        case AIO4C_CONNECTION_STATE_CLOSED:
-            _ConnectionEventHandle(connection, AIO4C_CLOSE_EVENT);
             connection->canRead = false;
             connection->canWrite = false;
+            _ConnectionEventHandle(connection, AIO4C_CONNECTING_EVENT);
+            break;
+        case AIO4C_CONNECTION_STATE_CONNECTED:
+            connection->canRead = true;
+            connection->canWrite = true;
+            _ConnectionEventHandle(connection, AIO4C_CONNECTED_EVENT);
+            break;
+        case AIO4C_CONNECTION_STATE_PENDING_CLOSE:
+            connection->canRead = false;
+            connection->canWrite = true;
+            _ConnectionEventHandle(connection, AIO4C_PENDING_CLOSE_EVENT);
+            break;
+        case AIO4C_CONNECTION_STATE_CLOSED:
+            connection->canRead = false;
+            connection->canWrite = false;
+            _ConnectionEventHandle(connection, AIO4C_CLOSE_EVENT);
             break;
         case AIO4C_CONNECTION_STATE_MAX:
             break;
@@ -360,8 +366,6 @@ Connection* ConnectionFinishConnect(Connection* connection) {
 #endif /* AIO4C_WIN32 */
             return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_FINISH_CONNECT_ERROR, &code);
         }
-
-        ConnectionState(connection, AIO4C_CONNECTION_STATE_CONNECTED);
     }
 
     return connection;
@@ -474,6 +478,7 @@ aio4c_bool_t ConnectionWrite(Connection* connection) {
 
 void EnableWriteInterest(Connection* connection) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "write interest for connection %s", connection->string);
+
     _ConnectionEventHandle(connection, AIO4C_OUTBOUND_DATA_EVENT);
 }
 
@@ -513,6 +518,31 @@ aio4c_bool_t ConnectionNoMoreUsed (Connection* connection, ConnectionOwner owner
     ReleaseLock(connection->closedByLock);
 
     return result;
+}
+
+void ConnectionManagedBy(Connection* connection, ConnectionOwner owner) {
+    aio4c_bool_t managedByAll = true;
+    int i = 0;
+
+    TakeLock(connection->managedByLock);
+
+    connection->managedBy[owner] = true;
+
+    Log(AIO4C_LOG_LEVEL_DEBUG, "connection %s managed by: [reader:%u,worker:%u,writer:%u]", connection->string,
+        connection->managedBy[AIO4C_CONNECTION_OWNER_READER], connection->managedBy[AIO4C_CONNECTION_OWNER_WORKER],
+        connection->managedBy[AIO4C_CONNECTION_OWNER_WRITER]);
+
+    for (i = 0; i < AIO4C_CONNECTION_OWNER_MAX; i++) {
+        managedByAll = (managedByAll && connection->managedBy[i]);
+    }
+
+    ReleaseLock(connection->managedByLock);
+
+    if (managedByAll) {
+        Log(AIO4C_LOG_LEVEL_DEBUG, "connection %s is managed by all threads", connection->string);
+        ConnectionState(connection, AIO4C_CONNECTION_STATE_CONNECTED);
+    }
+
 }
 
 Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once) {
