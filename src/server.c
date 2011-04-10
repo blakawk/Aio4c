@@ -40,6 +40,7 @@ static aio4c_bool_t _serverInit(Server* server) {
     ConnectionAddHandler(server->factory, AIO4C_INBOUND_DATA_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(server->handler), NULL, true);
+    ConnectionAddHandler(server->factory, AIO4C_FREE_EVENT, aio4c_connection_handler(server->handler), NULL, true);
     server->acceptor = NewAcceptor(server->thread->name, server->address, server->factory, server->nbPipes);
 
     if (server->acceptor == NULL) {

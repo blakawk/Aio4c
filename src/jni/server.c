@@ -79,9 +79,10 @@ static void _jniServerEventHandler(Event event, Connection* connection, JavaServ
 }
 
 static JavaServer* _jniServerFactory(Connection* connection, JavaServer* server) {
+    JavaServer* _server = NULL;
+
     ProbeTimeStart(AIO4C_TIME_PROBE_JNI_OVERHEAD);
 
-    JavaServer* _server = NULL;
     JNIEnv* jvm = NULL;
     jmethodID jMethod = NULL;
     jobject jFactory = server->jFactory;
@@ -104,6 +105,7 @@ static JavaServer* _jniServerFactory(Connection* connection, JavaServer* server)
     SetPointer(jvm, _server->jConnection, connection);
 
     ProbeTimeEnd(AIO4C_TIME_PROBE_JNI_OVERHEAD);
+
     return _server;
 }
 

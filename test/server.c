@@ -62,7 +62,7 @@ static void serverHandler(Event event, Connection* source, Data* data) {
             BufferPut(buffer, &pong, sizeof(struct timeval));
             BufferPutInt(buffer, &data->lastSeq);
             break;
-        case AIO4C_CLOSE_EVENT:
+        case AIO4C_FREE_EVENT:
             free(data);
             break;
         default:

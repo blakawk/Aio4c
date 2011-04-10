@@ -20,6 +20,8 @@
 
 exec 2>/dev/null
 
+export PATH="${PATH}:build" LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:build"
+
 max="${1:-8}"
 batch="${2:-32}"
 interval="${3:-60}"
