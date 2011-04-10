@@ -22,33 +22,30 @@
 #include <aio4c/log.h>
 #include <aio4c/stats.h>
 #include <aio4c/thread.h>
-#include <aio4c/types.h>
 
 #ifndef AIO4C_WIN32
-
 #include <errno.h>
-
 #endif /* AIO4C_WIN32 */
 
 #include <stdlib.h>
 #include <string.h>
 
-void* aio4c_malloc(volatile aio4c_size_t size) {
+void* aio4c_malloc(int size) {
     void* ptr = NULL;
-    aio4c_size_t* sPtr = NULL;
+    int* sPtr = NULL;
 
     ProbeTimeStart(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
-    if ((ptr = malloc(size + sizeof(size))) == NULL) {
+    if ((ptr = malloc(size + sizeof(int))) == NULL) {
         return NULL;
     }
 
-    memset(ptr, 0, size + sizeof(size));
+    memset(ptr, 0, size + sizeof(int));
 
     ProbeSize(AIO4C_PROBE_MEMORY_ALLOCATED_SIZE, size);
     ProbeSize(AIO4C_PROBE_MEMORY_ALLOCATE_COUNT, 1);
 
-    sPtr = (aio4c_size_t*)ptr;
+    sPtr = (int*)ptr;
     sPtr[0] = size;
 
     ProbeTimeEnd(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
@@ -56,11 +53,11 @@ void* aio4c_malloc(volatile aio4c_size_t size) {
     return (void*)(&sPtr[1]);
 }
 
-void* aio4c_realloc(volatile void* ptr, volatile aio4c_size_t size) {
+void* aio4c_realloc(void* ptr, int size) {
     void* _ptr = NULL;
     void* __ptr = NULL;
-    aio4c_size_t* sPtr = NULL;
-    aio4c_size_t prevSize = 0;
+    int* sPtr = NULL;
+    int prevSize = 0;
     unsigned char* cPtr = NULL;
 
     if (ptr == NULL) {
@@ -69,16 +66,21 @@ void* aio4c_realloc(volatile void* ptr, volatile aio4c_size_t size) {
 
     ProbeTimeStart(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
-    sPtr = (aio4c_size_t*)ptr;
+    sPtr = (int*)ptr;
 
     prevSize = sPtr[-1];
+
+    if (prevSize == -1) {
+        abort();
+    }
+
     __ptr = &sPtr[-1];
 
-    if ((_ptr = realloc(__ptr, size + sizeof(size))) == NULL) {
+    if ((_ptr = realloc(__ptr, size + sizeof(int))) == NULL) {
         return NULL;
     }
 
-    sPtr = (aio4c_size_t*)_ptr;
+    sPtr = (int*)_ptr;
     sPtr[0] = size;
     cPtr = (unsigned char*)&sPtr[1];
 
@@ -94,16 +96,22 @@ void* aio4c_realloc(volatile void* ptr, volatile aio4c_size_t size) {
     return (void*)(cPtr);
 }
 
-void aio4c_free(volatile void* ptr) {
-    aio4c_size_t* sPtr = NULL;
-    aio4c_size_t size = 0;
+void aio4c_free(void* ptr) {
+    int* sPtr = NULL;
+    int size = 0;
     void* _ptr = NULL;
 
     ProbeTimeStart(AIO4C_TIME_PROBE_MEMORY_ALLOCATION);
 
-    sPtr = (aio4c_size_t*)ptr;
+    sPtr = (int*)ptr;
     size = sPtr[-1];
+
+    if (size == -1) {
+        abort();
+    }
+
     _ptr = &sPtr[-1];
+    sPtr[-1] = -1;
 
     free(_ptr);
 

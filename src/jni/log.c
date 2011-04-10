@@ -17,29 +17,21 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-#ifndef __AIO4C_READER_H__
-#define __AIO4C_READER_H__
+#include <aio4c/jni/log.h>
 
-#include <aio4c/connection.h>
-#include <aio4c/thread.h>
-#include <aio4c/types.h>
-#include <aio4c/worker.h>
+#include <aio4c/jni.h>
+#include <aio4c/log.h>
 
-typedef struct s_Reader {
-    char*          name;
-    char*          pipe;
-    Thread*        thread;
-    Queue*         queue;
-    Selector*      selector;
-    Worker*        worker;
-    int            load;
-    int            bufferSize;
-} Reader;
+JNIEXPORT void JNICALL Java_com_aio4c_Log_log(JNIEnv* jvm, jclass log __attribute__((unused)), jobject level, jstring message) {
+    int _level = 0;
+    char* _message = NULL;
 
-extern Reader* NewReader(char* pipeName, aio4c_size_t bufferSize);
+    GetField(jvm, level, "value", "I", &_level);
 
-extern void ReaderManageConnection(Reader* reader, Connection* connection);
+    _message = (char*)(*jvm)->GetStringUTFChars(jvm, message, NULL);
 
-extern void ReaderEnd(Reader* reader);
+    Log(_level, "%s", _message);
 
-#endif
+    (*jvm)->ReleaseStringUTFChars(jvm, message, _message);
+}
+

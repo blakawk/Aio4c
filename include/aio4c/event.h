@@ -20,18 +20,21 @@
 #ifndef __AIO4C_EVENT_H__
 #define __AIO4C_EVENT_H__
 
+#include <aio4c/list.h>
 #include <aio4c/types.h>
 
 typedef enum e_EventType {
-    AIO4C_INIT_EVENT = 0,
-    AIO4C_CONNECTING_EVENT = 1,
-    AIO4C_CONNECTED_EVENT = 2,
-    AIO4C_READ_EVENT = 3,
-    AIO4C_INBOUND_DATA_EVENT = 4,
-    AIO4C_WRITE_EVENT = 5,
-    AIO4C_OUTBOUND_DATA_EVENT = 6,
-    AIO4C_CLOSE_EVENT = 7,
-    AIO4C_EVENTS_COUNT = 8
+    AIO4C_INIT_EVENT,
+    AIO4C_CONNECTING_EVENT,
+    AIO4C_CONNECTED_EVENT,
+    AIO4C_READ_EVENT,
+    AIO4C_INBOUND_DATA_EVENT,
+    AIO4C_WRITE_EVENT,
+    AIO4C_OUTBOUND_DATA_EVENT,
+    AIO4C_PENDING_CLOSE_EVENT,
+    AIO4C_CLOSE_EVENT,
+    AIO4C_FREE_EVENT,
+    AIO4C_EVENTS_COUNT
 } Event;
 
 typedef struct s_EventHandler {
@@ -48,9 +51,7 @@ typedef struct s_EventHandler {
     (void*)arg
 
 typedef struct s_EventQueue {
-    int handlersCount[AIO4C_EVENTS_COUNT];
-    int maxHandlers[AIO4C_EVENTS_COUNT];
-    EventHandler** eventHandlers[AIO4C_EVENTS_COUNT];
+    List           handlers[AIO4C_EVENTS_COUNT];
 } EventQueue;
 
 extern EventQueue* NewEventQueue(void);

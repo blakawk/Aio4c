@@ -115,41 +115,9 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
             }
             break;
         case AIO4C_EVENT_ERROR_TYPE:
-            Log(level, "%s:%d: %s for connection %s[%s], handlers:{sys:[I:%d/%d,CIP:%d/%d,C:%d/%d,R:%d/%d,ID:%d/%d,W:%d/%d,OD:%d/%d,CL:%d/%d],usr:[I:%d/%d,CIP:%d/%d,C:%d/%d,R:%d/%d,ID:%d/%d,W:%d/%d,OD:%d/%d,CL:%d/%d]}",
+            Log(level, "%s:%d: %s for connection %s[%s]",
                     file, line, ErrorStrings[error],
-                    code->connection->string, ConnectionStateString[code->connection->state],
-                    code->connection->systemHandlers->handlersCount[AIO4C_INIT_EVENT],
-                    code->connection->systemHandlers->maxHandlers[AIO4C_INIT_EVENT],
-                    code->connection->systemHandlers->handlersCount[AIO4C_CONNECTING_EVENT],
-                    code->connection->systemHandlers->maxHandlers[AIO4C_CONNECTING_EVENT],
-                    code->connection->systemHandlers->handlersCount[AIO4C_CONNECTED_EVENT],
-                    code->connection->systemHandlers->maxHandlers[AIO4C_CONNECTED_EVENT],
-                    code->connection->systemHandlers->handlersCount[AIO4C_READ_EVENT],
-                    code->connection->systemHandlers->maxHandlers[AIO4C_READ_EVENT],
-                    code->connection->systemHandlers->handlersCount[AIO4C_INBOUND_DATA_EVENT],
-                    code->connection->systemHandlers->maxHandlers[AIO4C_INBOUND_DATA_EVENT],
-                    code->connection->systemHandlers->handlersCount[AIO4C_WRITE_EVENT],
-                    code->connection->systemHandlers->maxHandlers[AIO4C_WRITE_EVENT],
-                    code->connection->systemHandlers->handlersCount[AIO4C_OUTBOUND_DATA_EVENT],
-                    code->connection->systemHandlers->maxHandlers[AIO4C_OUTBOUND_DATA_EVENT],
-                    code->connection->systemHandlers->handlersCount[AIO4C_CLOSE_EVENT],
-                    code->connection->systemHandlers->maxHandlers[AIO4C_CLOSE_EVENT],
-                    code->connection->userHandlers->handlersCount[AIO4C_INIT_EVENT],
-                    code->connection->userHandlers->maxHandlers[AIO4C_INIT_EVENT],
-                    code->connection->userHandlers->handlersCount[AIO4C_CONNECTING_EVENT],
-                    code->connection->userHandlers->maxHandlers[AIO4C_CONNECTING_EVENT],
-                    code->connection->userHandlers->handlersCount[AIO4C_CONNECTED_EVENT],
-                    code->connection->userHandlers->maxHandlers[AIO4C_CONNECTED_EVENT],
-                    code->connection->userHandlers->handlersCount[AIO4C_READ_EVENT],
-                    code->connection->userHandlers->maxHandlers[AIO4C_READ_EVENT],
-                    code->connection->userHandlers->handlersCount[AIO4C_INBOUND_DATA_EVENT],
-                    code->connection->userHandlers->maxHandlers[AIO4C_INBOUND_DATA_EVENT],
-                    code->connection->userHandlers->handlersCount[AIO4C_WRITE_EVENT],
-                    code->connection->userHandlers->maxHandlers[AIO4C_WRITE_EVENT],
-                    code->connection->userHandlers->handlersCount[AIO4C_OUTBOUND_DATA_EVENT],
-                    code->connection->userHandlers->maxHandlers[AIO4C_OUTBOUND_DATA_EVENT],
-                    code->connection->userHandlers->handlersCount[AIO4C_CLOSE_EVENT],
-                    code->connection->userHandlers->maxHandlers[AIO4C_CLOSE_EVENT]);
+                    code->connection->string, ConnectionStateString[code->connection->state]);
             break;
         case AIO4C_THREAD_ERROR_TYPE:
             Log(level, "%s:%d: %s for thread %s[i:0x%lx,s:%s]: [%08ld] %s", file, line, ErrorStrings[error],

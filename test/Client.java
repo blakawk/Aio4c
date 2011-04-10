@@ -22,42 +22,51 @@ import com.aio4c.Buffer;
 import com.aio4c.ClientConfig;
 import com.aio4c.Connection;
 import com.aio4c.ConnectionFactory;
-import com.aio4c.LogLevel;
+import com.aio4c.Log;
 
 public class Client {
     public static void main(String[] args) {
-        Aio4c.init(LogLevel.DEBUG, "jclient.log");
+        Aio4c.init(Log.Level.DEBUG, "jclient.log");
 
         com.aio4c.Client c = new com.aio4c.Client(new ClientConfig(), new ConnectionFactory () {
             @Override
             public Connection create() {
                 return new Connection () {
+                    private boolean toClose = false;
                     @Override
                     public void onInit() {
-                        System.out.println("[" + this + "] init from java !");
+                        Log.debug("[" + this + "] init from java !");
                     }
                     @Override
                     public void onClose() {
-                        System.out.println("[" + this + "] close from java !");
+                        Log.debug("[" + this + "] close from java !");
                     }
                     @Override
                     public void onConnect() {
-                        System.out.println("[" + this + "] connect from java !");
+                        Log.debug("[" + this + "] connect from java !");
                     }
                     @Override
                     public void onRead(Buffer data) {
-                        String str = data.getString();
-                        System.out.println("[" + this + "] received data from java: '" + str + "' !");
-                        if (str.equals("QUIT")) {
-                            close();
-                        } else {
-                            enableWriteInterest();
+                        while (data.hasRemaining()) {
+                            String str = data.getString();
+                            Log.debug("[" + this + "] received data "+data+" from java: '" + str + "' !");
+                            if (str.trim().equals("QUIT")) {
+                                toClose = true;
+                            }
                         }
+                        enableWriteInterest();
                     }
                     @Override
                     public void onWrite(Buffer data) {
-                        System.out.println("[" + this + "] sending data from java !");
-                        data.putString("HELLO\n");
+                        if (closing()) {
+                            data.putString("GOODBYE");
+                        } else {
+                            data.putString("HELLO");
+                            if (toClose) {
+                                close(false);
+                            }
+                        }
+                        Log.debug("[" + this + "] sending data "+data+" from java !");
                     }
                 };
             }

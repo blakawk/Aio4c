@@ -26,22 +26,17 @@
 #include <aio4c/types.h>
 #include <aio4c/writer.h>
 
-#define AIO4C_WORKER_NAME_SUFFIX "-W%04d"
-
-typedef struct s_Task {
-    Connection* connection;
-    Buffer* buffer;
-} Task;
-
 typedef struct s_Worker {
     char*        name;
+    char*        pipe;
+    int          bufferSize;
     Thread*      thread;
     Writer*      writer;
     Queue*       queue;
     BufferPool*  pool;
 } Worker;
 
-extern Worker* NewWorker(int workerIndex, aio4c_size_t bufferSize);
+extern Worker* NewWorker(char* pipeName, aio4c_size_t bufferSize);
 
 extern void WorkerManageConnection(Worker* worker, Connection* connection);
 

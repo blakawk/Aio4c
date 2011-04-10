@@ -19,16 +19,23 @@
  **/
 package com.aio4c;
 
-public enum LogLevel {
-    FATAL(0),
-    ERROR(1),
-    WARN(2),
-    INFO(3),
-    DEBUG(4);
-
-    public int value;
-
-    private LogLevel(int value) {
-        this.value = value;
+public class Server {
+    /**
+     * Pointer to the underlying server structure on 32 bits architectures.
+     * Do not remove ! Used by JNI.
+     */
+    @SuppressWarnings("unused")
+    private int  iPointer = 0;
+    /**
+     * Pointer to the underlying server structure on 64 bits architectures.
+     * Do not remove ! Used by JNI.
+     */
+    @SuppressWarnings("unused")
+    private long lPointer = 0;
+    private native void initialize(ServerConfig config, ConnectionFactory factory);
+    public native void stop();
+    public native void join();
+    public Server(ServerConfig config, ConnectionFactory factory) {
+        initialize(config, factory);
     }
 }

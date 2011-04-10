@@ -21,6 +21,7 @@ package com.aio4c;
 
 public class Buffer {
     public native byte[] array();
+    public native void array(byte[] array);
     public native byte get();
     public native short getShort();
     public native int getInt();
@@ -35,7 +36,27 @@ public class Buffer {
     public native void putFloat(float f);
     public native void putDouble(double d);
     public native void putString(String s);
-    private int  iPointer;
-    private long lPointer;
+    public native boolean hasRemaining();
+    public native int position();
+    public native void position(int position);
+    public native int limit();
+    public native void limit(int limit);
+    public native void flip();
+    public native int capacity();
+    public native void reset();
+    @Override
+    public native String toString();
+    /**
+     * Pointer to the underlying buffer structure on 32 bits architectures.
+     * Do not remove ! Used by JNI.
+     */
+    @SuppressWarnings("unused")
+    private int  iPointer = 0;
+    /**
+     * Pointer to the underlying buffer structure on 64 bits architectures.
+     * Do not remove ! Used by JNI.
+     */
+    @SuppressWarnings("unused")
+    private long lPointer = 0;
     private Buffer() {};
 }

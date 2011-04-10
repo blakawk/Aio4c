@@ -29,6 +29,7 @@
 #else /* AIO4C_WIN32 */
 
 #include <winsock2.h>
+#include <windows.h>
 
 #endif /* AIO4C_WIN32 */
 

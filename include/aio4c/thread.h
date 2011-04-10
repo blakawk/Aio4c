@@ -73,6 +73,7 @@ extern char* ThreadStateString[AIO4C_THREAD_STATE_MAX];
     .run = NULL,                      \
     .exit = NULL,                     \
     .arg = NULL,                      \
+    .condInit = NULL                  \
 }
 
 #ifndef __AIO4C_THREAD_DEFINED__
@@ -85,6 +86,11 @@ typedef struct s_Thread Thread;
 typedef struct s_Lock Lock;
 #endif /* __AIO4C_LOCK_DEFINED__ */
 
+#ifndef __AIO4C_CONDITION_DEFINED__
+#define __AIO4C_CONDITION_DEFINED__
+typedef struct s_Condition Condition;
+#endif /* __AIO4C_CONDITION_DEFINED__ */
+
 struct s_Thread {
     char*             name;
 #ifndef AIO4C_WIN32
@@ -96,6 +102,8 @@ struct s_Thread {
     ThreadState       state;
     aio4c_bool_t      running;
     Lock*             lock;
+    aio4c_bool_t      initialized;
+    Condition*        condInit;
     aio4c_bool_t    (*init)(void*);
     aio4c_bool_t    (*run)(void*);
     void            (*exit)(void*);
@@ -103,8 +111,6 @@ struct s_Thread {
 };
 
 extern int GetNumThreads(void);
-
-extern char* BuildThreadName(int suffixLen, char* suffix, ...) __attribute__((format(printf, 2, 3)));
 
 extern void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread);
 

@@ -36,7 +36,7 @@ static Buffer* _NewBuffer(int size) {
         return NULL;
     }
 
-    if ((buffer->data = aio4c_malloc(size * sizeof(aio4c_byte_t))) == NULL) {
+    if ((buffer->data = aio4c_malloc((size + 2) * sizeof(aio4c_byte_t))) == NULL) {
         aio4c_free(buffer);
         return NULL;
     }
@@ -232,36 +232,29 @@ aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size) {
 }
 
 aio4c_bool_t BufferGetString(Buffer* buffer, char** out) {
-    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     int len = strlen((char*)&buffer->data[buffer->position]) + 1;
 
-    if (len > buffer->limit) {
-        code.buffer = buffer;
-        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_BUFFER_ERROR_TYPE, AIO4C_BUFFER_UNDERFLOW_ERROR, &code);
-        *out = NULL;
-        return false;
+    if (len > (buffer->limit - buffer->position)) {
+        len = buffer->limit - buffer->position;
+        buffer->data[buffer->limit] = '\0';
     }
 
     *out = (char*)&buffer->data[buffer->position];
-
     buffer->position += len;
 
     return true;
 }
 
 aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t** out) {
-    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     int len = (wcslen((wchar_t*)&buffer->data[buffer->position]) + 1) * sizeof(wchar_t);
 
-    if (len > buffer->limit) {
-        code.buffer = buffer;
-        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_BUFFER_ERROR_TYPE, AIO4C_BUFFER_UNDERFLOW_ERROR, &code);
-        *out = NULL;
-        return false;
+    if (len > (buffer->limit - buffer->position)) {
+        len = buffer->limit - buffer->position;
+        buffer->data[buffer->limit]     = '\0';
+        buffer->data[buffer->limit + 1] = '\0';
     }
 
     *out = (wchar_t*)&buffer->data[buffer->position];
-
     buffer->position += len;
 
     return true;

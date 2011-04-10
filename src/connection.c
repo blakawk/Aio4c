@@ -53,6 +53,7 @@ char* ConnectionStateString[AIO4C_CONNECTION_STATE_MAX] = {
     "INITIALIZED",
     "CONNECTING",
     "CONNECTED",
+    "PENDING CLOSE",
     "CLOSED"
 };
 
@@ -70,25 +71,28 @@ Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeA
     connection->dataBuffer = NULL;
     connection->socket = -1;
     connection->state = AIO4C_CONNECTION_STATE_NONE;
+    connection->stateLock = NewLock();
     connection->systemHandlers = NewEventQueue();
     connection->userHandlers = NewEventQueue();
     connection->address = address;
-    connection->closeCause = AIO4C_CONNECTION_CLOSE_CAUSE_NO_ERROR;
-    connection->closeCode = 0;
+    connection->closedForError = false;
     connection->string = address->string;
-    connection->lock = NewLock();
     memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
     connection->closedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR] = true;
+    connection->closedByLock = NewLock();
     connection->readKey = NULL;
     connection->writeKey = NULL;
     connection->pool = NULL;
     connection->freeAddress = freeAddress;
     connection->dataFactory = NULL;
+    connection->dataFactoryArg = NULL;
+    connection->canRead = false;
+    connection->canWrite = false;
 
     return connection;
 }
 
-Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connection*)) {
+Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connection*,void*), void* dataFactoryArg) {
     Connection* connection = NULL;
 
     if ((connection = aio4c_malloc(sizeof(Connection))) == NULL) {
@@ -100,19 +104,22 @@ Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connecti
     connection->dataBuffer = NULL;
     connection->writeBuffer = NULL;
     connection->pool = pool;
-    connection->state = AIO4C_CONNECTION_STATE_CLOSED;
+    connection->state = AIO4C_CONNECTION_STATE_NONE;
+    connection->stateLock = NULL;
     connection->systemHandlers = NewEventQueue();
     connection->userHandlers = NewEventQueue();
     connection->address = NULL;
-    connection->closeCause = AIO4C_CONNECTION_CLOSE_CAUSE_NO_ERROR;
-    connection->closeCode = 0;
+    connection->closedForError = false;
     connection->string = "factory";
-    connection->lock = NewLock();
     memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
+    connection->closedByLock = NULL;
     connection->readKey = NULL;
     connection->writeKey = NULL;
     connection->freeAddress = false;
     connection->dataFactory = dataFactory;
+    connection->dataFactoryArg = dataFactoryArg;
+    connection->canRead = false;
+    connection->canWrite = false;
 
     return connection;
 }
@@ -146,24 +153,75 @@ Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c
         return NULL;
     }
 
-    data = factory->dataFactory(connection);
+    data = factory->dataFactory(connection, factory->dataFactoryArg);
 
     CopyEventQueue(connection->userHandlers, factory->userHandlers, data);
     CopyEventQueue(connection->systemHandlers, factory->systemHandlers, NULL);
 
     connection->closedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR] = false;
-
-    connection->state = AIO4C_CONNECTION_STATE_CONNECTED;
-
-    ConnectionEventHandle(connection, AIO4C_CONNECTED_EVENT, connection);
+    connection->closedBy[AIO4C_CONNECTION_OWNER_CLIENT] = true;
 
     return connection;
 }
 
+static void _ConnectionEventHandle(Connection* connection, Event event) {
+    EventHandle(connection->systemHandlers, event, connection);
+    EventHandle(connection->userHandlers, event, connection);
+}
+
+void _ConnectionState(char* file, int line, Connection* connection, ConnectionState state) {
+    TakeLock(connection->stateLock);
+
+    if (connection->state == state) {
+        Log(AIO4C_LOG_LEVEL_DEBUG, "%s:%d: connection %s already in state %s", file, line,
+                connection->string, ConnectionStateString[state]);
+        ReleaseLock(connection->stateLock);
+        return;
+    }
+
+    Log(AIO4C_LOG_LEVEL_DEBUG, "%s:%d: connection %s [%s] -> [%s]", file, line, connection->string,
+           ConnectionStateString[connection->state], ConnectionStateString[state]);
+
+    connection->state = state;
+
+    switch (state) {
+        case AIO4C_CONNECTION_STATE_NONE:
+            break;
+        case AIO4C_CONNECTION_STATE_INITIALIZED:
+            _ConnectionEventHandle(connection, AIO4C_INIT_EVENT);
+            break;
+        case AIO4C_CONNECTION_STATE_CONNECTING:
+            _ConnectionEventHandle(connection, AIO4C_CONNECTING_EVENT);
+            connection->canRead = true;
+            connection->canWrite = true;
+            break;
+        case AIO4C_CONNECTION_STATE_CONNECTED:
+            _ConnectionEventHandle(connection, AIO4C_CONNECTED_EVENT);
+            connection->canRead = true;
+            connection->canWrite = true;
+            break;
+        case AIO4C_CONNECTION_STATE_PENDING_CLOSE:
+            _ConnectionEventHandle(connection, AIO4C_PENDING_CLOSE_EVENT);
+            connection->canRead = false;
+            connection->canWrite = true;
+            break;
+        case AIO4C_CONNECTION_STATE_CLOSED:
+            _ConnectionEventHandle(connection, AIO4C_CLOSE_EVENT);
+            connection->canRead = false;
+            connection->canWrite = false;
+            break;
+        case AIO4C_CONNECTION_STATE_MAX:
+            break;
+    }
+
+    ReleaseLock(connection->stateLock);
+}
+
 #define _ConnectionHandleError(connection,level,error,code) \
     __ConnectionHandleError(__FILE__, __LINE__, connection, level, error, code)
-
 static Connection* __ConnectionHandleError(char* file, int line, Connection* connection, LogLevel level, Error error, ErrorCode* code) {
+    connection->closedForError = true;
+
     switch (error) {
         case AIO4C_BUFFER_OVERFLOW_ERROR:
         case AIO4C_BUFFER_UNDERFLOW_ERROR:
@@ -179,15 +237,11 @@ static Connection* __ConnectionHandleError(char* file, int line, Connection* con
             break;
     }
 
-    ReleaseLock(connection->lock);
-
-    return ConnectionClose(connection);
+    return ConnectionClose(connection, true);
 }
 
 Connection* ConnectionInit(Connection* connection) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-
-    TakeLock(connection->lock);
 
 #ifndef AIO4C_WIN32
     if ((connection->socket = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
@@ -210,20 +264,14 @@ Connection* ConnectionInit(Connection* connection) {
         return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_FCNTL_ERROR, &code);
     }
 
-    connection->state = AIO4C_CONNECTION_STATE_INITIALIZED;
-
-    ReleaseLock(connection->lock);
-
-    ConnectionEventHandle(connection, AIO4C_INIT_EVENT, connection);
+    ConnectionState(connection, AIO4C_CONNECTION_STATE_INITIALIZED);
 
     return connection;
 }
 
 Connection* ConnectionConnect(Connection* connection) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-    Event eventToHandle = AIO4C_CONNECTING_EVENT;
-
-    TakeLock(connection->lock);
+    ConnectionState newState = AIO4C_CONNECTION_STATE_CONNECTING;
 
     if (connection->state != AIO4C_CONNECTION_STATE_INITIALIZED) {
         code.expected = AIO4C_CONNECTION_STATE_INITIALIZED;
@@ -232,25 +280,22 @@ Connection* ConnectionConnect(Connection* connection) {
 
     if (connect(connection->socket, (struct sockaddr*)connection->address->address, sizeof(aio4c_addr_t)) == -1) {
 #ifndef AIO4C_WIN32
+        code.error = errno;
         if (errno == EINPROGRESS) {
-            code.error = errno;
 #else /* AIO4C_WIN32 */
         int error = WSAGetLastError();
         code.source = AIO4C_ERRNO_SOURCE_WSA;
         if (error == WSAEINPROGRESS || error == WSAEALREADY || error == WSAEWOULDBLOCK) {
 #endif /* AIO4C_WIN32 */
-            connection->state = AIO4C_CONNECTION_STATE_CONNECTING;
+            newState = AIO4C_CONNECTION_STATE_CONNECTING;
         } else {
             return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_CONNECT_ERROR, &code);
         }
     } else {
-        connection->state = AIO4C_CONNECTION_STATE_CONNECTED;
-        eventToHandle = AIO4C_CONNECTED_EVENT;
+        newState = AIO4C_CONNECTION_STATE_CONNECTED;
     }
 
-    ReleaseLock(connection->lock);
-
-    ConnectionEventHandle(connection, eventToHandle, connection);
+    ConnectionState(connection, newState);
 
     return connection;
 }
@@ -259,8 +304,6 @@ Connection* ConnectionFinishConnect(Connection* connection) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     int soError = 0;
     socklen_t soSize = sizeof(int);
-
-    TakeLock(connection->lock);
 
 #ifdef AIO4C_HAVE_POLL
     aio4c_poll_t polls[1] = { { .fd = connection->socket, .events = POLLOUT, .revents = 0 } };
@@ -318,11 +361,7 @@ Connection* ConnectionFinishConnect(Connection* connection) {
             return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_FINISH_CONNECT_ERROR, &code);
         }
 
-        connection->state = AIO4C_CONNECTION_STATE_CONNECTED;
-
-        ReleaseLock(connection->lock);
-
-        ConnectionEventHandle(connection,AIO4C_CONNECTED_EVENT, connection);
+        ConnectionState(connection, AIO4C_CONNECTION_STATE_CONNECTED);
     }
 
     return connection;
@@ -332,13 +371,6 @@ Connection* ConnectionRead(Connection* connection) {
     Buffer* buffer = NULL;
     ssize_t nbRead = 0;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-
-    TakeLock(connection->lock);
-
-    if (connection->state != AIO4C_CONNECTION_STATE_CONNECTED && connection->state != AIO4C_CONNECTION_STATE_CONNECTING) {
-        code.expected = AIO4C_CONNECTION_STATE_CONNECTED;
-        return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_DEBUG, AIO4C_CONNECTION_STATE_ERROR, &code);
-    }
 
     buffer = connection->readBuffer;
 
@@ -359,41 +391,57 @@ Connection* ConnectionRead(Connection* connection) {
     ProbeSize(AIO4C_PROBE_NETWORK_READ_SIZE, nbRead);
 
     if (nbRead == 0) {
-        return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_INFO, AIO4C_CONNECTION_DISCONNECTED, &code);
+        if (connection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
+            ConnectionState(connection, AIO4C_CONNECTION_STATE_CLOSED);
+            return connection;
+        } else {
+            return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_INFO, AIO4C_CONNECTION_DISCONNECTED, &code);
+        }
+    }
+
+    if (!connection->canRead) {
+        BufferReset(buffer);
+        return connection;
     }
 
     buffer->position += nbRead;
 
-    ReleaseLock(connection->lock);
-
-    ConnectionEventHandle(connection, AIO4C_READ_EVENT, connection);
+    _ConnectionEventHandle(connection, AIO4C_READ_EVENT);
 
     return connection;
 }
 
-Connection* ConnectionWrite(Connection* connection) {
+Connection* ConnectionProcessData(Connection* connection) {
+    _ConnectionEventHandle(connection, AIO4C_INBOUND_DATA_EVENT);
+    return connection;
+}
+
+aio4c_bool_t ConnectionWrite(Connection* connection) {
     ssize_t nbWrite = 0;
     Buffer* buffer = connection->writeBuffer;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    aio4c_bool_t pendingCloseMemorized = false;
 
-    TakeLock(connection->lock);
-
-    if (connection->state != AIO4C_CONNECTION_STATE_CONNECTED) {
+    if (!connection->canWrite) {
         code.expected = AIO4C_CONNECTION_STATE_CONNECTED;
-        return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_DEBUG, AIO4C_CONNECTION_STATE_ERROR, &code);
+        _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_DEBUG, AIO4C_CONNECTION_STATE_ERROR, &code);
+        return false;
+    }
+
+    if (connection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
+        pendingCloseMemorized = true;
     }
 
     if (!BufferHasRemaining(buffer)) {
         BufferReset(buffer);
-        ReleaseLock(connection->lock);
-        ConnectionEventHandle(connection, AIO4C_WRITE_EVENT, connection);
-        TakeLock(connection->lock);
+        _ConnectionEventHandle(connection, AIO4C_WRITE_EVENT);
         BufferFlip(buffer);
     }
 
     if (buffer->limit - buffer->position < 0) {
         code.buffer = buffer;
-        return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_BUFFER_UNDERFLOW_ERROR, &code);
+        _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_BUFFER_UNDERFLOW_ERROR, &code);
+        return false;
     }
 
     if ((nbWrite = send(connection->socket, (void*)&buffer->data[buffer->position], buffer->limit - buffer->position, 0)) < 0) {
@@ -402,45 +450,41 @@ Connection* ConnectionWrite(Connection* connection) {
 #else /* AIO4C_WIN32 */
         code.source = AIO4C_ERRNO_SOURCE_WSA;
 #endif /* AIO4C_WIN32 */
-        return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_WRITE_ERROR, &code);
+        _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_WRITE_ERROR, &code);
+        return false;
     }
 
     ProbeSize(AIO4C_PROBE_NETWORK_WRITE_SIZE, nbWrite);
 
     buffer->position += nbWrite;
 
-    ReleaseLock(connection->lock);
+    if (BufferHasRemaining(connection->writeBuffer)) {
+        return true;
+    } else if (pendingCloseMemorized) {
+        Log(AIO4C_LOG_LEVEL_DEBUG, "shutting down writing end on connection %s", connection->string);
+#ifndef AIO4C_WIN32
+        shutdown(connection->socket, SHUT_WR);
+#else /* AIO4C_WIN32 */
+        shutdown(connection->socket, SD_SEND);
+#endif /* AIO4C_WIN32 */
+    }
 
-    return connection;
+    return false;
 }
 
 void EnableWriteInterest(Connection* connection) {
-    ConnectionEventHandle(connection, AIO4C_OUTBOUND_DATA_EVENT, connection);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "write interest for connection %s", connection->string);
+    _ConnectionEventHandle(connection, AIO4C_OUTBOUND_DATA_EVENT);
 }
 
-Connection* ConnectionClose(Connection* connection) {
-    TakeLock(connection->lock);
+Connection* ConnectionClose(Connection* connection, aio4c_bool_t force) {
+    Log(AIO4C_LOG_LEVEL_DEBUG, "closing connection %s (force: %s)", connection->string, (force?"true":"false"));
 
-    if (connection->state == AIO4C_CONNECTION_STATE_CLOSED) {
-        ReleaseLock(connection->lock);
-        return connection;
+    if (force) {
+        ConnectionState(connection, AIO4C_CONNECTION_STATE_CLOSED);
+    } else {
+        ConnectionState(connection, AIO4C_CONNECTION_STATE_PENDING_CLOSE);
     }
-
-    Log(AIO4C_LOG_LEVEL_DEBUG, "closing connection %s", connection->string);
-
-#ifndef AIO4C_WIN32
-    shutdown(connection->socket, SHUT_RDWR);
-    close(connection->socket);
-#else /* AIO4C_WIN32 */
-    shutdown(connection->socket, SD_BOTH);
-    closesocket(connection->socket);
-#endif /* AIO4C_WIN32 */
-
-    connection->state = AIO4C_CONNECTION_STATE_CLOSED;
-
-    ReleaseLock(connection->lock);
-
-    ConnectionEventHandle(connection, AIO4C_CLOSE_EVENT, connection);
 
     return connection;
 }
@@ -449,9 +493,14 @@ aio4c_bool_t ConnectionNoMoreUsed (Connection* connection, ConnectionOwner owner
     aio4c_bool_t result = true;
     int i = 0;
 
-    TakeLock(connection->lock);
+    TakeLock(connection->closedByLock);
 
     connection->closedBy[owner] = true;
+
+    Log(AIO4C_LOG_LEVEL_DEBUG, "connection %s closed by: [reader:%u,worker:%u,writer:%u,acceptor:%u,client:%u]", connection->string,
+            connection->closedBy[AIO4C_CONNECTION_OWNER_READER], connection->closedBy[AIO4C_CONNECTION_OWNER_WORKER],
+            connection->closedBy[AIO4C_CONNECTION_OWNER_WRITER], connection->closedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR],
+            connection->closedBy[AIO4C_CONNECTION_OWNER_CLIENT]);
 
     for (i = 0; i < AIO4C_CONNECTION_OWNER_MAX && result; i++) {
         result = (result && connection->closedBy[i]);
@@ -461,7 +510,7 @@ aio4c_bool_t ConnectionNoMoreUsed (Connection* connection, ConnectionOwner owner
         memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
     }
 
-    ReleaseLock(connection->lock);
+    ReleaseLock(connection->closedByLock);
 
     return result;
 }
@@ -470,13 +519,10 @@ Connection* ConnectionAddHandler(Connection* connection, Event event, void (*han
     EventHandler* eventHandler = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
-    TakeLock(connection->lock);
-
     eventHandler = NewEventHandler(event, aio4c_event_handler(handler), aio4c_event_handler_arg(arg), once);
 
     if (eventHandler != NULL) {
         if (EventHandlerAdd(connection->userHandlers, eventHandler) != NULL) {
-            ReleaseLock(connection->lock);
             return connection;
         }
     }
@@ -488,13 +534,10 @@ Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void
     EventHandler* eventHandler = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
-    TakeLock(connection->lock);
-
     eventHandler = NewEventHandler(event, aio4c_event_handler(handler), aio4c_event_handler_arg(arg), once);
 
     if (eventHandler != NULL) {
         if (EventHandlerAdd(connection->systemHandlers, eventHandler) != NULL) {
-            ReleaseLock(connection->lock);
             return connection;
         }
     }
@@ -502,18 +545,17 @@ Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void
     return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_EVENT_HANDLER_ERROR, &code);
 }
 
-Connection* ConnectionEventHandle(Connection* connection, Event event, void* arg) {
-    EventHandle(connection->systemHandlers, event, arg);
-    EventHandle(connection->userHandlers, event, arg);
-
-    return connection;
-}
-
 void FreeConnection(Connection** connection) {
     Connection* pConnection = NULL;
 
     if (connection != NULL && (pConnection = *connection) != NULL) {
-        ConnectionClose(pConnection);
+#ifndef AIO4C_WIN32
+        close(pConnection->socket);
+#else /* AIO4C_WIN32 */
+        closesocket(pConnection->socket);
+#endif /* AIO4C_WIN32 */
+
+        _ConnectionEventHandle(pConnection, AIO4C_FREE_EVENT);
 
         if (pConnection->readBuffer != NULL) {
             ReleaseBuffer(&pConnection->readBuffer);
@@ -535,8 +577,12 @@ void FreeConnection(Connection** connection) {
             FreeEventQueue(&pConnection->systemHandlers);
         }
 
-        if (pConnection->lock != NULL) {
-            FreeLock(&pConnection->lock);
+        if (pConnection->stateLock != NULL) {
+            FreeLock(&pConnection->stateLock);
+        }
+
+        if (pConnection->closedByLock != NULL) {
+            FreeLock(&pConnection->closedByLock);
         }
 
         aio4c_free(pConnection);

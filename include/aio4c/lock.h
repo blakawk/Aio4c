@@ -20,6 +20,8 @@
 #ifndef __AIO4C_LOCK_H__
 #define __AIO4C_LOCK_H__
 
+#include <aio4c/types.h>
+
 #ifndef AIO4C_WIN32
 #include <pthread.h>
 #else /* AIO4C_WIN32 */

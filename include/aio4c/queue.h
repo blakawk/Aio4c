@@ -89,20 +89,20 @@ typedef struct s_Queue {
     aio4c_bool_t emptied;
 } Queue;
 
-extern Queue* NewQueue(void);
+extern AIO4C_DLLEXPORT Queue* NewQueue(void);
 
-extern aio4c_bool_t EnqueueDataItem(Queue* queue, void* data);
+extern AIO4C_DLLEXPORT aio4c_bool_t EnqueueDataItem(Queue* queue, void* data);
 
-extern aio4c_bool_t EnqueueExitItem(Queue* queue);
+extern AIO4C_DLLEXPORT aio4c_bool_t EnqueueExitItem(Queue* queue);
 
-extern aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, void* source);
+extern AIO4C_DLLEXPORT aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, void* source);
 
-extern aio4c_bool_t EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer);
+extern AIO4C_DLLEXPORT aio4c_bool_t EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer);
 
-extern aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait);
+extern AIO4C_DLLEXPORT aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait);
 
-extern aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,void*), void* discriminant);
+extern AIO4C_DLLEXPORT aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,void*), void* discriminant);
 
-extern void FreeQueue(Queue** queue);
+extern AIO4C_DLLEXPORT void FreeQueue(Queue** queue);
 
 #endif

@@ -29,15 +29,29 @@
 #include <aio4c/thread.h>
 
 #ifndef AIO4C_WIN32
-
 #include <errno.h>
-
+#include <sys/socket.h>
+#else /* AIO4C_WIN32 */
+#include <winsock2.h>
 #endif /* AIO4C_WIN32 */
 
 #include <string.h>
 
 static aio4c_bool_t _WriterInit(Writer* writer) {
+    if ((writer->selector = NewSelector()) == NULL) {
+        return false;
+    }
+
+    if ((writer->queue = NewQueue()) == NULL) {
+        return false;
+    }
+
+    if ((writer->toUnregister = NewQueue()) == NULL) {
+        return false;
+    }
+
     Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", writer->thread->id);
+
     return true;
 }
 
@@ -70,19 +84,33 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
                 return false;
             case AIO4C_QUEUE_ITEM_DATA:
                 connection = (Connection*)item.content.data;
-                if (connection->writeKey != NULL) {
-                    Unregister(writer->selector, connection->writeKey, true);
-                }
-                Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
-                if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WRITER)) {
-                    Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
-                    FreeConnection(&connection);
+                if (connection->state == AIO4C_CONNECTION_STATE_CLOSED) {
+                    if (connection->writeKey != NULL) {
+                        Unregister(writer->selector, connection->writeKey, true);
+                    }
+                    RemoveAll(writer->queue, aio4c_remove_callback(_WriterRemove), aio4c_remove_discriminant(connection));
+                    Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                    if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WRITER)) {
+                        Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
+                        FreeConnection(&connection);
+                    }
+                } else if (connection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
+                    Log(AIO4C_LOG_LEVEL_DEBUG, "pending close received for connection %s", connection->string);
+                    if (connection->writeKey == NULL) {
+                        connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
+                    } else {
+                        Unregister(writer->selector, connection->writeKey, true);
+                        connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
+                    }
                 }
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
                 ProbeTimeStart(AIOC_TIME_PROBE_NETWORK_WRITE);
                 connection = (Connection*)item.content.event.source;
-                connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
+                Log(AIO4C_LOG_LEVEL_DEBUG, "processing write interest for connection %s", connection->string);
+                if (connection->state == AIO4C_CONNECTION_STATE_CONNECTED) {
+                    connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
+                }
                 ProbeTimeEnd(AIO4C_TIME_PROBE_NETWORK_WRITE);
                 break;
             default:
@@ -102,9 +130,7 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
             unregister = true;
 
             if (key->result & key->operation) {
-                ConnectionWrite(connection);
-
-                if (BufferHasRemaining(connection->writeBuffer) && connection->state != AIO4C_CONNECTION_STATE_CLOSED) {
+                if (ConnectionWrite(connection)) {
                     unregister = false;
                 }
             }
@@ -131,7 +157,7 @@ static void _WriterExit(Writer* writer) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Writer* NewWriter(int writerIndex, aio4c_size_t bufferSize) {
+Writer* NewWriter(char* pipeName, aio4c_size_t bufferSize) {
     Writer* writer = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -147,14 +173,20 @@ Writer* NewWriter(int writerIndex, aio4c_size_t bufferSize) {
         return NULL;
     }
 
-    writer->name = BuildThreadName(sizeof(AIO4C_WRITER_NAME_SUFFIX), AIO4C_WRITER_NAME_SUFFIX, writerIndex);
+    writer->selector     = NULL;
+    writer->queue        = NULL;
+    writer->toUnregister = NULL;
+    writer->bufferSize   = bufferSize;
+    if (pipeName != NULL) {
+        writer->name         = aio4c_malloc(strlen(pipeName) + 1 + 7);
+        if (writer->name != NULL) {
+            snprintf(writer->name, strlen(pipeName) + 1 + 7, "%s-writer", pipeName);
+        }
+    } else {
+        writer->name = NULL;
+    }
+    writer->thread       = NULL;
 
-    writer->selector = NewSelector();
-    writer->queue = NewQueue();
-    writer->toUnregister = NewQueue();
-    writer->bufferSize = bufferSize;
-
-    writer->thread = NULL;
     NewThread(writer->name,
            aio4c_thread_init(_WriterInit),
            aio4c_thread_run(_WriterRun),
@@ -164,8 +196,6 @@ Writer* NewWriter(int writerIndex, aio4c_size_t bufferSize) {
 
     if (writer->thread == NULL) {
         FreeSelector(&writer->selector);
-        FreeQueue(&writer->queue);
-        FreeQueue(&writer->toUnregister);
         if (writer->name != NULL) {
             aio4c_free(writer->name);
         }
@@ -178,8 +208,14 @@ Writer* NewWriter(int writerIndex, aio4c_size_t bufferSize) {
 
 void WriterEnd(Writer* writer) {
     if (writer->thread != NULL) {
-        EnqueueExitItem(writer->queue);
-        SelectorWakeUp(writer->selector);
+        if (writer->queue != NULL) {
+            EnqueueExitItem(writer->queue);
+        }
+
+        if (writer->selector != NULL) {
+            SelectorWakeUp(writer->selector);
+        }
+
         ThreadJoin(writer->thread);
     }
 
@@ -193,13 +229,14 @@ void WriterEnd(Writer* writer) {
 }
 
 static void _WriterCloseHandler(Event event, Connection* source, Writer* writer) {
-    if (event != AIO4C_CLOSE_EVENT) {
+    if (event != AIO4C_CLOSE_EVENT && event != AIO4C_PENDING_CLOSE_EVENT) {
         return;
     }
 
-    RemoveAll(writer->queue, aio4c_remove_callback(_WriterRemove), aio4c_remove_discriminant(source));
-
-    if (!EnqueueDataItem(writer->queue, source)) {
+    if (writer->queue == NULL || !EnqueueDataItem(writer->queue, source)) {
+        if (ConnectionNoMoreUsed(source, AIO4C_CONNECTION_OWNER_WRITER)) {
+            FreeConnection(&source);
+        }
         return;
     }
 
@@ -219,6 +256,7 @@ static void _WriterEventHandler(Event event, Connection* source, Writer* writer)
 
 void WriterManageConnection(Writer* writer, Connection* connection) {
     ConnectionAddSystemHandler(connection, AIO4C_OUTBOUND_DATA_EVENT, aio4c_connection_handler(_WriterEventHandler), aio4c_connection_handler_arg(writer), false);
+    ConnectionAddSystemHandler(connection, AIO4C_PENDING_CLOSE_EVENT, aio4c_connection_handler(_WriterCloseHandler), aio4c_connection_handler_arg(writer), true);
     ConnectionAddSystemHandler(connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_WriterCloseHandler), aio4c_connection_handler_arg(writer), true);
 }
 

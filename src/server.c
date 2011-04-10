@@ -40,7 +40,7 @@ static aio4c_bool_t _serverInit(Server* server) {
     ConnectionAddHandler(server->factory, AIO4C_INBOUND_DATA_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(server->handler), NULL, true);
-    server->acceptor = NewAcceptor(server->address, server->factory, server->nbPipes);
+    server->acceptor = NewAcceptor(server->thread->name, server->address, server->factory, server->nbPipes);
 
     if (server->acceptor == NULL) {
         return false;
@@ -76,7 +76,7 @@ static void _serverExit(Server* server) {
     FreeQueue(&server->queue);
 }
 
-Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* (*dataFactory)(Connection*)) {
+Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* handlerArg, void* (*dataFactory)(Connection*,void*)) {
     Server* server = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -94,7 +94,7 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSiz
 
     server->address    = NewAddress(type, host, port);
     server->pool       = NewBufferPool(bufferSize);
-    server->factory    = NewConnectionFactory(server->pool, dataFactory);
+    server->factory    = NewConnectionFactory(server->pool, dataFactory, handlerArg);
     server->acceptor   = NULL;
     server->thread     = NULL;
     server->handler    = handler;
@@ -119,10 +119,15 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSiz
     return server;
 }
 
-void ServerEnd(Server* server) {
+void ServerJoin(Server* server) {
     if (server->thread != NULL) {
-        EnqueueExitItem(server->queue);
         ThreadJoin(server->thread);
     }
     aio4c_free(server);
+}
+
+void ServerStop(Server* server) {
+    if (server->thread != NULL) {
+        EnqueueExitItem(server->queue);
+    }
 }

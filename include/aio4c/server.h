@@ -31,6 +31,12 @@
 #define aio4c_server_handler(handler) \
     (void(*)(Event,Connection*,void*))handler
 
+#define aio4c_server_handler_arg(arg) \
+    (void*)arg
+
+#define aio4c_server_factory(factory) \
+    (void*(*)(Connection*,void*))factory
+
 typedef struct s_Server {
     Address*    address;
     Acceptor*   acceptor;
@@ -42,8 +48,10 @@ typedef struct s_Server {
     Queue*      queue;
 } Server;
 
-extern AIO4C_DLLEXPORT Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* (*dataFactory)(Connection*));
+extern AIO4C_DLLEXPORT Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* handlerArg, void* (*dataFactory)(Connection*,void*));
 
-extern AIO4C_DLLEXPORT void ServerEnd(Server* server);
+extern AIO4C_DLLEXPORT void ServerJoin(Server* server);
+
+extern AIO4C_DLLEXPORT void ServerStop(Server* server);
 
 #endif

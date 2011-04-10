@@ -32,18 +32,17 @@ typedef struct s_JavaClient {
 } JavaClient;
 
 static void _jniClientEventHandler(Event event, Connection* connection, JavaClient* client) {
-    jclass cClient = NULL;
+    ProbeTimeStart(AIO4C_TIME_PROBE_JNI_OVERHEAD);
+
     jclass cConnection = NULL;
     jclass cFactory = NULL;
     JNIEnv* jvm = NULL;
-    jobject jClient = client->jClient;
     jobject jFactory = client->jFactory;
     jobject jBuffer = NULL;
     jmethodID jMethod = NULL;
 
     (*client->jvm)->AttachCurrentThreadAsDaemon(client->jvm, (void**)&jvm, NULL);
 
-    cClient = (*jvm)->GetObjectClass(jvm, jClient);
     cFactory = (*jvm)->GetObjectClass(jvm, jFactory);
 
     if (client->jConnection != NULL) {
@@ -84,6 +83,7 @@ static void _jniClientEventHandler(Event event, Connection* connection, JavaClie
             break;
     }
 
+    ProbeTimeEnd(AIO4C_TIME_PROBE_JNI_OVERHEAD);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_Client_initialize(JNIEnv* jvm, jobject client, jobject config, jobject factory) {
@@ -131,7 +131,7 @@ JNIEXPORT void JNICALL Java_com_aio4c_Client_initialize(JNIEnv* jvm, jobject cli
         aio4c_free(myJClient);
         (*jvm)->DeleteGlobalRef(jvm, myClient);
         (*jvm)->ReleaseStringUTFChars(jvm, oAddress, address);
-        (*jvm)->ThrowNew(jvm, (*jvm)->FindClass(jvm, "Ljava/lang/RuntimeException;"), "cannot allocate memory (3)");
+        (*jvm)->ThrowNew(jvm, (*jvm)->FindClass(jvm, "Ljava/lang/RuntimeException;"), "cannot allocate memory (4)");
         return;
     }
 
@@ -148,12 +148,10 @@ JNIEXPORT void JNICALL Java_com_aio4c_Client_initialize(JNIEnv* jvm, jobject cli
 
 JNIEXPORT void JNICALL Java_com_aio4c_Client_join(JNIEnv* jvm, jobject client) {
     JavaClient* cClient = NULL;
-    Thread* tClient = NULL;
 
     GetPointer(jvm, client, (void**)&cClient);
 
-    tClient = cClient->client->thread;
-    ThreadJoin(tClient);
+    ClientEnd(cClient->client);
 
     (*jvm)->DeleteGlobalRef(jvm, cClient->jClient);
     (*jvm)->DeleteGlobalRef(jvm, cClient->jFactory);

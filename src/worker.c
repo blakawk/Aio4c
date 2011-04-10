@@ -37,7 +37,20 @@
 #endif /* AIO4C_WIN32 */
 
 static aio4c_bool_t _WorkerInit(Worker* worker) {
+    if ((worker->queue = NewQueue()) == NULL) {
+        return false;
+    }
+
+    if ((worker->pool = NewBufferPool(worker->bufferSize)) == NULL) {
+        return false;
+    }
+
+    if ((worker->writer = NewWriter(worker->pipe, worker->bufferSize)) == NULL) {
+        return false;
+    }
+
     Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", worker->thread->id);
+
     return true;
 }
 
@@ -61,19 +74,19 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
             case AIO4C_QUEUE_ITEM_EXIT:
                 return false;
             case AIO4C_QUEUE_ITEM_TASK:
-                if (item.content.task.connection->state != AIO4C_CONNECTION_STATE_CLOSED) {
-                    ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
-                    item.content.task.connection->dataBuffer = item.content.task.buffer;
-                    ConnectionEventHandle(item.content.task.connection, item.content.task.event, item.content.task.connection);
-                    item.content.task.connection->dataBuffer = NULL;
-                    ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,item.content.task.buffer->position);
-                    ReleaseBuffer(&item.content.task.buffer);
-                    ProbeTimeEnd(AIO4C_TIME_PROBE_DATA_PROCESS);
-                }
+                connection = item.content.task.connection;
+                ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
+                connection->dataBuffer = item.content.task.buffer;
+                ConnectionProcessData(connection);
+                connection->dataBuffer = NULL;
+                ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,item.content.task.buffer->position);
+                ReleaseBuffer(&item.content.task.buffer);
+                ProbeTimeEnd(AIO4C_TIME_PROBE_DATA_PROCESS);
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
                 Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                RemoveAll(worker->queue, aio4c_remove_callback(_removeCallback), aio4c_remove_discriminant(connection));
                 if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WORKER)) {
                     Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
@@ -88,16 +101,17 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
 }
 
 static void _WorkerExit(Worker* worker) {
+    if (worker->writer != NULL) {
+        WriterEnd(worker->writer);
+    }
+
     FreeQueue(&worker->queue);
-
-    WriterEnd(worker->writer);
-
     FreeBufferPool(&worker->pool);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Worker* NewWorker(int workerIndex, aio4c_size_t bufferSize) {
+Worker* NewWorker(char* pipeName, aio4c_size_t bufferSize) {
     Worker* worker = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -113,28 +127,31 @@ Worker* NewWorker(int workerIndex, aio4c_size_t bufferSize) {
         return NULL;
     }
 
-    worker->queue = NewQueue();
-    worker->pool  = NewBufferPool(bufferSize);
+    worker->queue      = NULL;
+    worker->pool       = NULL;
+    worker->writer     = NULL;
+    worker->bufferSize = bufferSize;
 
-    worker->writer = NewWriter(workerIndex, bufferSize);
-    if (worker->writer == NULL) {
-        FreeQueue(&worker->queue);
-        aio4c_free(worker);
-        return NULL;
+    if (pipeName != NULL) {
+        worker->pipe       = pipeName;
+        worker->name       = aio4c_malloc(strlen(pipeName) + 1 + 7);
+        if (worker->name != NULL) {
+            snprintf(worker->name, strlen(pipeName) + 1 + 7, "%s-worker", pipeName);
+        }
+        worker->thread     = NULL;
+    } else {
+        worker->pipe = NULL;
+        worker->name = NULL;
     }
 
-    worker->name = BuildThreadName(sizeof(AIO4C_WORKER_NAME_SUFFIX), AIO4C_WORKER_NAME_SUFFIX, workerIndex);
-
-    worker->thread = NULL;
     NewThread(worker->name,
             aio4c_thread_init(_WorkerInit),
             aio4c_thread_run(_WorkerRun),
             aio4c_thread_exit(_WorkerExit),
             aio4c_thread_arg(worker),
             &worker->thread);
+
     if (worker->thread == NULL) {
-        WriterEnd(worker->writer);
-        FreeQueue(&worker->queue);
         if (worker->name != NULL) {
             aio4c_free(worker->name);
         }
@@ -146,9 +163,11 @@ Worker* NewWorker(int workerIndex, aio4c_size_t bufferSize) {
 }
 
 static void _WorkerCloseHandler(Event event, Connection* source, Worker* worker) {
-    RemoveAll(worker->queue, aio4c_remove_callback(_removeCallback), aio4c_remove_discriminant(source));
-
-    EnqueueEventItem(worker->queue, event, source);
+    if (worker->queue == NULL || !EnqueueEventItem(worker->queue, event, source)) {
+        if (ConnectionNoMoreUsed(source, AIO4C_CONNECTION_OWNER_WORKER)) {
+            FreeConnection(&source);
+        }
+    }
 }
 
 static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) {
@@ -189,7 +208,10 @@ void WorkerManageConnection(Worker* worker, Connection* connection) {
 
 void WorkerEnd(Worker* worker) {
     if (worker->thread != NULL) {
-        EnqueueExitItem(worker->queue);
+        if (worker->queue != NULL) {
+            EnqueueExitItem(worker->queue);
+        }
+
         ThreadJoin(worker->thread);
     }
 

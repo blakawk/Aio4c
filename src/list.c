@@ -28,6 +28,8 @@
 #include <errno.h>
 #endif /* AIO4C_WIN32 */
 
+#include <stdlib.h>
+
 Node* NewNode(void* data) {
     Node* node = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
@@ -87,6 +89,10 @@ void ListAddBefore(List* list, Node* node, Node* newNode) {
 }
 
 void ListAddFirst(List* list, Node* newNode) {
+    if (newNode == NULL || newNode->data == NULL) {
+        abort();
+    }
+
     if (list->first == NULL) {
         list->first = newNode;
         list->last = newNode;
@@ -95,19 +101,45 @@ void ListAddFirst(List* list, Node* newNode) {
     } else {
         ListAddBefore(list, list->first, newNode);
     }
+
+    if (list->first != newNode || newNode->prev != NULL) {
+        abort();
+    }
 }
 
 void ListAddLast(List* list, Node* newNode) {
+    if (newNode == NULL || newNode->data == NULL) {
+        abort();
+    }
+
     if (list->last == NULL) {
         ListAddFirst(list, newNode);
     } else {
         ListAddAfter(list, list->last, newNode);
     }
+
+    if (list->last != newNode || newNode->next != NULL) {
+        abort();
+    }
 }
 
 Node* ListPop(List* list) {
     Node* node = list->first;
-    ListRemove(list, list->first);
+
+    if (node == NULL) {
+        return NULL;
+    }
+
+    if (node->prev != NULL) {
+        abort();
+    }
+
+    ListRemove(list, node);
+
+    if (list->first == node || node->prev != NULL || node->next != NULL || list->last == node) {
+        abort();
+    }
+
     return node;
 }
 
@@ -117,14 +149,25 @@ aio4c_bool_t ListEmpty(List* list) {
 
 void ListRemove(List* list, Node* node) {
     if (node->prev == NULL) {
+        if (list->first != node) {
+            abort();
+        }
+
         list->first = node->next;
     } else {
         node->prev->next = node->next;
     }
 
     if (node->next == NULL) {
+        if (list->last != node) {
+            abort();
+        }
+
         list->last = node->prev;
     } else {
         node->next->prev = node->prev;
     }
+
+    node->prev = NULL;
+    node->next = NULL;
 }

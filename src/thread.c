@@ -20,6 +20,7 @@
 #include <aio4c/thread.h>
 
 #include <aio4c/alloc.h>
+#include <aio4c/condition.h>
 #include <aio4c/error.h>
 #include <aio4c/lock.h>
 #include <aio4c/log.h>
@@ -109,19 +110,23 @@ static Thread* _runThread(Thread* thread) {
         run = thread->init(thread->arg);
     }
 
-    if (run) {
-        while (thread->running) {
-            ReleaseLock(thread->lock);
+    thread->initialized = true;
+    thread->running = run;
 
-            if (!thread->run(thread->arg)) {
-                TakeLock(thread->lock);
-                break;
-            }
+    NotifyCondition(thread->condInit);
 
+    while (thread->running) {
+        ReleaseLock(thread->lock);
+
+        if (!thread->run(thread->arg)) {
             TakeLock(thread->lock);
+            break;
         }
 
+        TakeLock(thread->lock);
     }
+
+    thread->running = false;
 
 #ifndef AIO4C_WIN32
     pthread_cleanup_pop(1);
@@ -195,7 +200,7 @@ Thread* _ThreadSelf(void) {
     EnterCriticalSection(&_threadsLock);
 #endif /* AIO4C_WIN32 */
 
-    for (i = 0; i < _numThreads; i++) {
+    for (i = 0; i < _numThreads && i < AIO4C_MAX_THREADS; i++) {
         if (_threads[i] != NULL) {
 #ifndef AIO4C_WIN32
             pthread_t tid = pthread_self();
@@ -222,28 +227,14 @@ Thread* _ThreadSelf(void) {
     return self;
 }
 
-char* BuildThreadName(int suffixLen, char* suffix, ...) {
-    va_list args;
-    Thread* current = ThreadSelf();
-    char* parentName = (current==NULL)?NULL:current->name;
-    int parentNameLen = (parentName==NULL)?0:strlen(parentName);
-    char* name = NULL;
-    int nameLen = parentNameLen + suffixLen;
-
-    if ((name = aio4c_malloc(nameLen)) != NULL) {
-        memcpy(name, parentName, parentNameLen);
-        memset(&name[parentNameLen], 0, suffixLen);
-        va_start(args, suffix);
-        vsnprintf(&name[parentNameLen], suffixLen, suffix, args);
-        va_end(args);
-    }
-
-    return name;
-}
-
 void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread) {
     Thread* thread = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+
+    if (_numThreads >= AIO4C_MAX_THREADS) {
+        Log(AIO4C_LOG_LEVEL_FATAL, "too much threads (%d), cannot create more", _numThreads);
+        return;
+    }
 
     if ((thread = aio4c_malloc(sizeof(Thread))) == NULL) {
 #ifndef AIO4C_WIN32
@@ -257,15 +248,11 @@ void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void
         return;
     }
 
-    if (_numThreads >= AIO4C_MAX_THREADS) {
-        Log(AIO4C_LOG_LEVEL_FATAL, "too much threads (%d), cannot create more", _numThreads);
-        aio4c_free(thread);
-        return;
-    }
-
     thread->name = name;
     thread->state = AIO4C_THREAD_STATE_RUNNING;
     thread->lock = NewLock();
+    thread->condInit = NewCondition();
+    thread->initialized = false;
     thread->init = init;
     thread->run = run;
     thread->exit = exit;
@@ -283,6 +270,7 @@ void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void
 #endif /* AIO4C_WIN32 */
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_CREATE_ERROR, &code);
         ReleaseLock(thread->lock);
+        FreeCondition(&thread->condInit);
         FreeLock(&thread->lock);
         aio4c_free(thread);
         return;
@@ -292,7 +280,17 @@ void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void
 
     _addThread(thread);
 
-    ReleaseLock(thread->lock);
+    while (!thread->initialized) {
+        WaitCondition(thread->condInit, thread->lock);
+    }
+
+    if (!thread->running) {
+        *pThread = NULL;
+        ReleaseLock(thread->lock);
+        ThreadJoin(thread);
+    } else {
+        ReleaseLock(thread->lock);
+    }
 }
 
 aio4c_bool_t ThreadRunning(Thread* thread) {
@@ -312,6 +310,7 @@ static void _FreeThread(Thread** thread) {
     Thread* pThread = NULL;
 
     if (thread != NULL && (pThread = *thread) != NULL) {
+        FreeCondition(&pThread->condInit);
         FreeLock(&pThread->lock);
         aio4c_free(pThread);
         *thread = NULL;

@@ -38,7 +38,20 @@
 #include <string.h>
 
 static aio4c_bool_t _ReaderInit(Reader* reader) {
+    if ((reader->selector = NewSelector()) == NULL) {
+        return false;
+    }
+
+    if ((reader->queue = NewQueue()) == NULL) {
+        return false;
+    }
+
+    if ((reader->worker = NewWorker(reader->pipe, reader->bufferSize)) == NULL) {
+        return false;
+    }
+
     Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", reader->thread->id);
+
     return true;
 }
 
@@ -60,15 +73,19 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
                 connection = (Connection*)item.content.event.source;
-                if (connection->readKey != NULL) {
-                    Unregister(reader->selector, connection->readKey, true);
-                    connection->readKey = NULL;
-                }
-                Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
-                reader->load--;
-                if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_READER)) {
-                    Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
-                    FreeConnection(&connection);
+                if (item.content.event.type == AIO4C_CLOSE_EVENT) {
+                    if (connection->readKey != NULL) {
+                        Unregister(reader->selector, connection->readKey, true);
+                        connection->readKey = NULL;
+                    }
+                    Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                    reader->load--;
+                    if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_READER)) {
+                        Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
+                        FreeConnection(&connection);
+                    }
+                } else if (item.content.event.type == AIO4C_PENDING_CLOSE_EVENT) {
+                    Log(AIO4C_LOG_LEVEL_DEBUG, "pending close received for connection %s", connection->string);
                 }
                 break;
             default:
@@ -85,8 +102,6 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
         while (SelectionKeyReady(reader->selector, &key)) {
             if (key->result & (int)key->operation) {
                 connection = ConnectionRead((Connection*)key->attachment);
-            } else {
-                ConnectionClose((Connection*)key->attachment);
             }
         }
         ProbeTimeEnd(AIO4C_TIME_PROBE_NETWORK_READ);
@@ -96,14 +111,16 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
 }
 
 static void _ReaderExit(Reader* reader) {
-    WorkerEnd(reader->worker);
+    if (reader->worker != NULL) {
+        WorkerEnd(reader->worker);
+    }
 
     FreeQueue(&reader->queue);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Reader* NewReader(int readerIndex, aio4c_size_t bufferSize) {
+Reader* NewReader(char* pipeName, aio4c_size_t bufferSize) {
     Reader* reader = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -119,22 +136,25 @@ Reader* NewReader(int readerIndex, aio4c_size_t bufferSize) {
         return NULL;
     }
 
-    reader->selector = NewSelector();
-    reader->queue = NewQueue();
-    reader->worker = NULL;
-    reader->worker = NewWorker(readerIndex, bufferSize);
-    reader->load = 0;
+    reader->selector   = NULL;
+    reader->queue      = NULL;
+    reader->worker     = NULL;
+    reader->bufferSize = bufferSize;
+    reader->load       = 0;
 
-    if (reader->worker == NULL) {
-        FreeSelector(&reader->selector);
-        FreeQueue(&reader->queue);
-        aio4c_free(reader);
-        return NULL;
+    if (pipeName != NULL) {
+        reader->pipe       = pipeName;
+        reader->name       = aio4c_malloc(strlen(pipeName) + 1 + 7);
+        if (reader->name != NULL) {
+            snprintf(reader->name, strlen(pipeName) + 1 + 7, "%s-reader", pipeName);
+        }
+    } else {
+        reader->pipe = NULL;
+        reader->name = NULL;
     }
 
-    reader->name = BuildThreadName(sizeof(AIO4C_READER_NAME_SUFFIX), AIO4C_READER_NAME_SUFFIX, readerIndex);
+    reader->thread     = NULL;
 
-    reader->thread = NULL;
     NewThread(reader->name,
            aio4c_thread_init(_ReaderInit),
            aio4c_thread_run(_ReaderRun),
@@ -143,9 +163,10 @@ Reader* NewReader(int readerIndex, aio4c_size_t bufferSize) {
            &reader->thread);
 
     if (reader->thread == NULL) {
-        WorkerEnd(reader->worker);
         FreeSelector(&reader->selector);
-        FreeQueue(&reader->queue);
+        if (reader->pipe != NULL) {
+            aio4c_free(reader->pipe);
+        }
         if (reader->name != NULL) {
             aio4c_free(reader->name);
         }
@@ -157,7 +178,10 @@ Reader* NewReader(int readerIndex, aio4c_size_t bufferSize) {
 }
 
 static void _ReaderEventHandler(Event event, Connection* connection, Reader* reader) {
-    if (!EnqueueEventItem(reader->queue, event, connection)) {
+    if (reader->queue == NULL || !EnqueueEventItem(reader->queue, event, connection)) {
+        if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_READER)) {
+            FreeConnection(&connection);
+        }
         return;
     }
 
@@ -170,6 +194,7 @@ void ReaderManageConnection(Reader* reader, Connection* connection) {
         return;
     }
 
+    ConnectionAddSystemHandler(connection, AIO4C_PENDING_CLOSE_EVENT, aio4c_connection_handler(_ReaderEventHandler), aio4c_connection_handler_arg(reader), true);
     ConnectionAddSystemHandler(connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_ReaderEventHandler), aio4c_connection_handler_arg(reader), true);
 
     WorkerManageConnection(reader->worker, connection);
@@ -179,8 +204,14 @@ void ReaderManageConnection(Reader* reader, Connection* connection) {
 
 void ReaderEnd(Reader* reader) {
     if (reader->thread != NULL) {
-        EnqueueExitItem(reader->queue);
-        SelectorWakeUp(reader->selector);
+        if (reader->queue != NULL) {
+            EnqueueExitItem(reader->queue);
+        }
+
+        if (reader->selector != NULL) {
+            SelectorWakeUp(reader->selector);
+        }
+
         ThreadJoin(reader->thread);
     }
 
@@ -188,6 +219,10 @@ void ReaderEnd(Reader* reader) {
 
     if (reader->name != NULL) {
         aio4c_free(reader->name);
+    }
+
+    if (reader->pipe != NULL) {
+        aio4c_free(reader->pipe);
     }
 
     aio4c_free(reader);

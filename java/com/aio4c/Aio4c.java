@@ -23,6 +23,6 @@ public class Aio4c {
     static {
         System.loadLibrary("aio4c");
     }
-    public static native void init(LogLevel level, String log);
+    public static native void init(Log.Level level, String log);
     public static native void end();
 }

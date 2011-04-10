@@ -122,6 +122,10 @@ static QueueItem* _NewItem(void) {
 static aio4c_bool_t _Enqueue(Queue* queue, QueueItem* item) {
     Node* node = NULL;
 
+    if (queue == NULL || queue->lock == NULL) {
+        return false;
+    }
+
     TakeLock(queue->lock);
 
     if (queue->exit) {
@@ -130,7 +134,7 @@ static aio4c_bool_t _Enqueue(Queue* queue, QueueItem* item) {
     }
 
     if (ListEmpty(&queue->free)) {
-        ListAddFirst(&queue->free, NewNode(_NewItem()));
+        ListAddLast(&queue->free, NewNode(_NewItem()));
     }
 
     node = ListPop(&queue->free);

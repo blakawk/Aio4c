@@ -17,29 +17,12 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-#ifndef __AIO4C_READER_H__
-#define __AIO4C_READER_H__
+package com.aio4c;
 
-#include <aio4c/connection.h>
-#include <aio4c/thread.h>
-#include <aio4c/types.h>
-#include <aio4c/worker.h>
-
-typedef struct s_Reader {
-    char*          name;
-    char*          pipe;
-    Thread*        thread;
-    Queue*         queue;
-    Selector*      selector;
-    Worker*        worker;
-    int            load;
-    int            bufferSize;
-} Reader;
-
-extern Reader* NewReader(char* pipeName, aio4c_size_t bufferSize);
-
-extern void ReaderManageConnection(Reader* reader, Connection* connection);
-
-extern void ReaderEnd(Reader* reader);
-
-#endif
+public class ServerConfig {
+    public AddressType type = AddressType.IPV4;
+    public String address   = "0.0.0.0";
+    public short port       = 8080;
+    public int bufferSize   = 8192;
+    public int nbPipes      = 8;
+}

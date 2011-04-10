@@ -19,6 +19,7 @@
  **/
 #include <aio4c/jni/buffer.h>
 
+#include <aio4c/alloc.h>
 #include <aio4c/jni.h>
 #include <aio4c/buffer.h>
 
@@ -30,7 +31,7 @@ static Buffer* _GetBuffer(JNIEnv* jvm, jobject buffer) {
     return _buffer;
 }
 
-JNIEXPORT jbyteArray JNICALL Java_com_aio4c_Buffer_array(JNIEnv* jvm, jobject buffer) {
+JNIEXPORT jbyteArray JNICALL Java_com_aio4c_Buffer_array__(JNIEnv* jvm, jobject buffer) {
     Buffer* _buffer = NULL;
     jbyteArray array = NULL;
 
@@ -40,6 +41,12 @@ JNIEXPORT jbyteArray JNICALL Java_com_aio4c_Buffer_array(JNIEnv* jvm, jobject bu
     (*jvm)->SetByteArrayRegion(jvm, array, 0, _buffer->limit - _buffer->position, (jbyte*)&_buffer->data[_buffer->position]);
 
     return array;
+}
+
+JNIEXPORT void JNICALL Java_com_aio4c_Buffer_array___3B(JNIEnv* jvm, jobject buffer, jbyteArray array) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    (*jvm)->GetByteArrayRegion(jvm, array, 0, _buffer->limit - _buffer->position, (jbyte*)&_buffer->data[_buffer->position]);
 }
 
 JNIEXPORT jbyte JNICALL Java_com_aio4c_Buffer_get(JNIEnv* jvm, jobject buffer) {
@@ -151,4 +158,77 @@ JNIEXPORT void JNICALL Java_com_aio4c_Buffer_putString(JNIEnv* jvm, jobject buff
     BufferPutString(_buffer, (char*)str);
 
     (*jvm)->ReleaseStringUTFChars(jvm, s, str);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_aio4c_Buffer_hasRemaining(JNIEnv* jvm, jobject buffer) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    return BufferHasRemaining(_buffer);
+}
+
+JNIEXPORT jint JNICALL Java_com_aio4c_Buffer_position__(JNIEnv* jvm, jobject buffer) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    return _buffer->position;
+}
+
+JNIEXPORT void JNICALL Java_com_aio4c_Buffer_position__I(JNIEnv* jvm, jobject buffer, jint position) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    if (BufferPosition(_buffer, position) == NULL) {
+        (*jvm)->ThrowNew(jvm, (*jvm)->FindClass(jvm, "Ljava/lang/RuntimeException;"), "invalid position");
+        return;
+    }
+}
+
+JNIEXPORT jint JNICALL Java_com_aio4c_Buffer_limit__(JNIEnv* jvm, jobject buffer) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    return _buffer->limit;
+}
+
+JNIEXPORT void JNICALL Java_com_aio4c_Buffer_limit__I(JNIEnv* jvm, jobject buffer, jint limit) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    if (BufferLimit(_buffer, limit) == NULL) {
+        (*jvm)->ThrowNew(jvm, (*jvm)->FindClass(jvm, "Ljava/lang/RuntimeException;"), "invalid limit");
+        return;
+    }
+}
+
+JNIEXPORT jint JNICALL Java_com_aio4c_Buffer_capacity(JNIEnv* jvm, jobject buffer) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    return _buffer->size;
+}
+
+JNIEXPORT void JNICALL Java_com_aio4c_Buffer_flip(JNIEnv* jvm, jobject buffer) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    BufferFlip(_buffer);
+}
+
+JNIEXPORT void JNICALL Java_com_aio4c_Buffer_reset(JNIEnv* jvm, jobject buffer) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+
+    BufferReset(_buffer);
+}
+
+JNIEXPORT jstring JNICALL Java_com_aio4c_Buffer_toString(JNIEnv* jvm, jobject buffer) {
+    Buffer* _buffer = _GetBuffer(jvm, buffer);
+#ifndef AIO4C_WIN32
+    int len = snprintf(NULL, 0, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer, _buffer->size, _buffer->limit, _buffer->position);
+    char* _s = aio4c_malloc(len + 1);
+    snprintf(_s, len + 1, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer, _buffer->size, _buffer->limit, _buffer->position);
+#else /* AIO4C_WIN32 */
+    int len = strlen("buffer %p [cap: %d, lim: %d, pos: %d]") + 1;
+    char* _s = aio4c_malloc(len);
+    while (_s != NULL && snprintf(_s, len, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer, _buffer->size, _buffer->limit, _buffer->position) < 0) {
+        len++;
+        _s = aio4c_realloc(_s, len);
+    }
+#endif /* AIO4C_WIN32 */
+    jstring s = (*jvm)->NewStringUTF(jvm, _s);
+
+    return s;
 }

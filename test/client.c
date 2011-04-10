@@ -37,6 +37,9 @@ void onRead(Connection* source) {
         gettimeofday(&now, NULL);
         ProbeSize(AIO4C_PROBE_LATENCY_COUNT, 1);
         ProbeTime(AIO4C_TIME_PROBE_LATENCY, &ping, &now);
+        if (mySeq > 10) {
+            ConnectionClose(source, false);
+        }
     } else {
         Log(AIO4C_LOG_LEVEL_DEBUG, "unexpected answer %.*s from server on connection %s", 6, &buffer->data[buffer->position], source->string);
     }
@@ -130,7 +133,7 @@ int main (int argc, char* argv[]) {
         }
     }
 
-    LogEnd();
+    Aio4cEnd();
 
     free(seq);
     free(clients);

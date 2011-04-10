@@ -22,10 +22,10 @@
 
 #include <aio4c/types.h>
 
-extern void* aio4c_malloc(volatile aio4c_size_t size);
+extern AIO4C_DLLEXPORT void* aio4c_malloc(int size);
 
-extern void* aio4c_realloc(volatile void* ptr, volatile aio4c_size_t size);
+extern AIO4C_DLLEXPORT void* aio4c_realloc(void* ptr, int size);
 
-extern void aio4c_free(volatile void* ptr);
+extern AIO4C_DLLEXPORT void aio4c_free(void* ptr);
 
 #endif

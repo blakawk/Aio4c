@@ -20,7 +20,17 @@
 package com.aio4c;
 
 public class Client {
+    /**
+     * Pointer to the underlying client structure on 32 bits architectures.
+     * Do not remove ! Used by JNI.
+     */
+    @SuppressWarnings("unused")
     private int  iPointer = 0;
+    /**
+     * Pointer to the underlying client structure on 64 bits architectures.
+     * Do not remove ! Used by JNI.
+     */
+    @SuppressWarnings("unused")
     private long lPointer = 0;
     private native void initialize(ClientConfig config, ConnectionFactory factory);
     public native void join();

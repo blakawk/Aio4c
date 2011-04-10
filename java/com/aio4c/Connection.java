@@ -20,15 +20,26 @@
 package com.aio4c;
 
 public abstract class Connection {
-    private int  iPointer;
-    private long lPointer;
+    /**
+     * Pointer to the underlying connection structure on 32 bits architectures.
+     * Do not remove ! Used by JNI.
+     */
+    @SuppressWarnings("unused")
+    private int  iPointer = 0;
+    /**
+     * Pointer to the underlying connection structure on 64 bits architectures.
+     * Do not remove ! Used by JNI.
+     */
+    @SuppressWarnings("unused")
+    private long lPointer = 0;
     public void onInit() {};
     public void onConnect() {};
-    public void onRead(Buffer data) {};
-    public void onWrite(Buffer data) {};
+    public void onRead(@SuppressWarnings("unused") Buffer data) {};
+    public void onWrite(@SuppressWarnings("unused") Buffer data) {};
     public void onClose() {};
     public native void enableWriteInterest();
-    public native void close();
+    public native void close(boolean force);
+    public native boolean closing();
     @Override
     public native String toString();
     public Connection() {};

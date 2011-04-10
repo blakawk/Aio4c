@@ -41,10 +41,18 @@ JNIEXPORT jstring JNICALL Java_com_aio4c_Connection_toString(JNIEnv* jvm, jobjec
     return string;
 }
 
-JNIEXPORT void JNICALL Java_com_aio4c_Connection_close(JNIEnv* jvm, jobject connection) {
+JNIEXPORT void JNICALL Java_com_aio4c_Connection_close(JNIEnv* jvm, jobject connection, jboolean force) {
     Connection* myConnection = NULL;
 
     GetPointer(jvm, connection, (void**)&myConnection);
 
-    ConnectionClose(myConnection);
+    ConnectionClose(myConnection, force);
+}
+
+JNIEXPORT jboolean JNICALL Java_com_aio4c_Connection_closing(JNIEnv* jvm, jobject connection) {
+    Connection* myConnection = NULL;
+
+    GetPointer(jvm, connection, (void**)&myConnection);
+
+    return (jboolean)(myConnection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE);
 }

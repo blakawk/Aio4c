@@ -58,9 +58,16 @@ static aio4c_bool_t _AcceptorInit(Acceptor* acceptor) {
     char reuseaddr = 1;
 #endif /* AIO4C_WIN32 */
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    char* pipeName = NULL;
 
     for (i = 0; i < acceptor->nbReaders; i++) {
-        if ((acceptor->readers[i] = NewReader(i, acceptor->factory->pool->bufferSize)) == NULL) {
+        pipeName = aio4c_malloc(8);
+
+        if (pipeName != NULL) {
+            snprintf(pipeName, 8, "pipe%03d", i);
+        }
+
+        if ((acceptor->readers[i] = NewReader(pipeName, acceptor->factory->pool->bufferSize)) == NULL) {
             break;
         }
     }
@@ -158,6 +165,11 @@ static Reader* _ChooseReader(Acceptor* acceptor) {
 
 static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
     struct sockaddr addr;
+    struct sockaddr_in addr_in;
+    struct sockaddr_in6 addr_in6;
+#ifndef AIO4C_WIN32
+    struct sockaddr_un addr_un;
+#endif /* AIO4C_WIN32 */
     socklen_t addrSize = sizeof(struct sockaddr);
     aio4c_size_t numConnectionsReady = 0;
     aio4c_socket_t sock = -1;
@@ -167,6 +179,11 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
     SelectionKey* key = NULL;
 
     memset(&addr, 0, sizeof(struct sockaddr));
+    memset(&addr_in, 0, sizeof(struct sockaddr_in));
+    memset(&addr_in6, 0, sizeof(struct sockaddr_in6));
+#ifndef AIO4C_WIN32
+    memset(&addr_un, 0, sizeof(struct sockaddr_un));
+#endif /* AIO4C_WIN32 */
 
     numConnectionsReady = Select(acceptor->selector);
 
@@ -177,18 +194,21 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
 
                 switch(acceptor->address->type) {
                     case AIO4C_ADDRESS_IPV4:
-                        if (getnameinfo((struct sockaddr*)&addr, sizeof(struct sockaddr_in), hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) == 0) {
-                            address = NewAddress(AIO4C_ADDRESS_IPV4, hbuf, ntohs(((struct sockaddr_in*)&addr)->sin_port));
+                        if (getnameinfo(&addr, sizeof(struct sockaddr_in), hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) == 0) {
+                            memcpy(&addr_in, &addr, sizeof(struct sockaddr_in));    
+                            address = NewAddress(AIO4C_ADDRESS_IPV4, hbuf, ntohs(addr_in.sin_port));
                         }
                         break;
                     case AIO4C_ADDRESS_IPV6:
-                        if (getnameinfo((struct sockaddr*)&addr, sizeof(struct sockaddr_in6), hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) == 0) {
-                            address = NewAddress(AIO4C_ADDRESS_IPV6, hbuf, ntohs(((struct sockaddr_in6*)&addr)->sin6_port));
+                        if (getnameinfo(&addr, sizeof(struct sockaddr_in6), hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) == 0) {
+                            memcpy(&addr_in6, &addr, sizeof(struct sockaddr_in6));
+                            address = NewAddress(AIO4C_ADDRESS_IPV6, hbuf, ntohs(addr_in6.sin6_port));
                         }
                         break;
 #ifndef AIO4C_WIN32
                     case AIO4C_ADDRESS_UNIX:
-                        address = NewAddress(AIO4C_ADDRESS_UNIX, ((struct sockaddr_un*)&addr)->sun_path, 0);
+                        memcpy(&addr_un, &addr, sizeof(struct sockaddr_un));
+                        address = NewAddress(AIO4C_ADDRESS_UNIX, addr_un.sun_path, 0);
                         break;
 #endif /* AIO4C_WIN32 */
                     default:
@@ -202,6 +222,8 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
                 EnqueueDataItem(acceptor->queue, connection);
 
                 ReaderManageConnection(_ChooseReader(acceptor), connection);
+
+                ConnectionState(connection, AIO4C_CONNECTION_STATE_CONNECTED);
 
                 ProbeSize(AIO4C_PROBE_CONNECTION_COUNT, 1);
             }
@@ -228,6 +250,8 @@ static void _AcceptorCloseHandler(Event event, Connection* source, Acceptor* acc
     if (event != AIO4C_CLOSE_EVENT) {
         return;
     }
+
+    Log(AIO4C_LOG_LEVEL_DEBUG, "received close for connection %s", source->string);
 
     RemoveAll(acceptor->queue, aio4c_remove_callback(_AcceptorRemoveCallback), aio4c_remove_discriminant(source));
 
@@ -260,7 +284,7 @@ static void _AcceptorExit(Acceptor* acceptor) {
     while (acceptor->queue != NULL && Dequeue(acceptor->queue, &item, false)) {
         connection = (Connection*)item.content.data;
         EventHandlerRemove(connection->systemHandlers, AIO4C_CLOSE_EVENT, aio4c_event_handler(_AcceptorCloseHandler));
-        ConnectionClose(connection);
+        ConnectionClose(connection, true);
         if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_ACCEPTOR)) {
             FreeConnection(&connection);
         }
@@ -280,7 +304,7 @@ static void _AcceptorExit(Acceptor* acceptor) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Acceptor* NewAcceptor(Address* address, Connection* factory, int nbPipes) {
+Acceptor* NewAcceptor(char* name, Address* address, Connection* factory, int nbPipes) {
     Acceptor* acceptor = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -296,8 +320,7 @@ Acceptor* NewAcceptor(Address* address, Connection* factory, int nbPipes) {
         return NULL;
     }
 
-    acceptor->name = BuildThreadName(sizeof(AIO4C_ACCEPTOR_NAME_SUFFIX), AIO4C_ACCEPTOR_NAME_SUFFIX, "-a");
-
+    acceptor->name = name;
     acceptor->address = address;
     acceptor->factory = factory;
     acceptor->queue = NewQueue();
@@ -344,15 +367,15 @@ Acceptor* NewAcceptor(Address* address, Connection* factory, int nbPipes) {
 void AcceptorEnd(Acceptor* acceptor) {
     if (acceptor->thread != NULL) {
         acceptor->thread->running = false;
-        SelectorWakeUp(acceptor->selector);
+
+        if (acceptor->selector != NULL) {
+            SelectorWakeUp(acceptor->selector);
+        }
+
         ThreadJoin(acceptor->thread);
     }
 
     FreeSelector(&acceptor->selector);
-
-    if (acceptor->name != NULL) {
-        aio4c_free(acceptor->name);
-    }
 
     aio4c_free(acceptor);
 }

@@ -26,8 +26,6 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-#define AIO4C_ACCEPTOR_NAME_SUFFIX "%s"
-
 typedef struct s_Acceptor {
     char*          name;
     Thread*        thread;
@@ -41,7 +39,7 @@ typedef struct s_Acceptor {
     Queue*         queue;
 } Acceptor;
 
-extern Acceptor* NewAcceptor(Address* address, Connection* factory, int nbPipes);
+extern Acceptor* NewAcceptor(char* name, Address* address, Connection* factory, int nbPipes);
 
 extern void AcceptorEnd(Acceptor* acceptor);
 

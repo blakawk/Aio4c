@@ -50,7 +50,7 @@ static void serverHandler(Event event, Connection* source, Data* data) {
                     EnableWriteInterest(source);
                 } else {
                     Log(AIO4C_LOG_LEVEL_DEBUG, "unexpected sequence %d, expected %d for connection %s", curSeq, data->lastSeq + 1, source->string);
-                    ConnectionClose(source);
+                    ConnectionClose(source, true);
                 }
             }
             break;
@@ -70,7 +70,7 @@ static void serverHandler(Event event, Connection* source, Data* data) {
     }
 }
 
-void* dataFactory(Connection* c) {
+void* dataFactory(Connection* c, void* arg __attribute__((unused))) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "creating data for connection %s", c->string);
     Data* data = malloc(sizeof(Data));
     memset(data, 0, sizeof(Data));
@@ -84,7 +84,7 @@ int main(void) {
 
     Aio4cInit(AIO4C_LOG_LEVEL_DEBUG, "server.log");
 
-    Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, 8192, 32, aio4c_server_handler(serverHandler), dataFactory);
+    Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, 8192, 1, aio4c_server_handler(serverHandler), NULL, dataFactory);
 
     while ((nbRead = read(STDIN_FILENO, buffer, 31)) > 0) {
         buffer[nbRead] = '\0';
@@ -96,7 +96,8 @@ int main(void) {
         }
     }
 
-    ServerEnd(server);
+    ServerStop(server);
+    ServerJoin(server);
     Aio4cEnd();
 
     exit(EXIT_SUCCESS);

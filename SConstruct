@@ -78,6 +78,11 @@ AddOption('--max-threads',
           default = 32,
           help = 'Allow NUM_THREADS creation (default: %default)')
 
+AddOption('--ignore-java-home',
+          dest = 'IGNORE_JAVA_HOME',
+          action = 'store_true',
+          help = 'Try to build using default includes (requires gcj)')
+
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L',
                   ENV = {'PATH': os.environ['PATH']})
 
@@ -185,14 +190,15 @@ if 'TMP' in os.environ:
     env.Append(ENV = {'TMP': os.environ['TMP']})
 
 if not GetOption('clean') and not GetOption('help'):
-    if 'JAVA_HOME' not in os.environ:
-        print 'Please set JAVA_HOME to the root of your Java SDK'
-        Exit(1)
-    else:
-        jni_path = "%s/include" % os.path.normpath(os.environ['JAVA_HOME'])
-        jni_lib_path = "%s/lib" % os.path.normpath(os.environ['JAVA_HOME'])
-        env.Append(LIBPATH = [jni_lib_path])
-        env.Append(CPPPATH = [jni_path])
+    if not GetOption('IGNORE_JAVA_HOME'):
+        if 'JAVA_HOME' not in os.environ:
+            print 'Please set JAVA_HOME to the root of your Java SDK'
+            Exit(1)
+        else:
+            jni_path = "%s/include" % os.path.normpath(os.environ['JAVA_HOME'])
+            jni_lib_path = "%s/lib" % os.path.normpath(os.environ['JAVA_HOME'])
+            env.Append(LIBPATH = [jni_lib_path])
+            env.Append(CPPPATH = [jni_path])
 
 env.Append(CCFLAGS = '-g')
 env.Append(LINKFLAGS = '-g')
@@ -242,12 +248,13 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
 
     w32env = env.Clone()
 
-    if not GetOption('clean') and not GetOption('help') and not os.path.exists("%s/win32" % jni_path):
-        print "JAVA_HOME = %s does not seems to be a win32 SDK" % os.environ['JAVA_HOME']
-        Exit(1)
+    if not GetOption('IGNORE_JAVA_HOME'):
+    	if not GetOption('clean') and not GetOption('help') and not os.path.exists("%s/win32" % jni_path):
+            print "JAVA_HOME = %s does not seems to be a win32 SDK" % os.environ['JAVA_HOME']
+            Exit(1)
 
-    if not GetOption('clean') and not GetOption('help'):
-        w32env.Append(CPPPATH = ["%s/win32" % jni_path])
+        if not GetOption('clean'):
+            w32env.Append(CPPPATH = ["%s/win32" % jni_path])
 
     if sys.platform != 'win32':
         w32env['LIBPREFIX'] = '';
@@ -257,7 +264,7 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
         w32env['OBJSUFFIX'] = '.obj'
         if '-fPIC' in w32env['SHCCFLAGS']:
             w32env['SHCCFLAGS'].remove('-fPIC')
-    elif not GetOption('clean') and not GetOption('clean'):
+    elif not GetOption('clean') and not GetOption('help') and not GetOption('IGNORE_JAVA_HOME'):
         env.Append(ENV = {'PATH': "%s/bin:%s" % (os.path.normpath(os.environ['JAVA_HOME']), os.environ['PATH'])})
 
     if int(winver, 16) < 0x0600:
@@ -273,13 +280,13 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
     envuser = w32env.Clone()
 
     envlib.Append(CPPDEFINES = {"AIO4C_DLLEXPORT": "'__declspec(dllexport)'"})
-    envuser.Append(CPPDEFINES = {"AIO4C_DLLIMPORT": "'__declspec(dllimport)'"})
+    envuser.Append(CPPDEFINES = {"AIO4C_DLLEXPORT": "'__declspec(dllimport)'"})
 else:
-    if not GetOption('clean') and not GetOption('help') and not os.path.exists("%s/linux" % jni_path):
+    if not GetOption('clean') and not GetOption('help') and not GetOption('IGNORE_JAVA_HOME') and not os.path.exists("%s/linux" % jni_path):
         print "JAVA_HOME = %s does not seems to be a linux SDK" % os.environ['JAVA_HOME']
         Exit(1)
 
-    if not GetOption('clean') and not GetOption('help'):
+    if not GetOption('clean') and not GetOption('help') and not GetOption('IGNORE_JAVA_HOME'):
         env.Append(CPPPATH = ["%s/linux" % jni_path])
         env.Append(ENV = {'PATH': "%s/bin:%s" % (os.path.normpath(os.environ['JAVA_HOME']), os.environ['PATH'])})
 
@@ -300,6 +307,8 @@ envj.JavaH(target = File('include/aio4c/jni/aio4c.h'), source = 'build/java/com/
 envj.JavaH(target = File('include/aio4c/jni/buffer.h'), source = 'build/java/com/aio4c/Buffer.class', JAVACLASSDIR = 'build/java')
 envj.JavaH(target = File('include/aio4c/jni/connection.h'), source = 'build/java/com/aio4c/Connection.class', JAVACLASSDIR = 'build/java')
 envj.JavaH(target = File('include/aio4c/jni/client.h'), source = 'build/java/com/aio4c/Client.class', JAVACLASSDIR = 'build/java')
+envj.JavaH(target = File('include/aio4c/jni/log.h'), source = 'build/java/com/aio4c/Log.class', JAVACLASSDIR = 'build/java')
+envj.JavaH(target = File('include/aio4c/jni/server.h'), source = 'build/java/com/aio4c/Server.class', JAVACLASSDIR = 'build/java')
 
 libfiles = Glob('build/src/*.c')
 

@@ -147,7 +147,9 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
 
     memset(&tv, 0, sizeof(struct timeval));
 
-    TakeLock(_logger.lock);
+    if (_logger.lock != NULL) {
+        TakeLock(_logger.lock);
+    }
 
     gettimeofday(&tv, NULL);
     tm = localtime(&tv.tv_sec);
@@ -176,13 +178,15 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
             tm->tm_hour, tm->tm_min, tm->tm_sec, (int)(tv.tv_usec / 1000), tm->tm_mday,
             tm->tm_mon + 1, tm->tm_year % 100, levelString);
 
-    ReleaseLock(_logger.lock);
+    if (_logger.lock != NULL) {
+        ReleaseLock(_logger.lock);
+    }
 
     if (from == NULL) {
         from = ThreadSelf();
     }
 
-    if (from != NULL) {
+    if (from != NULL && from->name != NULL) {
         fromLen = snprintf(&pMessage[prefixLen], AIO4C_MAX_LOG_MESSAGE_SIZE - prefixLen, "%s: ", from->name);
     }
 
