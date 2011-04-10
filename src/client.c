@@ -120,6 +120,7 @@ static aio4c_bool_t _clientRun(Client* client) {
                         if (closedForError) {
                             if (client->retryCount < client->retries) {
                                 client->retryCount++;
+                                Log(AIO4C_LOG_LEVEL_WARN, "connection with %s lost, retrying (%d/%d) in %d seconds...", client->address->string, client->retryCount, client->retries, client->interval);
                                 ProbeTimeStart(AIO4C_TIME_PROBE_IDLE);
 #ifdef AIO4C_WIN32
                                 Sleep(client->interval * 1000);
@@ -127,7 +128,6 @@ static aio4c_bool_t _clientRun(Client* client) {
                                 sleep(client->interval);
 #endif /* AIO4C_WIN32 */
                                 ProbeTimeEnd(AIO4C_TIME_PROBE_IDLE);
-                                Log(AIO4C_LOG_LEVEL_WARN, "connection with %s lost, retrying (%d/%d)", client->address->string, client->retryCount, client->retries);
                                 ProbeSize(AIO4C_PROBE_CONNECTION_COUNT, -1);
                                 _connection(client);
                             } else {
