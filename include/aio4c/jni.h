@@ -24,6 +24,10 @@
 
 #include <jni.h>
 
+#define CheckJNICall(jvm,call,result) \
+    _CheckJNICall(__FILE__, __LINE__, jvm, (void*)call, #call, (void**)&result)
+extern void _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call, void** stock);
+
 extern void GetPointer(JNIEnv* jvm, jobject object, void** pointer);
 
 extern void SetPointer(JNIEnv* jvm, jobject object, void* pointer);

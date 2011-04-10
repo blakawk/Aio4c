@@ -228,7 +228,7 @@ void Log(LogLevel level, char* message, ...) {
 
     snprintf(&pMessage[messageLen + prefixLen], 2, "\n");
 
-    if (logger != NULL && logger->queue != NULL) {
+    if (logger != NULL && logger->queue != NULL && level > AIO4C_LOG_LEVEL_FATAL) {
         if (!EnqueueDataItem(logger->queue, pMessage)) {
             _LogPrintMessage(logger, pMessage);
         }

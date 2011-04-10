@@ -20,8 +20,24 @@
 #include <aio4c/jni.h>
 
 #include <aio4c/error.h>
+#include <aio4c/log.h>
 
 #include <string.h>
+
+void _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call, void** stock) {
+    if(result == NULL) {
+        Log(AIO4C_LOG_LEVEL_FATAL, "%s:%d: JNI call %s returned NULL", file, line, call);
+        if ((*jvm)->ExceptionCheck(jvm)) {
+            (*jvm)->ExceptionDescribe(jvm);
+            (*jvm)->ExceptionClear(jvm);
+        }
+        (*jvm)->FatalError(jvm, "exception occured on JNI call, check logs for more information");
+    } else {
+        if (stock != NULL) {
+            *stock = result;
+        }
+    }
+}
 
 void GetPointer(JNIEnv* jvm, jobject object, void** pointer) {
 #if   AIO4C_P_SIZE == 4
@@ -50,8 +66,8 @@ static jfieldID _FindField(JNIEnv* jvm, jobject object, char* name, char* signat
     jclass clazz = NULL;
     jfieldID field = NULL;
 
-    clazz = (*jvm)->GetObjectClass(jvm, object);
-    field = (*jvm)->GetFieldID(jvm, clazz, name, signature);
+    CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, object), clazz);
+    CheckJNICall(jvm, (*jvm)->GetFieldID(jvm, clazz, name, signature), field);
 
     if (field == NULL) {
         code.field = name;
@@ -138,9 +154,10 @@ jobject New_com_aio4c_Buffer(JNIEnv* jvm, Buffer* buffer) {
     jmethodID mBuffer = NULL;
     jobject com_aio4c_Buffer = NULL;
 
-    cBuffer = (*jvm)->FindClass(jvm, "com/aio4c/Buffer");
-    mBuffer = (*jvm)->GetMethodID(jvm, cBuffer, "<init>", "()V");
-    com_aio4c_Buffer = (*jvm)->NewObject(jvm, cBuffer, mBuffer);
+    CheckJNICall(jvm, (*jvm)->FindClass(jvm, "com/aio4c/Buffer"), cBuffer);
+    CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cBuffer, "<init>", "()V"), mBuffer);
+    CheckJNICall(jvm, (*jvm)->NewObject(jvm, cBuffer, mBuffer), com_aio4c_Buffer);
     SetPointer(jvm, com_aio4c_Buffer, buffer);
+
     return com_aio4c_Buffer;
 }

@@ -20,8 +20,8 @@
 #include <aio4c/jni/client.h>
 
 #include <aio4c.h>
-#include <aio4c/jni.h>
 #include <aio4c/connection.h>
+#include <aio4c/jni.h>
 
 typedef struct s_JavaClient {
     Client* client;
@@ -43,41 +43,44 @@ static void _jniClientEventHandler(Event event, Connection* connection, JavaClie
 
     (*client->jvm)->AttachCurrentThreadAsDaemon(client->jvm, (void**)&jvm, NULL);
 
-    cFactory = (*jvm)->GetObjectClass(jvm, jFactory);
+    CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, jFactory), cFactory);
 
     if (client->jConnection != NULL) {
-        cConnection = (*jvm)->GetObjectClass(jvm, client->jConnection);
+        CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, client->jConnection), cConnection);
     }
 
 
     switch (event) {
         case AIO4C_INIT_EVENT:
-            jMethod = (*jvm)->GetMethodID(jvm, cFactory, "create", "()Lcom/aio4c/Connection;");
-            client->jConnection = (*jvm)->CallObjectMethod(jvm, jFactory, jMethod);
-            client->jConnection = (*jvm)->NewGlobalRef(jvm, client->jConnection);
+            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cFactory, "create", "()Lcom/aio4c/Connection;"), jMethod);
+            CheckJNICall(jvm, (*jvm)->CallObjectMethod(jvm, jFactory, jMethod), client->jConnection);
+            CheckJNICall(jvm, (*jvm)->NewGlobalRef(jvm, client->jConnection), client->jConnection);
+            ConnectionAddSystemHandler(connection, AIO4C_FREE_EVENT, aio4c_connection_handler(_jniClientEventHandler), aio4c_connection_handler_arg(client), true);
             SetPointer(jvm, client->jConnection, connection);
-            cConnection = (*jvm)->GetObjectClass(jvm, client->jConnection);
-            jMethod = (*jvm)->GetMethodID(jvm, cConnection, "onInit", "()V");
+            CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, client->jConnection), cConnection);
+            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onInit", "()V"), jMethod);
             (*jvm)->CallVoidMethod(jvm, client->jConnection, jMethod);
             break;
         case AIO4C_CLOSE_EVENT:
-            jMethod = (*jvm)->GetMethodID(jvm, cConnection, "onClose", "()V");
+            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onClose", "()V"), jMethod);
             (*jvm)->CallVoidMethod(jvm, client->jConnection, jMethod);
-            (*jvm)->DeleteGlobalRef(jvm, client->jConnection);
             break;
         case AIO4C_CONNECTED_EVENT:
-            jMethod = (*jvm)->GetMethodID(jvm, cConnection, "onConnect", "()V");
+            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onConnect", "()V"), jMethod);
             (*jvm)->CallVoidMethod(jvm, client->jConnection, jMethod);
             break;
         case AIO4C_INBOUND_DATA_EVENT:
-            jMethod = (*jvm)->GetMethodID(jvm, cConnection, "onRead", "(Lcom/aio4c/Buffer;)V");
+            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onRead", "(Lcom/aio4c/Buffer;)V"), jMethod);
             jBuffer = New_com_aio4c_Buffer(jvm, connection->dataBuffer);
             (*jvm)->CallVoidMethod(jvm, client->jConnection, jMethod, jBuffer);
             break;
         case AIO4C_WRITE_EVENT:
-            jMethod = (*jvm)->GetMethodID(jvm, cConnection, "onWrite", "(Lcom/aio4c/Buffer;)V");
+            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onWrite", "(Lcom/aio4c/Buffer;)V"), jMethod);
             jBuffer = New_com_aio4c_Buffer(jvm, connection->writeBuffer);
             (*jvm)->CallVoidMethod(jvm, client->jConnection, jMethod, jBuffer);
+            break;
+        case AIO4C_FREE_EVENT:
+            (*jvm)->DeleteGlobalRef(jvm, client->jConnection);
             break;
         default:
             break;
