@@ -26,7 +26,7 @@ import com.aio4c.ServerConfig;
 
 public class Server {
     public static void main(String[] args) {
-        Aio4c.init(Log.Level.DEBUG, "jserver.log");
+        Aio4c.init(args);
         Thread t = new Thread() {
             @Override
             public void run() {

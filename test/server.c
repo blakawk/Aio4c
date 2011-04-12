@@ -78,11 +78,11 @@ void* dataFactory(Connection* c, void* arg __attribute__((unused))) {
     return data;
 }
 
-int main(void) {
+int main(int argc, char* argv[]) {
     char buffer[32];
     ssize_t nbRead = 0;
 
-    Aio4cInit(AIO4C_LOG_LEVEL_DEBUG, "server.log");
+    Aio4cInit(argc, argv);
 
     Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, 8192, 1, aio4c_server_handler(serverHandler), NULL, dataFactory);
 

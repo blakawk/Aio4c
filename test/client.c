@@ -82,8 +82,9 @@ int main (int argc, char* argv[]) {
     int i = 0;
     int* seq = NULL;
 
-    if (argc != 2) {
+    if (argc <= 1) {
         fprintf(stderr, "usage: client nbClient\n");
+        Aio4cUsage();
         exit(EXIT_FAILURE);
     }
 
@@ -94,16 +95,18 @@ int main (int argc, char* argv[]) {
     if (errno != 0) {
         perror("nbClient is not a valid integer");
         fprintf(stderr, "usage: client nbClient\n");
+        Aio4cUsage();
         exit(EXIT_FAILURE);
     }
 
     if (endptr == argv[1]) {
         fprintf(stderr, "nbClients must be an integer\n");
         fprintf(stderr, "usage: client nbClient\n");
+        Aio4cUsage();
         exit(EXIT_FAILURE);
     }
 
-    Aio4cInit(AIO4C_LOG_LEVEL_DEBUG, "client.log");
+    Aio4cInit(argc, argv);
 
     printf("starting %ld clients...\n", nbClients);
 

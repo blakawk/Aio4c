@@ -19,7 +19,9 @@
  **/
 #include <aio4c/stats.h>
 
+#include <aio4c/log.h>
 #include <aio4c/thread.h>
+#include <aio4c/types.h>
 
 #ifdef AIO4C_WIN32
 
@@ -33,8 +35,13 @@
 
 #endif /* AIO4C_WIN32 */
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
+
+char* AIO4C_STATS_OUTPUT_FILE = NULL;
+aio4c_bool_t AIO4C_STATS_ENABLE_PERIODIC_OUTPUT = true;
+int AIO4C_STATS_INTERVAL = 1;
 
 static Thread*          _statsThread = NULL;
 static FILE*            _statsFile = NULL;
@@ -57,12 +64,19 @@ static aio4c_bool_t _statsInit(void* dummy) {
 #endif /* AIO4C_WIN32 */
 
     char filename[128];
-    memset(filename, 0, 128);
-    snprintf(filename, 128, "stats-%ld.csv", (long)pid);
-    _statsFile = fopen(filename, "w");
+
+    if (AIO4C_STATS_OUTPUT_FILE == NULL) {
+        memset(filename, 0, 128);
+        snprintf(filename, 128, "stats-%ld.csv", (long)pid);
+        AIO4C_STATS_OUTPUT_FILE = (char*)filename;
+    }
+
+    _statsFile = fopen(AIO4C_STATS_OUTPUT_FILE, "w");
+
     if (_statsFile != NULL) {
         fprintf(_statsFile, "TIME (s);ALLOCATED MEMORY (kb);READ DATA (kb/s);WRITTEN DATA (kb/s);PROCESSED DATA (kb/s);CONNECTIONS;IDLE TIME (ms);LATENCY (ms)\n");
     } else {
+        Log(AIO4C_LOG_LEVEL_WARN, "cannot open stat file %s for writing: %s\n", AIO4C_STATS_OUTPUT_FILE, strerror(errno));
         return false;
     }
 
@@ -76,15 +90,18 @@ void _WriteStats(void);
 static aio4c_bool_t _statsRun(void* dummy) {
     dummy = NULL;
 
-    _PrintStats();
+    if (AIO4C_STATS_ENABLE_PERIODIC_OUTPUT) {
+        _PrintStats();
+    }
+
     if (_statsFile != NULL) {
         _WriteStats();
     }
 
 #ifdef AIO4C_WIN32
-    Sleep(1000);
+    Sleep(AIO4C_STATS_INTERVAL * 1000);
 #else /* AIO4C_WIN32 */
-    sleep(1);
+    sleep(AIO4C_STATS_INTERVAL);
 #endif /* AIO4C_WIN32 */
 
     return true;
@@ -355,6 +372,8 @@ void StatsEnd(void) {
         _statsThread->running = false;
         ThreadJoin(_statsThread);
     }
-    _PrintStats();
+    if (AIO4C_STATS_ENABLE_PERIODIC_OUTPUT) {
+        _PrintStats();
+    }
 }
 

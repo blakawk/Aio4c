@@ -20,24 +20,51 @@
 #include <aio4c/jni/aio4c.h>
 
 #include <aio4c.h>
+#include <aio4c/alloc.h>
 
-JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_init(JNIEnv* jvm, jclass aio4c __attribute__((unused)), jobject level, jstring log) {
-    int _level = 0;
-    char* _log = NULL;
-    jclass cLogLevel;
-    jfieldID fLogLevel_value = NULL;
+#include <string.h>
 
-    cLogLevel = (*jvm)->GetObjectClass(jvm, level);
-    fLogLevel_value = (*jvm)->GetFieldID(jvm, cLogLevel, "value", "I");
-    _level = (int)(*jvm)->GetIntField(jvm, level, fLogLevel_value);
+static int _argc = 0;
+static char** _argv = NULL;
 
-    _log = (char*)(*jvm)->GetStringUTFChars(jvm, log, NULL);
+JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_usage(JNIEnv* jvm __attribute__((unused)), jclass aio4c __attribute__((unused))) {
+    Aio4cUsage();
+}
 
-    Aio4cInit(_level, _log);
+JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_init(JNIEnv* jvm, jclass aio4c __attribute__((unused)), jobjectArray args) {
+    jsize nbArgs = (*jvm)->GetArrayLength(jvm, args);
+    _argc = nbArgs + 1;
+    _argv = aio4c_malloc(_argc * sizeof(char*));
+    char* arg = NULL;
+    jstring jarg = NULL;
+    jsize i = 0;
 
-    (*jvm)->ReleaseStringUTFChars(jvm, log, _log);
+    _argv[0] = "aio4c_jni";
+
+    for (i = 0; i < nbArgs; i++) {
+        jarg = (jstring)(*jvm)->GetObjectArrayElement(jvm, args, i);
+        arg = (char*)(*jvm)->GetStringUTFChars(jvm, jarg, NULL);
+        _argv[i + 1] = aio4c_malloc((strlen(arg) + 1));
+        memcpy(_argv[i + 1], arg, strlen(arg) + 1);
+        (*jvm)->ReleaseStringUTFChars(jvm, jarg, arg);
+    }
+
+    Aio4cInit(_argc, _argv);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_end(JNIEnv* jvm __attribute__((unused)), jclass aio4c __attribute__((unused))) {
+    int i = 0;
+
     Aio4cEnd();
+
+    if (_argv != NULL) {
+        for (i = 1; i < _argc; i++) {
+            if (_argv[i] != NULL) {
+                aio4c_free(_argv[i]);
+                _argv[i] = NULL;
+            }
+        }
+        aio4c_free(_argv);
+        _argv = NULL;
+    }
 }

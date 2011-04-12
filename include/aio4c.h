@@ -28,7 +28,9 @@
 #include <aio4c/server.h>
 #include <aio4c/stats.h>
 
-extern AIO4C_DLLEXPORT void Aio4cInit(LogLevel level, char* filename);
+extern AIO4C_DLLEXPORT void Aio4cUsage(void);
+
+extern AIO4C_DLLEXPORT void Aio4cInit(int argc, char* argv[]);
 
 extern AIO4C_DLLEXPORT void Aio4cEnd(void);
 

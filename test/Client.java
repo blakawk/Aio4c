@@ -26,7 +26,7 @@ import com.aio4c.Log;
 
 public class Client {
     public static void main(String[] args) {
-        Aio4c.init(Log.Level.DEBUG, "jclient.log");
+        Aio4c.init(args);
 
         com.aio4c.Client c = new com.aio4c.Client(new ClientConfig(), new ConnectionFactory () {
             @Override

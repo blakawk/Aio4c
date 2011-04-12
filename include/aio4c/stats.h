@@ -26,12 +26,10 @@
 #include <sys/time.h>
 
 #ifndef AIO4C_ENABLE_STATS
-
 #define AIO4C_ENABLE_STATS 0
-
 #endif /* AIO4C_ENABLE_STATS */
 
-#if AIO4C_ENABLE_STATS == 1
+#if AIO4C_ENABLE_STATS
 
 #define ProbeTimeStart(type) {                 \
     struct timeval _start, _stop;              \
@@ -49,21 +47,16 @@
     _ProbeSize(type,value)
 
 #else /* AIO4C_ENABLE_STATS */
-
 #define ProbeTimeStart(type)
-
 #define ProbeTimeEnd(type)
-
 #define ProbeTime(type,start,stop)
-
 #define ProbeSize(type,value)
-
 #endif /* AIO4C_ENABLE_STATS */
 
 #define pstats(fmt, ...) \
     fprintf(stderr, fmt, __VA_ARGS__)
 
-#if AIO4C_ENABLE_STATS == 1
+#if AIO4C_ENABLE_STATS
 
 typedef enum e_ProbeTimeType {
     AIO4C_TIME_PROBE_MEMORY_ALLOCATION,
@@ -90,6 +83,12 @@ typedef enum e_ProbeSizeType {
     AIO4C_PROBE_LATENCY_COUNT,
     AIO4C_PROBE_MAX_SIZE_TYPE
 } ProbeSizeType;
+
+extern int AIO4C_STATS_INTERVAL;
+
+extern aio4c_bool_t AIO4C_STATS_ENABLE_PERIODIC_OUTPUT;
+
+extern char* AIO4C_STATS_OUTPUT_FILE;
 
 extern void StatsInit(void);
 
