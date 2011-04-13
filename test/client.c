@@ -24,11 +24,14 @@
 #include <string.h>
 #include <sys/time.h>
 
+static int maxRequests = 10;
+
 void onRead(Connection* source) {
     Buffer* buffer = source->dataBuffer;
     struct timeval ping, pong, now;
     int mySeq = 0;
 
+    LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
     if (memcmp(&buffer->data[buffer->position], "PONG ", 6) == 0) {
         buffer->position += 6;
         BufferGet(buffer, &ping, sizeof(struct timeval));
@@ -37,7 +40,7 @@ void onRead(Connection* source) {
         gettimeofday(&now, NULL);
         ProbeSize(AIO4C_PROBE_LATENCY_COUNT, 1);
         ProbeTime(AIO4C_TIME_PROBE_LATENCY, &ping, &now);
-        if (mySeq > 10) {
+        if (mySeq > maxRequests) {
             ConnectionClose(source, false);
         }
     } else {
@@ -75,40 +78,73 @@ void handler(Event event, Connection* source, int* seq) {
     }
 }
 
+__attribute__((noreturn)) static void usage(char* arg0) {
+    fprintf(stderr, "usage: %s [-Ch] [-Cn numClients] [-Cm maxRequests]\n", arg0);
+    fprintf(stderr, "where:\n");
+    fprintf(stderr, "\t-Cn numClients : defines the number of Clients to start (default: 1)\n");
+    fprintf(stderr, "\t-Cm maxRequests: defines the maximum number of exchanges to perform (default: 10)\n");
+    fprintf(stderr, "\t-Ch            : displays this message\n");
+    Aio4cUsage();
+    exit(EXIT_FAILURE);
+}
+
 int main (int argc, char* argv[]) {
     char* endptr = NULL;
-    long int nbClients = 0;
+    int nbClients = 1;
     Client** clients = NULL;
     int i = 0;
     int* seq = NULL;
+    int optind = 0;
+    long int optvalue = 0;
 
-    if (argc <= 1) {
-        fprintf(stderr, "usage: client nbClient\n");
-        Aio4cUsage();
-        exit(EXIT_FAILURE);
-    }
-
-    errno = 0;
-
-    nbClients = strtol(argv[1], &endptr, 0);
-
-    if (errno != 0) {
-        perror("nbClient is not a valid integer");
-        fprintf(stderr, "usage: client nbClient\n");
-        Aio4cUsage();
-        exit(EXIT_FAILURE);
-    }
-
-    if (endptr == argv[1]) {
-        fprintf(stderr, "nbClients must be an integer\n");
-        fprintf(stderr, "usage: client nbClient\n");
-        Aio4cUsage();
-        exit(EXIT_FAILURE);
+    for (optind = 1; optind < argc; optind++) {
+        switch(argv[optind][0]) {
+            case '-':
+                switch (argv[optind][1]) {
+                    case 'C':
+                        switch (argv[optind][2]) {
+                            case 'n':
+                                if (optind + 1 < argc) {
+                                    optvalue = strtol(argv[optind + 1], &endptr, 10);
+                                    if (optvalue < INT_MAX && optvalue > 0) {
+                                        nbClients = (int)optvalue;
+                                    }
+                                    optind++;
+                                }
+                                break;
+                            case 'm':
+                                if (optind + 1 < argc) {
+                                    optvalue = strtol(argv[optind + 1], &endptr, 10);
+                                    if (optvalue < INT_MAX && optvalue > 0) {
+                                        maxRequests = (int)optvalue;
+                                    }
+                                    optind++;
+                                }
+                                break;
+                            case 'h':
+                                usage(argv[0]);
+                                break;
+                            default:
+                                break;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     Aio4cInit(argc, argv);
 
-    printf("starting %ld clients...\n", nbClients);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "starting %d clients", nbClients);
+    if (maxRequests) {
+        Log(AIO4C_LOG_LEVEL_DEBUG, "each client will perform %d requests", maxRequests);
+    } else {
+        Log(AIO4C_LOG_LEVEL_DEBUG, "each client will perform unlimited number of requests");
+    }
 
     clients = malloc(nbClients * sizeof(Client*));
     seq = malloc(nbClients * sizeof(int));
