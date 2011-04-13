@@ -29,7 +29,7 @@
 #define AIO4C_LOG_PREFIX_SIZE \
     sizeof("[00:00:00.000 00/00/00] [level] \n")
 #define AIO4C_LOG_MESSAGE_SIZE \
-    (AIO4C_LOG_PREFIX_SIZE + 128)
+    (AIO4C_LOG_PREFIX_SIZE + 256)
 #define AIO4C_LOG_BUFFER_SIZE \
     (AIO4C_LOG_PREFIX_SIZE + sizeof("0x00000000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ................"))
 

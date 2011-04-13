@@ -102,88 +102,89 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
 
     switch (type) {
         case AIO4C_BUFFER_ERROR_TYPE:
-            Log(level, "%s:%d: %s on buffer %p[cap:%d,lim:%d,pos:%d]", file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s on buffer %p[cap:%d,lim:%d,pos:%d]", error, type, file, line, ErrorStrings[error],
                     (void*)code->buffer->data, code->buffer->size, code->buffer->limit, code->buffer->position);
             break;
         case AIO4C_CONNECTION_ERROR_TYPE:
             if (error == AIO4C_CONNECTION_DISCONNECTED) {
                 Log(level, "connection %s disconnected", code->connection->string);
             } else {
-                Log(level, "%s:%d: %s for connection %s[%s]: [%08ld] %s", file, line, ErrorStrings[error],
+                Log(level, "[E:%02d,T:%02d] %s:%d: %s for connection %s[%s]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                         code->connection->string, ConnectionStateString[code->connection->state],
                         errorCode, errorMessage);
             }
             break;
         case AIO4C_EVENT_ERROR_TYPE:
-            Log(level, "%s:%d: %s for connection %s[%s]",
-                    file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s for connection %s[%s]",
+                    error, type, file, line, ErrorStrings[error],
                     code->connection->string, ConnectionStateString[code->connection->state]);
             break;
         case AIO4C_THREAD_ERROR_TYPE:
-            Log(level, "%s:%d: %s for thread %s[i:0x%lx,s:%s]: [%08ld] %s", file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s for thread %s[i:0x%lx,s:%s]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                     code->thread->name, (unsigned long)code->thread->id, ThreadStateString[code->thread->state],
                     errorCode, errorMessage);
             break;
         case AIO4C_THREAD_LOCK_ERROR_TYPE:
             if (code->lock->owner != NULL) {
-                Log(level, "%s:%d: %s lock %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", file, line, ErrorStrings[error],
+                Log(level, "[E:%02d,T:%02d] %s:%d: %s lock %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                         (void*)code->lock, LockStateString[code->lock->state], code->lock->owner->name,
                         (unsigned long)code->lock->owner->id, ThreadStateString[code->lock->owner->state], errorCode, errorMessage);
             } else {
-                Log(level, "%s:%d: %s lock %p[s:%s,o:none]: [%08ld] %s", file, line, ErrorStrings[error],
+                Log(level, "[E:%02d,T:%02d] %s:%d: %s lock %p[s:%s,o:none]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                         (void*)code->lock, LockStateString[code->lock->state], errorCode, errorMessage);
             }
             break;
         case AIO4C_THREAD_CONDITION_ERROR_TYPE:
             if (code->condition->owner != NULL) {
-                Log(level, "%s:%d: %s condition %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", file, line, ErrorStrings[error],
+                Log(level, "[E:%02d,T:%02d] %s:%d: %s condition %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                         (void*)code->condition, ConditionStateString[code->condition->state], code->condition->owner->name,
                         (unsigned long)code->condition->owner->id, ThreadStateString[code->condition->owner->state], errorCode, errorMessage);
             } else {
-                Log(level, "%s:%d: %s condition %p[s:%s,o:none]: [%08ld] %s", file, line, ErrorStrings[error],
+                Log(level, "[E:%02d,T:%02d] %s:%d: %s condition %p[s:%s,o:none]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                         (void*)code->condition, ConditionStateString[code->condition->state], errorCode, errorMessage);
             }
             break;
         case AIO4C_THREAD_SELECTOR_ERROR_TYPE:
 #ifdef AIO4C_HAVE_POLL
 #ifdef AIO4C_HAVE_PIPE
-            Log(level, "%s:%d: %s selector %p[k:%d/%d,p:%d/%d]: [%08ld] %s", file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[k:%d/%d,p:%d/%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                     (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->numPolls, code->selector->maxPolls,
                     errorCode, errorMessage);
 #else /* AIO4C_HAVE_PIPE */
-            Log(level, "%s:%d: %s selector %p[k:%d/%d,p:%d/%d,u:%d]: [%08ld] %s", file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[k:%d/%d,p:%d/%d,u:%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                     (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->numPolls, code->selector->maxPolls,
                     code->selector->port, errorCode, errorMessage);
 #endif /* AIO4C_HAVE_PIPE */
 #else /* AIO4C_HAVE_POLL */
 #ifdef AIO4C_HAVE_PIPE
-            Log(level, "%s:%d: %s selector %p[k:%d/%d]: [%08ld] %s", file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[k:%d/%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                     (void*)code->selector, code->selector->numKeys, code->selector->maxKeys,
                     errorCode, errorMessage);
 #else /* AIO4C_HAVE_PIPE */
-            Log(level, "%s:%d: %s selector %p[k:%d/%d,u:%d]: [%08ld] %s", file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[k:%d/%d,u:%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                     (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->port,
                     errorCode, errorMessage);
 #endif /* AIO4C_HAVE_PIPE */
 #endif /* AIO4C_HAVE_POLL */
             break;
         case AIO4C_ALLOC_ERROR_TYPE:
-            Log(level, "%s:%d: %s %s of size %d bytes: [%08ld] %s", file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s %s of size %d bytes: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                     code->type, code->size, errorCode, errorMessage);
             break;
         case AIO4C_CONNECTION_STATE_ERROR_TYPE:
-            Log(level, "%s:%d: %s for connection %s[%s], expected %s", file, line, ErrorStrings[error],
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s for connection %s[%s], expected %s", error, type, file, line, ErrorStrings[error],
                     code->connection->string, ConnectionStateString[code->connection->state], ConnectionStateString[code->expected]);
             break;
         case AIO4C_SOCKET_ERROR_TYPE:
-            Log(level, "%s:%d: %s: [%08ld] %s", file, line, ErrorStrings[error], errorCode, errorMessage);
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s: [%08ld] %s", error, type, file, line, ErrorStrings[error], errorCode, errorMessage);
             break;
         case AIO4C_JNI_ERROR_TYPE:
             switch (error) {
                 case AIO4C_JNI_FIELD_ERROR:
-                    Log(level, "%s:%d: %s %s with signature %s failed", file, line, ErrorStrings[error], code->field, code->signature);
+                    Log(level, "[E:%02d,T:%02d] %s:%d: %s %s with signature %s failed", error, type, file, line, ErrorStrings[error], code->field, code->signature);
                     break;
                 default:
+                    Log(level, "[E:%02d,T:%02d] %s:%d: unknown JNI error", error, type, file, line);
                     break;
             }
             break;
