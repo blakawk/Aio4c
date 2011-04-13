@@ -607,6 +607,10 @@ void FreeConnection(Connection** connection) {
             FreeEventQueue(&pConnection->systemHandlers);
         }
 
+        if (pConnection->managedByLock != NULL) {
+            FreeLock(&pConnection->managedByLock);
+        }
+
         if (pConnection->stateLock != NULL) {
             FreeLock(&pConnection->stateLock);
         }
