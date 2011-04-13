@@ -26,11 +26,12 @@
 
 #include <stdarg.h>
 
-#define AIO4C_MIN_LOG_MESSAGE_SIZE \
-    strlen("[00:00:00.000 00/00/00] [level] \n")
-
-#define AIO4C_MAX_LOG_MESSAGE_SIZE \
-    (AIO4C_MIN_LOG_MESSAGE_SIZE + 256)
+#define AIO4C_LOG_PREFIX_SIZE \
+    sizeof("[00:00:00.000 00/00/00] [level] \n")
+#define AIO4C_LOG_MESSAGE_SIZE \
+    (AIO4C_LOG_PREFIX_SIZE + 128)
+#define AIO4C_LOG_BUFFER_SIZE \
+    (AIO4C_LOG_PREFIX_SIZE + sizeof("0x00000000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ................"))
 
 typedef enum e_LogLevel {
     AIO4C_LOG_LEVEL_FATAL = 0,
