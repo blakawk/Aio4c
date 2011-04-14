@@ -106,7 +106,7 @@ int main(void) {
 
 def HavePoll(context):
     context.Message('Checking if poll is useable... ')
-    result = context.TryLink(have_poll_src, '.c', )
+    result = context.TryLink(have_poll_src, '.c')
     context.Result(result)
     return result
 
@@ -162,12 +162,27 @@ def HaveCondition(context):
     context.Result(result)
     return result
 
+pointer_size_src = """
+#include <stdio.h>
+
+int main(void) {
+    printf("%d", sizeof(void*));
+    return 0;
+}
+"""
+def PointerSize(context):
+    context.Message('Checking the size of void*... ')
+    result, output = context.TryRun(pointer_size_src, '.c')
+    context.Result(output)
+    return (result, output)
+
 def doConfigure(env):
     if not env.GetOption('clean') and not env.GetOption('help'):
         conf = Configure(env, custom_tests = {'HavePoll'        : HavePoll,
                                               'HavePipe'        : HavePipe,
-                                              'HaveCondition'   : HaveCondition})
-        result = conf.CheckTypeSize("void*")
+                                              'HaveCondition'   : HaveCondition,
+                                              'CheckPointerSize': PointerSize})
+        result, output = conf.CheckPointerSize()
         if not result:
             if env.GetOption('TARGET'):
                 target = env.GetOption('TARGET')
@@ -176,7 +191,7 @@ def doConfigure(env):
                 else:
                     env.Append(CPPDEFINES = {'AIO4C_P_SIZE': '4'})
         else:
-            env.Append(CPPDEFINES = {'AIO4C_P_SIZE': result})
+            env.Append(CPPDEFINES = {'AIO4C_P_SIZE': output})
         if env.GetOption('USE_POLL') and conf.HavePoll():
             env.Append(CPPDEFINES = {'AIO4C_HAVE_POLL': 1})
         if env.GetOption('USE_PIPE') and conf.HavePipe():
