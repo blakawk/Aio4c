@@ -23,6 +23,7 @@
 #include <aio4c/stats.h>
 #include <aio4c/thread.h>
 
+#include <limits.h>
 #include <stdlib.h>
 #include <strings.h>
 #include <unistd.h>
@@ -151,7 +152,7 @@ static void _ParseArguments(int argc, char* argv[]) {
                                 if (optind + 1 < argc) {
                                     value = 0;
                                     value = strtol(argv[optind + 1], &endptr, 10);
-                                    if (value > 0 && value < INT_MAX) {
+                                    if (value >= 0 && value < INT_MAX) {
                                         AIO4C_STATS_INTERVAL = (int)value;
                                     }
                                     optind++;

@@ -74,7 +74,7 @@ static aio4c_bool_t _statsInit(void* dummy) {
     _statsFile = fopen(AIO4C_STATS_OUTPUT_FILE, "w");
 
     if (_statsFile != NULL) {
-        fprintf(_statsFile, "TIME (s);ALLOCATED MEMORY (kb);READ DATA (kb/s);WRITTEN DATA (kb/s);PROCESSED DATA (kb/s);CONNECTIONS;IDLE TIME (ms);LATENCY (ms)\n");
+        fprintf(_statsFile, "TIME (s);ALLOCATED MEMORY (kb);READ DATA (kb/s);WRITTEN DATA (kb/s);PROCESSED DATA (kb/s);CONNECTIONS;IDLE TIME (ms);LATENCY (ms);SELECT OVERHEAD (ms)\n");
     } else {
         Log(AIO4C_LOG_LEVEL_WARN, "cannot open stat file %s for writing: %s\n", AIO4C_STATS_OUTPUT_FILE, strerror(errno));
         return false;
@@ -127,12 +127,14 @@ void StatsInit(void) {
 #endif /* AIO4C_WIN32 */
 
     _statsThread = NULL;
-    NewThread("stats",
-            aio4c_thread_init(_statsInit),
-            aio4c_thread_run(_statsRun),
-            aio4c_thread_exit(_statsExit),
-            aio4c_thread_arg(NULL),
-            &_statsThread);
+    if (AIO4C_STATS_INTERVAL) {
+        NewThread("stats",
+                aio4c_thread_init(_statsInit),
+                aio4c_thread_run(_statsRun),
+                aio4c_thread_exit(_statsExit),
+                aio4c_thread_arg(NULL),
+                &_statsThread);
+    }
 }
 
 void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop) {
@@ -316,8 +318,8 @@ void _WriteStats(void) {
     static struct timeval _start;
     static aio4c_bool_t _initialized = false;
     struct timeval time;
-    static double lastRead = 0.0, lastWrite = 0.0, lastProcess = 0.0, lastIdle = 0.0, lastLatency = 0.0, lastLatencyCount = 0.0;
-    double read = 0.0, write = 0.0, process = 0.0, idle = 0.0, allocated = 0.0, connections = 0.0, latency = 0.0, latencyCount = 0.0;
+    static double lastRead = 0.0, lastWrite = 0.0, lastProcess = 0.0, lastIdle = 0.0, lastLatency = 0.0, lastLatencyCount = 0.0, lastSelectOverhead = 0.0;
+    double read = 0.0, write = 0.0, process = 0.0, idle = 0.0, allocated = 0.0, connections = 0.0, latency = 0.0, latencyCount = 0.0, selectOverhead = 0.0;
 
     if (_statsFile == NULL) {
         return;
@@ -352,6 +354,8 @@ void _WriteStats(void) {
     connections = _sizeProbes[AIO4C_PROBE_CONNECTION_COUNT];
     latency = _timeProbes[AIO4C_TIME_PROBE_LATENCY] - lastLatency;
     lastLatency = _timeProbes[AIO4C_TIME_PROBE_LATENCY];
+    selectOverhead = _timeProbes[AIO4C_TIME_PROBE_SELECT_OVERHEAD] - lastSelectOverhead;
+    lastSelectOverhead = _timeProbes[AIO4C_TIME_PROBE_SELECT_OVERHEAD];
 
 #ifndef AIO4C_WIN32
     pthread_mutex_unlock(&_sizeProbesLock);
@@ -361,10 +365,11 @@ void _WriteStats(void) {
     LeaveCriticalSection(&_timeProbesLock);
 #endif /* AIO4C_WIN32 */
 
-    fprintf(_statsFile, "%u;%d,%d;%d,%d;%d,%d;%d,%d;%d;%d,%d;%d,%d\n", (unsigned int)(time.tv_sec - _start.tv_sec),
+    fprintf(_statsFile, "%u;%d,%d;%d,%d;%d,%d;%d,%d;%d;%d,%d;%d,%d;%d,%d\n", (unsigned int)(time.tv_sec - _start.tv_sec),
             floatWithComma(allocated / 1024.0),
             floatWithComma(read / 1024.0), floatWithComma(write / 1024.0), floatWithComma(process / 1024.0), (int)connections,
-            floatWithComma(idle / 1000.0), floatWithComma(latencyCount>0?(latency / 1000.0 / latencyCount):0.0));
+            floatWithComma(idle / 1000.0), floatWithComma(latencyCount>0?(latency / 1000.0 / latencyCount):0.0),
+            floatWithComma(selectOverhead / 1000.0 / write));
 }
 
 void StatsEnd(void) {

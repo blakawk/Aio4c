@@ -20,6 +20,7 @@
 #ifndef __AIO4C_SELECTOR_H__
 #define __AIO4C_SELECTOR_H__
 
+#include <aio4c/list.h>
 #include <aio4c/types.h>
 
 #ifndef AIO4C_WIN32
@@ -49,11 +50,12 @@ typedef enum e_SelectionOperation {
 
 typedef struct s_SelectionKey {
     SelectionOperation operation;
-    int                index;
+    Node*              node;
     aio4c_socket_t     fd;
     void*              attachment;
     int                poll;
     int                count;
+    int                curCount;
     short              result;
 } SelectionKey;
 
@@ -67,11 +69,9 @@ typedef struct s_Poll {
 
 typedef struct s_Selector {
     aio4c_pipe_t    pipe;
-    SelectionKey**  keys;
-    int             numKeys;
-    int             maxKeys;
-    int             curKey;
-    int             curKeyCount;
+    List            busyKeys;
+    List            freeKeys;
+    SelectionKey*   curKey;
 #ifdef AIO4C_HAVE_POLL
     aio4c_poll_t*   polls;
 #else /* AIO4C_HAVE_POLL */
@@ -89,7 +89,7 @@ extern Selector* NewSelector(void);
 
 extern SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_socket_t fd, void* attachment);
 
-extern void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAll);
+extern void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAll, aio4c_bool_t* isLastRegistration);
 
 #define Select(selector) \
     _Select(__FILE__, __LINE__, selector)

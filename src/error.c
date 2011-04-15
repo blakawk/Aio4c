@@ -147,22 +147,22 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
         case AIO4C_THREAD_SELECTOR_ERROR_TYPE:
 #ifdef AIO4C_HAVE_POLL
 #ifdef AIO4C_HAVE_PIPE
-            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[k:%d/%d,p:%d/%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                    (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->numPolls, code->selector->maxPolls,
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[p:%d/%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
+                    (void*)code->selector, code->selector->numPolls, code->selector->maxPolls,
                     errorCode, errorMessage);
 #else /* AIO4C_HAVE_PIPE */
-            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[k:%d/%d,p:%d/%d,u:%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                    (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->numPolls, code->selector->maxPolls,
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[p:%d/%d,u:%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
+                    (void*)code->selector, code->selector->numPolls, code->selector->maxPolls,
                     code->selector->port, errorCode, errorMessage);
 #endif /* AIO4C_HAVE_PIPE */
 #else /* AIO4C_HAVE_POLL */
 #ifdef AIO4C_HAVE_PIPE
-            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[k:%d/%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                    (void*)code->selector, code->selector->numKeys, code->selector->maxKeys,
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p: [%08ld] %s", error, type, file, line, ErrorStrings[error],
+                    (void*)code->selector,
                     errorCode, errorMessage);
 #else /* AIO4C_HAVE_PIPE */
-            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[k:%d/%d,u:%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                    (void*)code->selector, code->selector->numKeys, code->selector->maxKeys, code->selector->port,
+            Log(level, "[E:%02d,T:%02d] %s:%d: %s selector %p[u:%d]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
+                    (void*)code->selector, code->selector->port,
                     errorCode, errorMessage);
 #endif /* AIO4C_HAVE_PIPE */
 #endif /* AIO4C_HAVE_POLL */

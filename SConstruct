@@ -335,5 +335,6 @@ envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'), CPPPAT
 envuser.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
 envuser.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
 envuser.Program('build/queue', 'build/test/queue.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/selector', 'build/test/selector.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
 
 envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')

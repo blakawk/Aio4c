@@ -118,15 +118,14 @@ static Thread* _runThread(Thread* thread) {
     while (thread->running) {
         ReleaseLock(thread->lock);
 
-        if (!thread->run(thread->arg)) {
-            TakeLock(thread->lock);
-            break;
-        }
+        run = thread->run(thread->arg);
 
         TakeLock(thread->lock);
-    }
 
-    thread->running = false;
+        if (thread->running) {
+            thread->running = run;
+        }
+    }
 
 #ifndef AIO4C_WIN32
     pthread_cleanup_pop(1);
@@ -257,6 +256,7 @@ void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void
     thread->run = run;
     thread->exit = exit;
     thread->arg = arg;
+    thread->running = false;
 
     TakeLock(thread->lock);
 
@@ -284,13 +284,7 @@ void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void
         WaitCondition(thread->condInit, thread->lock);
     }
 
-    if (!thread->running) {
-        *pThread = NULL;
-        ReleaseLock(thread->lock);
-        ThreadJoin(thread);
-    } else {
-        ReleaseLock(thread->lock);
-    }
+    ReleaseLock(thread->lock);
 }
 
 aio4c_bool_t ThreadRunning(Thread* thread) {

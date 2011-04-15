@@ -20,11 +20,12 @@
 #include <aio4c.h>
 
 #include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 
-static int maxRequests = 10;
+static int maxRequests = 0;
 
 void onRead(Connection* source) {
     Buffer* buffer = source->dataBuffer;
@@ -32,6 +33,7 @@ void onRead(Connection* source) {
     int mySeq = 0;
 
     LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
+
     if (memcmp(&buffer->data[buffer->position], "PONG ", 6) == 0) {
         buffer->position += 6;
         BufferGet(buffer, &ping, sizeof(struct timeval));
@@ -40,7 +42,7 @@ void onRead(Connection* source) {
         gettimeofday(&now, NULL);
         ProbeSize(AIO4C_PROBE_LATENCY_COUNT, 1);
         ProbeTime(AIO4C_TIME_PROBE_LATENCY, &ping, &now);
-        if (mySeq > maxRequests) {
+        if (maxRequests != 0 && mySeq > maxRequests) {
             ConnectionClose(source, false);
         }
     } else {
@@ -60,6 +62,11 @@ void onWrite(Connection* source, int* seq) {
     BufferPutString(buffer, "PING ");
     BufferPut(buffer, &ping, sizeof(struct timeval));
     BufferPutInt(buffer, seq);
+
+    BufferFlip(buffer);
+    LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
+    buffer->position = buffer->limit;
+    buffer->limit = buffer->size;
 }
 
 void handler(Event event, Connection* source, int* seq) {

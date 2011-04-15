@@ -27,7 +27,7 @@ batch="${2:-32}"
 interval="${3:-60}"
 declare -a clients
 
-client ${batch} &>/dev/null &
+client -Cn ${batch} &>/dev/null &
 master=$!
 
 echo "master pid is $master"
@@ -35,7 +35,7 @@ sleep ${interval}
 
 while [ ${#clients[@]} -lt $max ]
 do
-    client ${batch} &>/dev/null &
+    client -Cn ${batch} &>/dev/null &
     lastpid=$!
     clients[${#clients[@]}]=${lastpid}
     echo "launched ${#clients[@]}, last pid was ${lastpid}"
@@ -53,7 +53,7 @@ do
             break
         fi
     done
-    echo "killing client #${toKill} ${clients[${toKill}]}, remaining ${#clients[@]}"
+    echo "killing client #${toKill} ${clients[${toKill}]}, remaining ${count}"
     kill ${clients[${toKill}]}
     clients[${toKill}]=""
     ((count--))

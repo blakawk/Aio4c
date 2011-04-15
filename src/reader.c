@@ -76,7 +76,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                 connection = (Connection*)item.content.event.source;
                 if (item.content.event.type == AIO4C_CLOSE_EVENT) {
                     if (connection->readKey != NULL) {
-                        Unregister(reader->selector, connection->readKey, true);
+                        Unregister(reader->selector, connection->readKey, true, NULL);
                         connection->readKey = NULL;
                     }
                     Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);

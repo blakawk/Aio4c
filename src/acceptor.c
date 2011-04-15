@@ -268,7 +268,7 @@ static void _AcceptorExit(Acceptor* acceptor) {
     memset(&item, 0, sizeof(QueueItem));
 
     if (acceptor->key != NULL) {
-        Unregister(acceptor->selector, acceptor->key, true);
+        Unregister(acceptor->selector, acceptor->key, true, NULL);
     }
 
     if (acceptor->socket != -1) {

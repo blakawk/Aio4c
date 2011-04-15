@@ -38,6 +38,7 @@ static void serverHandler(Event event, Connection* source, Data* data) {
     switch (event) {
         case AIO4C_INBOUND_DATA_EVENT:
             buffer = source->dataBuffer;
+            LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
             if (memcmp(&buffer->data[buffer->position], "PING ", 6) == 0) {
                 buffer->position += 6;
                 BufferGet(buffer, &data->ping, sizeof(struct timeval));
@@ -61,6 +62,10 @@ static void serverHandler(Event event, Connection* source, Data* data) {
             BufferPut(buffer, &data->ping, sizeof(struct timeval));
             BufferPut(buffer, &pong, sizeof(struct timeval));
             BufferPutInt(buffer, &data->lastSeq);
+            BufferFlip(buffer);
+            LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
+            buffer->position = buffer->limit;
+            buffer->limit = buffer->size;
             break;
         case AIO4C_FREE_EVENT:
             free(data);
