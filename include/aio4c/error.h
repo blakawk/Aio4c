@@ -161,6 +161,6 @@ typedef struct s_ErrorCode {
 #define Raise(level,type,error,code) \
     _Raise(__FILE__, __LINE__, level, type, error, code)
 
-extern void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, ErrorCode* code);
+extern AIO4C_API void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, ErrorCode* code);
 
 #endif

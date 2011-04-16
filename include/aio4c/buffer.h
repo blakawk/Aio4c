@@ -49,25 +49,25 @@ struct s_BufferPool {
     int      bufferSize;
 };
 
-extern BufferPool* NewBufferPool(aio4c_size_t bufferSize);
+extern AIO4C_API BufferPool* NewBufferPool(aio4c_size_t bufferSize);
 
-extern Buffer* AllocateBuffer(BufferPool* pool);
+extern AIO4C_API Buffer* AllocateBuffer(BufferPool* pool);
 
-extern void ReleaseBuffer(Buffer** buffer);
+extern AIO4C_API void ReleaseBuffer(Buffer** buffer);
 
-extern void FreeBufferPool(BufferPool** pool);
+extern AIO4C_API void FreeBufferPool(BufferPool** pool);
 
-extern Buffer* BufferFlip(Buffer* buffer);
+extern AIO4C_API Buffer* BufferFlip(Buffer* buffer);
 
-extern Buffer* BufferPosition(Buffer* buffer, int position);
+extern AIO4C_API Buffer* BufferPosition(Buffer* buffer, int position);
 
-extern Buffer* BufferLimit(Buffer* buffer, int limit);
+extern AIO4C_API Buffer* BufferLimit(Buffer* buffer, int limit);
 
-extern Buffer* BufferReset(Buffer* buffer);
+extern AIO4C_API Buffer* BufferReset(Buffer* buffer);
 
-extern Buffer* BufferCopy(Buffer* dst, Buffer* src);
+extern AIO4C_API Buffer* BufferCopy(Buffer* dst, Buffer* src);
 
-extern aio4c_bool_t BufferHasRemaining(Buffer* buffer);
+extern AIO4C_API aio4c_bool_t BufferHasRemaining(Buffer* buffer);
 
 #define BufferGetByte(buffer,out) \
     BufferGet(buffer, out, sizeof(aio4c_byte_t))
@@ -87,11 +87,11 @@ extern aio4c_bool_t BufferHasRemaining(Buffer* buffer);
 #define BufferGetDouble(buffer,out) \
     BufferGet(buffer, out, sizeof(double))
 
-extern AIO4C_DLLEXPORT aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size);
+extern AIO4C_API aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size);
 
-extern AIO4C_DLLEXPORT aio4c_bool_t BufferGetString(Buffer* buffer, char** out);
+extern AIO4C_API aio4c_bool_t BufferGetString(Buffer* buffer, char** out);
 
-extern AIO4C_DLLEXPORT aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t** out);
+extern AIO4C_API aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t** out);
 
 #define BufferPutByte(buffer, in) \
     BufferPut(buffer, in, sizeof(aio4c_byte_t))
@@ -117,6 +117,6 @@ extern AIO4C_DLLEXPORT aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t**
 #define BufferPutStringUTF(buffer,in) \
     BufferPut(buffer, in, (wcslen(in) + 1) * sizeof(wchar_t))
 
-extern AIO4C_DLLEXPORT aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size);
+extern AIO4C_API aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size);
 
 #endif

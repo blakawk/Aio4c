@@ -110,11 +110,13 @@ struct s_Thread {
     void*             arg;
 };
 
-extern int GetNumThreads(void);
+extern AIO4C_API void ThreadMain(void);
 
-extern void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread);
+extern AIO4C_API int GetNumThreads(void);
 
-extern aio4c_bool_t ThreadRunning(Thread* thread);
+extern AIO4C_API void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread);
+
+extern AIO4C_API aio4c_bool_t ThreadRunning(Thread* thread);
 
 #ifdef AIO4C_DEBUG
 #define ThreadSelf() \
@@ -123,8 +125,8 @@ extern aio4c_bool_t ThreadRunning(Thread* thread);
 #define ThreadSelf() \
     NULL
 #endif /* AIO4C_DEBUG */
-extern Thread* _ThreadSelf(void);
+extern AIO4C_API Thread* _ThreadSelf(void);
 
-extern Thread* ThreadJoin(Thread* thread);
+extern AIO4C_API Thread* ThreadJoin(Thread* thread);
 
 #endif

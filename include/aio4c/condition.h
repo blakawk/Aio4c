@@ -67,16 +67,16 @@ struct s_Condition {
 #endif /* AIO4C_WIN32 */
 };
 
-extern Condition* NewCondition(void);
+extern AIO4C_API Condition* NewCondition(void);
 
 #define WaitCondition(condition,lock) \
     _WaitCondition(__FILE__, __LINE__, condition, lock)
-extern aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lock);
+extern AIO4C_API aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lock);
 
 #define NotifyCondition(condition) \
     _NotifyCondition(__FILE__, __LINE__, condition)
-extern void _NotifyCondition(char* file, int line, Condition* condition);
+extern AIO4C_API void _NotifyCondition(char* file, int line, Condition* condition);
 
-extern void FreeCondition(Condition** condition);
+extern AIO4C_API void FreeCondition(Condition** condition);
 
 #endif

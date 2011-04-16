@@ -40,8 +40,8 @@ typedef struct s_Address {
     aio4c_size_t     size;
 } Address;
 
-extern Address* NewAddress(AddressType type, char* address, aio4c_port_t port);
+extern AIO4C_API Address* NewAddress(AddressType type, char* address, aio4c_port_t port);
 
-extern void FreeAddress(Address** address);
+extern AIO4C_API void FreeAddress(Address** address);
 
 #endif

@@ -87,17 +87,17 @@ typedef enum e_ProbeSizeType {
 
 extern int AIO4C_STATS_INTERVAL;
 
-extern aio4c_bool_t AIO4C_STATS_ENABLE_PERIODIC_OUTPUT;
+extern AIO4C_API aio4c_bool_t AIO4C_STATS_ENABLE_PERIODIC_OUTPUT;
 
 extern char* AIO4C_STATS_OUTPUT_FILE;
 
-extern void StatsInit(void);
+extern AIO4C_API void StatsInit(void);
 
-extern AIO4C_DLLEXPORT void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop);
+extern AIO4C_API void _ProbeTime(ProbeTimeType type, struct timeval* start, struct timeval* stop);
 
-extern AIO4C_DLLEXPORT void _ProbeSize(ProbeSizeType type, int size);
+extern AIO4C_API void _ProbeSize(ProbeSizeType type, int size);
 
-extern void StatsEnd(void);
+extern AIO4C_API void StatsEnd(void);
 
 #endif /* AIO4C_ENABLE_STATS */
 

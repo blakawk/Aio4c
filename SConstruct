@@ -201,6 +201,9 @@ def doConfigure(env):
         conf.Finish()
     return env
 
+if 'LD_LIBRARY_PATH' in os.environ:
+    env.Append(ENV = {'LD_LIBRARY_PATH': os.environ['LD_LIBRARY_PATH']})
+
 if 'TMP' in os.environ:
     env.Append(ENV = {'TMP': os.environ['TMP']})
 
@@ -294,8 +297,8 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
     envlib = w32env.Clone()
     envuser = w32env.Clone()
 
-    envlib.Append(CPPDEFINES = {"AIO4C_DLLEXPORT": "'__declspec(dllexport)'"})
-    envuser.Append(CPPDEFINES = {"AIO4C_DLLEXPORT": "'__declspec(dllimport)'"})
+    envlib.Append(CPPDEFINES = {"AIO4C_API": "'__declspec(dllexport)'"})
+    envuser.Append(CPPDEFINES = {"AIO4C_API": "'__declspec(dllimport)'"})
 else:
     if not GetOption('clean') and not GetOption('help') and not GetOption('IGNORE_JAVA_HOME') and not os.path.exists("%s/linux" % jni_path):
         print "JAVA_HOME = %s does not seems to be a linux SDK" % os.environ['JAVA_HOME']

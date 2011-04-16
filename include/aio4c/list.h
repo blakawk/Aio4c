@@ -38,22 +38,22 @@ typedef struct s_List {
     (list)->last  = NULL;              \
 }
 
-extern Node* NewNode(void* data);
+extern AIO4C_API Node* NewNode(void* data);
 
-extern void FreeNode(Node** pNode);
+extern AIO4C_API void FreeNode(Node** pNode);
 
-extern void ListAddAfter(List* list, Node* node, Node* newNode);
+extern AIO4C_API void ListAddAfter(List* list, Node* node, Node* newNode);
 
-extern void ListAddBefore(List* list, Node* node, Node* newNode);
+extern AIO4C_API void ListAddBefore(List* list, Node* node, Node* newNode);
 
-extern void ListAddFirst(List* list, Node* newNode);
+extern AIO4C_API void ListAddFirst(List* list, Node* newNode);
 
-extern void ListAddLast(List* list, Node* newNode);
+extern AIO4C_API void ListAddLast(List* list, Node* newNode);
 
-extern Node* ListPop(List* list);
+extern AIO4C_API Node* ListPop(List* list);
 
-extern aio4c_bool_t ListEmpty(List* list);
+extern AIO4C_API aio4c_bool_t ListEmpty(List* list);
 
-extern void ListRemove(List* list, Node* node);
+extern AIO4C_API void ListRemove(List* list, Node* node);
 
 #endif

@@ -36,10 +36,10 @@ typedef struct s_Worker {
     BufferPool*  pool;
 } Worker;
 
-extern Worker* NewWorker(char* pipeName, aio4c_size_t bufferSize);
+extern AIO4C_API Worker* NewWorker(char* pipeName, aio4c_size_t bufferSize);
 
-extern void WorkerManageConnection(Worker* worker, Connection* connection);
+extern AIO4C_API void WorkerManageConnection(Worker* worker, Connection* connection);
 
-extern void WorkerEnd(Worker* worker);
+extern AIO4C_API void WorkerEnd(Worker* worker);
 
 #endif

@@ -17,6 +17,7 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
+#include <aio4c.h>
 #include <aio4c/alloc.h>
 #include <aio4c/list.h>
 #include <aio4c/queue.h>
@@ -155,6 +156,8 @@ int main(int argc, char* argv[]) {
     double percent = 0.0;
     int i = 0;
 
+    Aio4cInit(argc, argv);
+
     if (argc > 2) {
         fprintf(stderr, "usage: %s [loop count]\n", argv[0]);
         exit(EXIT_FAILURE);
@@ -208,6 +211,8 @@ int main(int argc, char* argv[]) {
     }
 
     FreeQueue(&queue);
+
+    Aio4cEnd();
 
     return count;
 }

@@ -39,9 +39,9 @@
 #define AIO4C_PIPE_READ (short)0
 #define AIO4C_PIPE_WRITE (short)1
 
-#ifndef AIO4C_DLLEXPORT
-#define AIO4C_DLLEXPORT
-#endif /* AIO4C_DLLEXPORT */
+#ifndef AIO4C_API
+#define AIO4C_API
+#endif /* AIO4C_API */
 
 #ifndef NI_MAXHOST
 #define NI_MAXHOST 1025

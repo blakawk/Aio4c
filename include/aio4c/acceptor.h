@@ -39,8 +39,8 @@ typedef struct s_Acceptor {
     Queue*         queue;
 } Acceptor;
 
-extern Acceptor* NewAcceptor(char* name, Address* address, Connection* factory, int nbPipes);
+extern AIO4C_API Acceptor* NewAcceptor(char* name, Address* address, Connection* factory, int nbPipes);
 
-extern void AcceptorEnd(Acceptor* acceptor);
+extern AIO4C_API void AcceptorEnd(Acceptor* acceptor);
 
 #endif

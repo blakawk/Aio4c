@@ -36,10 +36,10 @@ typedef struct s_Reader {
     int            bufferSize;
 } Reader;
 
-extern Reader* NewReader(char* pipeName, aio4c_size_t bufferSize);
+extern AIO4C_API Reader* NewReader(char* pipeName, aio4c_size_t bufferSize);
 
-extern void ReaderManageConnection(Reader* reader, Connection* connection);
+extern AIO4C_API void ReaderManageConnection(Reader* reader, Connection* connection);
 
-extern void ReaderEnd(Reader* reader);
+extern AIO4C_API void ReaderEnd(Reader* reader);
 
 #endif

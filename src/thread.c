@@ -142,9 +142,7 @@ static Thread* _runThread(Thread* thread) {
     return thread;
 }
 
-static void _ThreadMain(void) __attribute__((constructor));
-
-static void _ThreadMain(void) {
+void ThreadMain(void) {
     _threadsInitialized  = true;
     memset(_threads, 0, AIO4C_MAX_THREADS * sizeof(Thread*));
 #ifdef AIO4C_WIN32

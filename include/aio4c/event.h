@@ -54,20 +54,20 @@ typedef struct s_EventQueue {
     List           handlers[AIO4C_EVENTS_COUNT];
 } EventQueue;
 
-extern EventQueue* NewEventQueue(void);
+extern AIO4C_API EventQueue* NewEventQueue(void);
 
-extern EventHandler* NewEventHandler(Event event, void (*handler)(Event,void*,void*), void* arg, aio4c_bool_t once);
+extern AIO4C_API EventHandler* NewEventHandler(Event event, void (*handler)(Event,void*,void*), void* arg, aio4c_bool_t once);
 
-extern EventQueue* EventHandlerAdd(EventQueue* queue, EventHandler* handler);
+extern AIO4C_API EventQueue* EventHandlerAdd(EventQueue* queue, EventHandler* handler);
 
-extern void EventHandle(EventQueue* queue, Event event, void* source);
+extern AIO4C_API void EventHandle(EventQueue* queue, Event event, void* source);
 
-extern void EventHandlerRemove(EventQueue* queue, Event event, void (*handler)(Event,void*,void*));
+extern AIO4C_API void EventHandlerRemove(EventQueue* queue, Event event, void (*handler)(Event,void*,void*));
 
-extern void CopyEventQueue(EventQueue* dst, EventQueue* src, void* arg);
+extern AIO4C_API void CopyEventQueue(EventQueue* dst, EventQueue* src, void* arg);
 
-extern void FreeEventQueue(EventQueue** queue);
+extern AIO4C_API void FreeEventQueue(EventQueue** queue);
 
-extern void FreeEventHandler(EventHandler** handler);
+extern AIO4C_API void FreeEventHandler(EventHandler** handler);
 
 #endif

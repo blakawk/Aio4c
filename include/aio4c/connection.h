@@ -85,40 +85,40 @@ struct s_Connection {
 #define aio4c_connection_handler_arg(arg) \
     (void*)arg
 
-extern Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeAddress);
+extern AIO4C_API Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeAddress);
 
-extern Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connection*,void*), void* dataFactoryArg);
+extern AIO4C_API Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connection*,void*), void* dataFactoryArg);
 
-extern Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c_socket_t sock);
+extern AIO4C_API Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c_socket_t sock);
 
 #define ConnectionState(connection,state) \
     _ConnectionState(__FILE__, __LINE__, connection, state)
-extern void _ConnectionState(char* file, int line, Connection* connection, ConnectionState state);
+extern AIO4C_API void _ConnectionState(char* file, int line, Connection* connection, ConnectionState state);
 
-extern Connection* ConnectionInit(Connection* connection);
+extern AIO4C_API Connection* ConnectionInit(Connection* connection);
 
-extern Connection* ConnectionConnect(Connection* connection);
+extern AIO4C_API Connection* ConnectionConnect(Connection* connection);
 
-extern Connection* ConnectionFinishConnect(Connection* connection);
+extern AIO4C_API Connection* ConnectionFinishConnect(Connection* connection);
 
-extern Connection* ConnectionRead(Connection* connection);
+extern AIO4C_API Connection* ConnectionRead(Connection* connection);
 
-extern Connection* ConnectionProcessData(Connection* connection);
+extern AIO4C_API Connection* ConnectionProcessData(Connection* connection);
 
-extern AIO4C_DLLEXPORT void EnableWriteInterest(Connection* connection);
+extern AIO4C_API void EnableWriteInterest(Connection* connection);
 
-extern aio4c_bool_t ConnectionWrite(Connection* connection);
+extern AIO4C_API aio4c_bool_t ConnectionWrite(Connection* connection);
 
-extern AIO4C_DLLEXPORT Connection* ConnectionClose(Connection* connection, aio4c_bool_t force);
+extern AIO4C_API Connection* ConnectionClose(Connection* connection, aio4c_bool_t force);
 
-extern aio4c_bool_t ConnectionNoMoreUsed(Connection* connection, ConnectionOwner owner);
+extern AIO4C_API aio4c_bool_t ConnectionNoMoreUsed(Connection* connection, ConnectionOwner owner);
 
-extern void ConnectionManagedBy(Connection* connection, ConnectionOwner owner);
+extern AIO4C_API void ConnectionManagedBy(Connection* connection, ConnectionOwner owner);
 
-extern Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
+extern AIO4C_API Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
 
-extern Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
+extern AIO4C_API Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
 
-extern void FreeConnection(Connection** connection);
+extern AIO4C_API void FreeConnection(Connection** connection);
 
 #endif

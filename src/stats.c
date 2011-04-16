@@ -55,7 +55,7 @@ static CRITICAL_SECTION _timeProbesLock;
 static CRITICAL_SECTION _sizeProbesLock;
 #endif /* AIO4C_WIN32 */
 
-static aio4c_bool_t _statsInit(void* dummy) {
+static aio4c_bool_t _statsInit(void* dummy __attribute__((unused))) {
     dummy = NULL;
 #ifndef AIO4C_WIN32
     pid_t pid = getpid();
@@ -87,7 +87,7 @@ void _PrintStats(void);
 
 void _WriteStats(void);
 
-static aio4c_bool_t _statsRun(void* dummy) {
+static aio4c_bool_t _statsRun(void* dummy __attribute__((unused))) {
     dummy = NULL;
 
     if (AIO4C_STATS_ENABLE_PERIODIC_OUTPUT) {
@@ -107,7 +107,7 @@ static aio4c_bool_t _statsRun(void* dummy) {
     return true;
 }
 
-static void _statsExit(void* dummy) {
+static void _statsExit(void* dummy __attribute__((unused))) {
     dummy = NULL;
     if (_statsFile != NULL) {
         fclose(_statsFile);

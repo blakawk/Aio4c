@@ -48,10 +48,10 @@ typedef struct s_Server {
     Queue*      queue;
 } Server;
 
-extern AIO4C_DLLEXPORT Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* handlerArg, void* (*dataFactory)(Connection*,void*));
+extern AIO4C_API Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* handlerArg, void* (*dataFactory)(Connection*,void*));
 
-extern AIO4C_DLLEXPORT void ServerJoin(Server* server);
+extern AIO4C_API void ServerJoin(Server* server);
 
-extern AIO4C_DLLEXPORT void ServerStop(Server* server);
+extern AIO4C_API void ServerStop(Server* server);
 
 #endif

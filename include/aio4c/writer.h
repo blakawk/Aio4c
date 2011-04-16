@@ -35,10 +35,10 @@ typedef struct s_Writer {
     Queue*        toUnregister;
 } Writer;
 
-extern Writer* NewWriter(char* pipeName, aio4c_size_t bufferSize);
+extern AIO4C_API Writer* NewWriter(char* pipeName, aio4c_size_t bufferSize);
 
-extern void WriterManageConnection(Writer* writer, Connection* connection);
+extern AIO4C_API void WriterManageConnection(Writer* writer, Connection* connection);
 
-extern void WriterEnd(Writer* writer);
+extern AIO4C_API void WriterEnd(Writer* writer);
 
 #endif

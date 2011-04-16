@@ -70,16 +70,16 @@ struct s_Lock {
 }
 #endif /* AIO4C_WIN32 */
 
-extern Lock* NewLock(void);
+extern AIO4C_API Lock* NewLock(void);
 
 #define TakeLock(lock) \
     _TakeLock(__FILE__, __LINE__, lock)
-extern Lock* _TakeLock(char* file, int line, Lock* lock);
+extern AIO4C_API Lock* _TakeLock(char* file, int line, Lock* lock);
 
 #define ReleaseLock(lock) \
     _ReleaseLock(__FILE__, __LINE__, lock)
-extern Lock* _ReleaseLock(char* file, int line, Lock* lock);
+extern AIO4C_API Lock* _ReleaseLock(char* file, int line, Lock* lock);
 
-extern void FreeLock(Lock** lock);
+extern AIO4C_API void FreeLock(Lock** lock);
 
 #endif

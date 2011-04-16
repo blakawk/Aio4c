@@ -32,10 +32,6 @@
 #include <winbase.h>
 #include <winsock2.h>
 
-static void _RetrieveWinVer(void) __attribute__((constructor));
-static void _InitWinSock(void) __attribute__((constructor));
-static void _CleanUpWinSock(void) __attribute__((destructor));
-
 static void _InitWinSock(void) {
     WORD v = MAKEWORD(2,2);
     WSADATA d;
@@ -86,7 +82,7 @@ void Aio4cUsage(void) {
     fprintf(stderr, "\t\tDEBUG(4): displays debugging informations\n");
     fprintf(stderr, "\t\t*Note*: each log level displays it's level message plus messages of lower level\n");
     fprintf(stderr, "\t-Lo logfile : where to output the logs (default: stderr)\n");
-#ifdef AIO4C_ENABLE_STATS
+#if AIO4C_ENABLE_STATS
     fprintf(stderr, "\t-So statfile: where to output stats (default: stats-[PID].csv)\n");
     fprintf(stderr, "\t-Si interval: defines the statistics sample interval (default: 1s)\n");
     fprintf(stderr, "\t-Sd         : if set, disable periodic statistics output to stderr (default: enabled)\n");
@@ -139,7 +135,7 @@ static void _ParseArguments(int argc, char* argv[]) {
                                 break;
                         }
                         break;
-#ifdef AIO4C_ENABLE_STATS
+#if AIO4C_ENABLE_STATS
                     case 'S':
                         switch (argv[optind][2]) {
                             case 'o':
@@ -190,10 +186,15 @@ static void _ParseArguments(int argc, char* argv[]) {
 }
 
 void Aio4cInit(int argc, char* argv[]) {
-    _ParseArguments(argc, argv);
+    ThreadMain();
+#ifdef AIO4C_WIN32
+    _InitWinSock();
+    _RetrieveWinVer();
+#endif /* AIO4C_WIN32 */
 #if AIO4C_ENABLE_STATS
     StatsInit();
 #endif /* AIO4C_ENABLE_STATS */
+    _ParseArguments(argc, argv);
 }
 
 void Aio4cEnd(void) {
@@ -201,4 +202,7 @@ void Aio4cEnd(void) {
 #if AIO4C_ENABLE_STATS
     StatsEnd();
 #endif /* AIO4C_ENABLE_STATS */
+#ifdef AIO4C_WIN32
+    _CleanUpWinSock();
+#endif /* AIO4C_WIN32 */
 }
