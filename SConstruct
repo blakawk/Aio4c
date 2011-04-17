@@ -166,7 +166,7 @@ pointer_size_src = """
 #include <stdio.h>
 
 int main(void) {
-    printf("%d", sizeof(void*));
+    printf("%d", (int)sizeof(void*));
     return 0;
 }
 """

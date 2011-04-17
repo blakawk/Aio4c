@@ -369,7 +369,7 @@ void _WriteStats(void) {
             floatWithComma(allocated / 1024.0),
             floatWithComma(read / 1024.0), floatWithComma(write / 1024.0), floatWithComma(process / 1024.0), (int)connections,
             floatWithComma(idle / 1000.0), floatWithComma(latencyCount>0?(latency / 1000.0 / latencyCount):0.0),
-            floatWithComma(selectOverhead / 1000.0 / write));
+            floatWithComma(selectOverhead>0.0?(selectOverhead / 1000.0 / write):0.0));
 }
 
 void StatsEnd(void) {
