@@ -88,10 +88,9 @@ void Aio4cUsage(void) {
     fprintf(stderr, "\t-Sd         : if set, disable periodic statistics output to stderr (default: enabled)\n");
 #endif /* AIO4C_ENABLE_STATS */
 }
+
 static void _ParseArguments(int argc, char* argv[]) {
     int optind = 0;
-    char* logfile = NULL;
-    LogLevel level = AIO4C_LOG_LEVEL_FATAL;
     long int value = 0;
     char* levelStr = NULL;
     char* endptr = NULL;
@@ -104,7 +103,7 @@ static void _ParseArguments(int argc, char* argv[]) {
                         switch (argv[optind][2]) {
                             case 'o':
                                 if (optind + 1 < argc) {
-                                    logfile = argv[optind + 1];
+                                    AIO4C_LOG_FILE = argv[optind + 1];
                                     optind++;
                                 }
                                 break;
@@ -112,20 +111,20 @@ static void _ParseArguments(int argc, char* argv[]) {
                                 if (optind + 1 < argc) {
                                     levelStr = argv[optind + 1];
                                     if (strcasecmp("fatal", levelStr) == 0) {
-                                        level = AIO4C_LOG_LEVEL_FATAL;
+                                        AIO4C_LOG_LEVEL = AIO4C_LOG_LEVEL_FATAL;
                                     } else if (strcasecmp("error", levelStr) == 0) {
-                                        level = AIO4C_LOG_LEVEL_ERROR;
+                                        AIO4C_LOG_LEVEL = AIO4C_LOG_LEVEL_ERROR;
                                     } else if (strcasecmp("warn", levelStr) == 0) {
-                                        level = AIO4C_LOG_LEVEL_WARN;
+                                        AIO4C_LOG_LEVEL = AIO4C_LOG_LEVEL_WARN;
                                     } else if (strcasecmp("info", levelStr) == 0) {
-                                        level = AIO4C_LOG_LEVEL_INFO;
+                                        AIO4C_LOG_LEVEL = AIO4C_LOG_LEVEL_INFO;
                                     } else if (strcasecmp("debug", levelStr) == 0) {
-                                        level = AIO4C_LOG_LEVEL_DEBUG;
+                                        AIO4C_LOG_LEVEL = AIO4C_LOG_LEVEL_DEBUG;
                                     } else {
                                         value = 0;
                                         value = strtol(argv[optind + 1], &endptr, 10);
                                         if (value < AIO4C_LOG_LEVEL_MAX && value >= 0) {
-                                            level = (LogLevel)value;
+                                            AIO4C_LOG_LEVEL = (LogLevel)value;
                                         }
                                     }
                                     optind++;
@@ -181,11 +180,10 @@ static void _ParseArguments(int argc, char* argv[]) {
                 break;
         }
     }
-
-    LogInit(level, logfile);
 }
 
 void Aio4cInit(int argc, char* argv[]) {
+    _ParseArguments(argc, argv);
     ThreadMain();
 #ifdef AIO4C_WIN32
     _InitWinSock();
@@ -194,7 +192,7 @@ void Aio4cInit(int argc, char* argv[]) {
 #if AIO4C_ENABLE_STATS
     StatsInit();
 #endif /* AIO4C_ENABLE_STATS */
-    _ParseArguments(argc, argv);
+    LogInit();
 }
 
 void Aio4cEnd(void) {

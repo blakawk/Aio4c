@@ -42,6 +42,9 @@ static Logger _logger = {
     .exiting = false
 };
 
+LogLevel AIO4C_LOG_LEVEL = AIO4C_LOG_LEVEL_FATAL;
+char* AIO4C_LOG_FILE = NULL;
+
 static void _LogPrintMessage(Logger* logger, char* message) {
     aio4c_file_t* log = NULL;
 
@@ -96,7 +99,7 @@ static void _LogExit(Logger* logger) {
     FreeQueue(&logger->queue);
 }
 
-void LogInit(LogLevel level, char* filename) {
+void LogInit(void) {
     static unsigned char initialized = 0;
 
     if (initialized || initialized++) {
@@ -104,14 +107,14 @@ void LogInit(LogLevel level, char* filename) {
     }
 
     _logger.lock = NewLock();
-    _logger.level = level;
+    _logger.level = AIO4C_LOG_LEVEL;
     _logger.thread = NULL;
     _logger.exiting = false;
 
-    if (filename != NULL) {
-        if ((_logger.file = fopen(filename, "a")) == NULL) {
+    if (AIO4C_LOG_FILE != NULL) {
+        if ((_logger.file = fopen(AIO4C_LOG_FILE, "a")) == NULL) {
             _logger.file = stderr;
-            Log(AIO4C_LOG_LEVEL_WARN, "open %s: %s, therefore logging will be performed on console instead", filename, strerror(errno));
+            Log(AIO4C_LOG_LEVEL_WARN, "open %s: %s, therefore logging will be performed on console instead", AIO4C_LOG_FILE, strerror(errno));
         }
     } else {
         _logger.file = stderr;

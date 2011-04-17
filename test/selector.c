@@ -24,23 +24,33 @@
 
 #include <assert.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#ifndef AIO4C_WIN32
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#else
+#include <winsock.h>
+#endif
+
+#ifndef AIO4C_WIN32
+#define SOCKET_ERROR -1
+#endif
+
+#define BUFSZ 4096
+
 static int COUNT = 1000;
 static Lock* lock = NULL;
 static Selector* selector[2] = {NULL,NULL};
-static int fds[2][2] = {{-1,-1},{-1,-1}};
-static unsigned char token[2][8192];
+static int fds[2][3] = {{-1,-1,-1},{-1,-1,-1}};
+static struct sockaddr_in to[2];
+static unsigned char token[2][BUFSZ];
 
 static aio4c_bool_t init(int* type) {
-    sigset_t set;
-
-    assert(sigfillset(&set) == 0);
-    assert(sigprocmask(SIG_BLOCK, &set, NULL) == 0);
-
     switch (*type) {
         case 1:
             assert((selector[1] = NewSelector()) != NULL);
@@ -60,10 +70,20 @@ static void end(int* type) {
         case 0:
             FreeSelector(&selector[0]);
             assert(selector[0] == NULL);
+#ifndef AIO4C_WIN32
+            assert(close(fds[0][2]) != SOCKET_ERROR);
+#else
+            assert(closesocket(fds[0][2]) != SOCKET_ERROR);
+#endif
             break;
         case 1:
             FreeSelector(&selector[1]);
             assert(selector[1] == NULL);
+#ifndef AIO4C_WIN32
+            assert(close(fds[1][2]) != SOCKET_ERROR);
+#else
+            assert(closesocket(fds[1][2]) != SOCKET_ERROR);
+#endif
             break;
         default:
             break;
@@ -71,13 +91,13 @@ static void end(int* type) {
 }
 
 static void consumer(void) {
-    unsigned char dummy[8192];
+    unsigned char dummy[BUFSZ];
     int i = 0;
     SelectionKey* mykey = NULL, *readkey = NULL, *writekey = NULL;
     aio4c_bool_t isLastRegistration = false;
 
-    assert((readkey = Register(selector[0], AIO4C_OP_READ, fds[0][0], &token[0])) != NULL);
-    assert(readkey->fd == fds[0][0]);
+    assert((readkey = Register(selector[0], AIO4C_OP_READ, fds[0][2], &token[0])) != NULL);
+    assert(readkey->fd == fds[0][2]);
     assert(readkey->attachment == &token[0]);
     assert(readkey->operation == AIO4C_OP_READ);
 
@@ -87,11 +107,11 @@ static void consumer(void) {
         assert(selector[0]->curKey == mykey);
         assert(mykey == readkey);
         assert(mykey->attachment == &token[0]);
-        assert(mykey->fd == fds[0][0]);
+        assert(mykey->fd == fds[0][2]);
         assert(mykey->result == AIO4C_OP_READ);
         assert(mykey->curCount == 1);
-        assert(read(fds[0][0], dummy, 8192) == 8192);
-        assert(memcmp(dummy, token[0], 8192) == 0);
+        assert(recv(fds[0][2], (char*)dummy, BUFSZ, 0) == BUFSZ);
+        assert(memcmp(dummy, token[0], BUFSZ) == 0);
         assert(SelectionKeyReady(selector[0], &mykey) == false);
         assert(readkey->curCount == 0);
         assert(selector[0]->curKey == NULL);
@@ -112,7 +132,7 @@ static void consumer(void) {
     assert(mykey->attachment == &token[1]);
     assert(mykey->fd == fds[1][1]);
     assert(mykey->result == AIO4C_OP_WRITE);
-    assert(write(fds[1][1], token[1], 8192) == 8192);
+    assert(send(fds[1][1], (char*)token[1], BUFSZ, 0) == BUFSZ);
     assert(SelectionKeyReady(selector[0], &mykey) == false);
     assert(mykey == NULL);
     Unregister(selector[0], writekey, false, &isLastRegistration);
@@ -120,10 +140,11 @@ static void consumer(void) {
 }
 
 static void producer(void) {
-    unsigned char dummy[8192];
+    unsigned char dummy[BUFSZ];
     int i = 0;
     SelectionKey* mykey = NULL, *readkey = NULL, *writekey = NULL;
     aio4c_bool_t isLastRegistration;
+
 
     for (i = 0; i < 1000; i++) {
         assert((writekey = Register(selector[1], AIO4C_OP_WRITE, fds[0][1], &token[0])) != NULL);
@@ -144,7 +165,7 @@ static void producer(void) {
             assert(mykey->result == AIO4C_OP_WRITE);
             assert(selector[1]->curKey == mykey);
             assert(mykey->curCount == i + 1);
-            assert(write(fds[0][1], token[0], 8192) == 8192);
+            assert(send(fds[0][1], (char*)token[0], BUFSZ, 0) == BUFSZ);
             i++;
         } else {
             assert(Select(selector[1]) == 1);
@@ -158,19 +179,19 @@ static void producer(void) {
         Unregister(selector[1], writekey, false, &isLastRegistration);
         assert(isLastRegistration == (i + 1 == 1000));
     }
-    assert((readkey = Register(selector[1], AIO4C_OP_READ, fds[1][0], &token[1])) != NULL);
-    assert(readkey->fd == fds[1][0]);
+    assert((readkey = Register(selector[1], AIO4C_OP_READ, fds[1][2], &token[1])) != NULL);
+    assert(readkey->fd == fds[1][2]);
     assert(readkey->attachment == &token[1]);
     assert(readkey->operation == AIO4C_OP_READ);
     assert(Select(selector[1]) == 1);
     assert(SelectionKeyReady(selector[1], &mykey) == true);
     assert(mykey == readkey);
     assert(mykey->attachment == &token[1]);
-    assert(mykey->fd == fds[1][0]);
+    assert(mykey->fd == fds[1][2]);
     assert(mykey->result == AIO4C_OP_READ);
     assert(mykey->curCount == 1);
-    assert(read(fds[1][0], dummy, 8192) == 8192);
-    assert(memcmp(token[1], dummy, 8192) == 0);
+    assert(recv(fds[1][2], (char*)dummy, BUFSZ, 0) == BUFSZ);
+    assert(memcmp(token[1], dummy, BUFSZ) == 0);
     assert(SelectionKeyReady(selector[1], &mykey) == false);
     assert(mykey == NULL);
     Unregister(selector[1], readkey, false, &isLastRegistration);
@@ -179,6 +200,7 @@ static void producer(void) {
 
 static aio4c_bool_t run(int* type) {
     aio4c_bool_t cont = true;
+    static int connected[2] = {0,0};
 
     TakeLock(lock);
     COUNT--;
@@ -189,9 +211,19 @@ static aio4c_bool_t run(int* type) {
 
     switch (*type) {
         case 0:
+            if (!connected[0]) {
+                assert((fds[0][2] = accept(fds[0][0], NULL, NULL)) != SOCKET_ERROR);
+                assert(connect(fds[1][1], (struct sockaddr*)&to[1], sizeof(struct sockaddr_in)) != SOCKET_ERROR);
+                connected[0] = 1;
+            }
             consumer();
             break;
         case 1:
+            if (!connected[1]) {
+                assert(connect(fds[0][1], (struct sockaddr*)&to[0], sizeof(struct sockaddr_in)) != SOCKET_ERROR);
+                assert((fds[1][2] = accept(fds[1][0], NULL, NULL)) != SOCKET_ERROR);
+                connected[1] = 1;
+            }
             producer();
             break;
         default:
@@ -205,24 +237,54 @@ void handler(int signal __attribute__((unused))) {
     assert(false);
 }
 
+void channel(int fd[2], struct sockaddr_in* to) {
+    static int _port = 55555;
+    struct sockaddr_in sa;
+#ifndef AIO4C_WIN32
+    int opt = 1;
+#else
+    char opt = 1;
+#endif
+
+    memset(&sa, 0, sizeof(struct sockaddr_in));
+    memset(to, 0, sizeof(struct sockaddr_in));
+    sa.sin_family = to->sin_family = AF_INET;
+    sa.sin_port = to->sin_port = htons(_port++);
+    sa.sin_addr.s_addr = inet_addr("127.0.0.1");
+    to->sin_addr.s_addr = inet_addr("127.0.0.1");
+    assert((fd[0] = socket(AF_INET, SOCK_STREAM, 0)) != SOCKET_ERROR);
+    assert((fd[1] = socket(AF_INET, SOCK_STREAM, 0)) != SOCKET_ERROR);
+    assert(setsockopt(fd[0], SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) != SOCKET_ERROR);
+    assert(bind(fd[0], (struct sockaddr*)&sa, sizeof(struct sockaddr_in)) != SOCKET_ERROR);
+    assert(listen(fd[0], 1) != SOCKET_ERROR);
+}
+
 int main(int argc, char* argv[]) {
     int consumerType = 0, producerType = 1;
     Thread* consumer = NULL, * producer = NULL;
-    struct sigaction sa;
     int ko = 1;
+#ifndef AIO4C_WIN32
     int urandom = -1;
+#endif
 
     Aio4cInit(argc, argv);
-    memset(&sa, 0, sizeof(struct sigaction));
-    sa.sa_handler = handler;
 
-    assert(pipe(fds[0]) == 0);
-    assert(pipe(fds[1]) == 0);
+    channel(fds[0], &to[0]);
+    channel(fds[1], &to[1]);
 
+#ifndef AIO4C_WIN32
     assert((urandom = open("/dev/urandom", O_RDONLY)) >= 0);
-    assert(read(urandom, token[0], 8192) == 8192);
-    assert(read(urandom, token[1], 8192) == 8192);
+    assert(read(urandom, token[0], BUFSZ) == BUFSZ);
+    assert(read(urandom, token[1], BUFSZ) == BUFSZ);
     assert(close(urandom) == 0);
+#else
+    int i = 0;
+    srand(getpid());
+    for (i = 0; i < BUFSZ; i++) {
+        token[0][i] = (unsigned char)(rand() & 0xff);
+        token[1][i] = (unsigned char)(rand() & 0xff);
+    }
+#endif
 
     assert((lock = NewLock()) != NULL);
 
@@ -231,7 +293,6 @@ int main(int argc, char* argv[]) {
 
     if(consumer != NULL && producer != NULL) {
         ko = 0;
-        assert(sigaction(SIGPIPE, &sa, NULL) == 0);
 
         ThreadJoin(consumer);
         ThreadJoin(producer);
@@ -239,10 +300,17 @@ int main(int argc, char* argv[]) {
 
     FreeLock(&lock);
 
+#ifndef AIO4C_WIN32
     assert(close(fds[0][0]) == 0);
     assert(close(fds[0][1]) == 0);
     assert(close(fds[1][0]) == 0);
     assert(close(fds[1][1]) == 0);
+#else
+    assert(closesocket(fds[0][0]) == 0);
+    assert(closesocket(fds[0][1]) == 0);
+    assert(closesocket(fds[1][0]) == 0);
+    assert(closesocket(fds[1][1]) == 0);
+#endif
 
     Aio4cEnd();
 

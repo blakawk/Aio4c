@@ -51,7 +51,11 @@ typedef struct s_Logger {
     Lock*             lock;
 } Logger;
 
-extern AIO4C_API void LogInit(LogLevel level, char* filename);
+extern LogLevel AIO4C_LOG_LEVEL;
+
+extern char* AIO4C_LOG_FILE;
+
+extern AIO4C_API void LogInit(void);
 
 extern AIO4C_API void Log(LogLevel level, char* message, ...) __attribute__((format(printf, 2, 3)));
 

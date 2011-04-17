@@ -23,6 +23,7 @@
 #include <aio4c/queue.h>
 #include <aio4c/types.h>
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,7 +31,7 @@
 #include <unistd.h>
 
 #define dprintf(a,...) \
-    fprintf(stderr,a,__VA_ARGS__)
+    if (debug) { fprintf(stderr,a,__VA_ARGS__); }
 
 typedef struct s_Data {
     int a;
@@ -39,6 +40,7 @@ typedef struct s_Data {
 
 static int removed = 0;
 static int COUNT = 1000;
+static int debug = 0;
 
 aio4c_bool_t aio4c_remove(QueueItem* item, Data* data) {
     Data* d = item->content.data;
@@ -144,6 +146,15 @@ void action4(Queue* queue, int* pCount) {
     *pCount = count;
 }
 
+__attribute__((noreturn)) static void usage(char* argv0) {
+    fprintf(stderr, "usage: %s  [-Qd] [-Qn count]\n", argv0);
+    fprintf(stderr, "where:\n");
+    fprintf(stderr, "\t-Qn count: the number of loops to run (default: 1000)\n");
+    fprintf(stderr, "\t-Qd      : enable debug printing on stderr (default: disabled)\n");
+    Aio4cUsage();
+    exit(EXIT_SUCCESS);
+}
+
 int main(int argc, char* argv[]) {
     QueueItem item;
     int count = 0, j = 0, action = 0;
@@ -155,22 +166,41 @@ int main(int argc, char* argv[]) {
     };
     double percent = 0.0;
     int i = 0;
+    int optind = 0;
 
-    Aio4cInit(argc, argv);
-
-    if (argc > 2) {
-        fprintf(stderr, "usage: %s [loop count]\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-
-    if (argc == 2) {
-        COUNT = atoi(argv[1]);
-        if (COUNT <= 0) {
-            fprintf(stderr, "error: loop count must be positive\n");
-            fprintf(stderr, "usage: %s [loop count]\n", argv[0]);
-            exit(EXIT_FAILURE);
+    for (optind = 1; optind < argc; optind++) {
+        switch (argv[optind][0]) {
+            case '-':
+                switch (argv[optind][1]) {
+                    case 'Q':
+                        switch (argv[optind][2]) {
+                            case 'n':
+                                if (optind + 1 < argc) {
+                                    COUNT = atoi(argv[optind + 1]);
+                                    if (COUNT <= 0 || COUNT >= INT_MAX) {
+                                        COUNT = 1000;
+                                    }
+                                }
+                                break;
+                            case 'v':
+                                debug = 1;
+                                break;
+                            case 'h':
+                                usage(argv[0]);
+                                break;
+                            default:
+                                break;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            default:
+                break;
         }
     }
+
+    Aio4cInit(argc, argv);
 
     srand(getpid());
 

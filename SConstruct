@@ -316,6 +316,7 @@ else:
     envlib = env.Clone()
     envuser = env.Clone()
 
+envuser.Append(LIBS = ['aio4c'])
 envj.Append(JAVACFLAGS = '-encoding UTF-8')
 
 envj.Java('build/java', 'java')
@@ -335,9 +336,9 @@ if not GetOption('STATISTICS'):
 
 envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'), CPPPATH=env['CPPPATH'])
 
-envuser.Program('build/client', 'build/test/client.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
-envuser.Program('build/server', 'build/test/server.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
-envuser.Program('build/queue', 'build/test/queue.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
-envuser.Program('build/selector', 'build/test/selector.c', LIBS=['aio4c'], LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/client', 'build/test/client.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/server', 'build/test/server.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/queue', 'build/test/queue.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/selector', 'build/test/selector.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
 
 envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')
