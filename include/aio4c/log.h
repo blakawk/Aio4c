@@ -26,8 +26,10 @@
 
 #include <stdarg.h>
 
+#define AIO4C_LOG_THREAD_NAME_SIZE 32
+
 #define AIO4C_LOG_PREFIX_SIZE \
-    sizeof("[00:00:00.000 00/00/00] [level] \n")
+    (sizeof("[00:00:00.000 00/00/00] [level] : \n") + AIO4C_LOG_THREAD_NAME_SIZE)
 #define AIO4C_LOG_MESSAGE_SIZE \
     (AIO4C_LOG_PREFIX_SIZE + 256)
 #define AIO4C_LOG_BUFFER_SIZE \

@@ -286,7 +286,7 @@ void LogBuffer(LogLevel level, Buffer* buffer) {
     }
 
     if (buffer->limit >= 16) {
-        for (i = buffer->position; i < buffer->limit; i += 16) {
+        for (i = buffer->position; i < buffer->limit - 16; i += 16) {
             currentBufferPointer = &bufferText[bufferPos];
 
             bufferPos += _LogPrefix(NULL, level, &currentBufferPointer);
@@ -322,7 +322,9 @@ void LogBuffer(LogLevel level, Buffer* buffer) {
         }
     }
 
-    if (i < buffer->limit) {
+    if ((buffer->limit - buffer->position) % 16) {
+        i = buffer->limit - ((buffer->limit - buffer->position) % 16);
+
         currentBufferPointer = &bufferText[bufferPos];
 
         bufferPos += _LogPrefix(NULL, level, &currentBufferPointer);
