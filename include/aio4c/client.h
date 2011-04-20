@@ -54,6 +54,8 @@ typedef struct s_Client {
 
 extern AIO4C_API Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
 
+extern AIO4C_API Connection* ClientGetConnection(Client* client);
+
 extern AIO4C_API void ClientEnd(Client* client);
 
 #endif

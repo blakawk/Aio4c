@@ -223,6 +223,10 @@ Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t
     return client;
 }
 
+Connection* ClientGetConnection(Client* client) {
+    return client->connection;
+}
+
 void ClientEnd(Client* client) {
     if (client->thread != NULL) {
         ThreadJoin(client->thread);
