@@ -575,6 +575,14 @@ Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void
     return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_EVENT_HANDLER_ERROR, &code);
 }
 
+Buffer* ConnectionGetReadBuffer(Connection* connection) {
+    return connection->dataBuffer;
+}
+
+Buffer* ConnectionGetWriteBuffer(Connection* connection) {
+    return connection->writeBuffer;
+}
+
 void FreeConnection(Connection** connection) {
     Connection* pConnection = NULL;
 
@@ -623,4 +631,3 @@ void FreeConnection(Connection** connection) {
         *connection = NULL;
     }
 }
-

@@ -276,3 +276,18 @@ aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size) {
     return true;
 }
 
+int BufferGetPosition(Buffer* buffer) {
+    return buffer->position;
+}
+
+int BufferGetLimit(Buffer* buffer) {
+    return buffer->limit;
+}
+
+int BufferRemaining(Buffer* buffer) {
+    return buffer->limit - buffer->position;
+}
+
+aio4c_byte_t* BufferGetBytes(Buffer* buffer) {
+    return buffer->data;
+}

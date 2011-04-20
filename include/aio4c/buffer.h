@@ -67,7 +67,15 @@ extern AIO4C_API Buffer* BufferReset(Buffer* buffer);
 
 extern AIO4C_API Buffer* BufferCopy(Buffer* dst, Buffer* src);
 
+extern AIO4C_API int BufferGetPosition(Buffer* buffer);
+
+extern AIO4C_API int BufferGetLimit(Buffer* buffer);
+
+extern AIO4C_API int BufferRemaining(Buffer* buffer);
+
 extern AIO4C_API aio4c_bool_t BufferHasRemaining(Buffer* buffer);
+
+extern AIO4C_API aio4c_byte_t* BufferGetBytes(Buffer* buffer);
 
 #define BufferGetByte(buffer,out) \
     BufferGet(buffer, out, sizeof(aio4c_byte_t))

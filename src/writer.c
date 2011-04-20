@@ -38,15 +38,7 @@
 #include <string.h>
 
 static aio4c_bool_t _WriterInit(Writer* writer) {
-    if ((writer->selector = NewSelector()) == NULL) {
-        return false;
-    }
-
     if ((writer->queue = NewQueue()) == NULL) {
-        return false;
-    }
-
-    if ((writer->toUnregister = NewQueue()) == NULL) {
         return false;
     }
 
@@ -71,88 +63,35 @@ static aio4c_bool_t _WriterRemove(QueueItem* item, Connection* discriminant) {
 
 static aio4c_bool_t _WriterRun(Writer* writer) {
     QueueItem item;
-    SelectionKey* key = NULL;
-    int numConnectionsReady = 0;
     Connection* connection = NULL;
-    aio4c_bool_t unregister = false;
-    aio4c_bool_t lastRegistration = false;
 
     memset(&item, 0, sizeof(QueueItem));
 
-    while (Dequeue(writer->queue, &item, false)) {
+    while (Dequeue(writer->queue, &item, true)) {
         switch(item.type) {
             case AIO4C_QUEUE_ITEM_EXIT:
                 return false;
             case AIO4C_QUEUE_ITEM_DATA:
                 connection = (Connection*)item.content.data;
                 if (connection->state == AIO4C_CONNECTION_STATE_CLOSED) {
-                    if (connection->writeKey != NULL) {
-                        Unregister(writer->selector, connection->writeKey, true, NULL);
-                        connection->writeKey = NULL;
-                    }
                     RemoveAll(writer->queue, aio4c_remove_callback(_WriterRemove), aio4c_remove_discriminant(connection));
                     Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
                     if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WRITER)) {
                         Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                         FreeConnection(&connection);
                     }
-                } else if (connection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
-                    Log(AIO4C_LOG_LEVEL_DEBUG, "pending close received for connection %s", connection->string);
-                    if (connection->writeKey == NULL) {
-                        connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
-                    } else {
-                        Unregister(writer->selector, connection->writeKey, true, NULL);
-                        connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
-                    }
                 }
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
-                ProbeTimeStart(AIOC_TIME_PROBE_SELECT_OVERHEAD);
                 connection = (Connection*)item.content.event.source;
                 Log(AIO4C_LOG_LEVEL_DEBUG, "processing write interest for connection %s", connection->string);
-                if (connection->state == AIO4C_CONNECTION_STATE_CONNECTED) {
-                    connection->writeKey = Register(writer->selector, AIO4C_OP_WRITE, connection->socket, connection);
+                if (ConnectionWrite(connection)) {
+                    EnqueueEventItem(writer->queue, item.content.event.type, item.content.event.source);
                 }
-                ProbeTimeEnd(AIO4C_TIME_PROBE_SELECT_OVERHEAD);
                 break;
             default:
                 break;
         }
-    }
-
-    ProbeTimeStart(AIO4C_TIME_PROBE_IDLE);
-    ProbeTimeStart(AIOC_TIME_PROBE_SELECT_OVERHEAD);
-    numConnectionsReady = Select(writer->selector);
-    ProbeTimeEnd(AIO4C_TIME_PROBE_SELECT_OVERHEAD);
-    ProbeTimeEnd(AIO4C_TIME_PROBE_IDLE);
-
-    if (numConnectionsReady > 0) {
-        ProbeTimeStart(AIOC_TIME_PROBE_SELECT_OVERHEAD);
-        while (SelectionKeyReady(writer->selector, &key)) {
-            connection = (Connection*)key->attachment;
-            unregister = true;
-
-            if (key->result & key->operation) {
-                ProbeTimeStart(AIO4C_TIME_PROBE_NETWORK_WRITE);
-                if (ConnectionWrite(connection)) {
-                    unregister = false;
-                }
-                ProbeTimeEnd(AIO4C_TIME_PROBE_NETWORK_WRITE);
-            }
-
-            if (unregister) {
-                EnqueueDataItem(writer->toUnregister, key);
-            }
-        }
-
-        while (Dequeue(writer->toUnregister, &item, false)) {
-            connection = ((SelectionKey*)item.content.data)->attachment;
-            Unregister(writer->selector, (SelectionKey*)item.content.data, false, &lastRegistration);
-            if (lastRegistration) {
-                connection->writeKey = NULL;
-            }
-        }
-        ProbeTimeEnd(AIO4C_TIME_PROBE_SELECT_OVERHEAD);
     }
 
     return true;
@@ -160,7 +99,6 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
 
 static void _WriterExit(Writer* writer) {
     FreeQueue(&writer->queue);
-    FreeQueue(&writer->toUnregister);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
@@ -181,9 +119,7 @@ Writer* NewWriter(char* pipeName, aio4c_size_t bufferSize) {
         return NULL;
     }
 
-    writer->selector     = NULL;
     writer->queue        = NULL;
-    writer->toUnregister = NULL;
     writer->bufferSize   = bufferSize;
     if (pipeName != NULL) {
         writer->name         = aio4c_malloc(strlen(pipeName) + 1 + 7);
@@ -203,7 +139,6 @@ Writer* NewWriter(char* pipeName, aio4c_size_t bufferSize) {
            &writer->thread);
 
     if (writer->thread == NULL) {
-        FreeSelector(&writer->selector);
         if (writer->name != NULL) {
             aio4c_free(writer->name);
         }
@@ -220,14 +155,8 @@ void WriterEnd(Writer* writer) {
             EnqueueExitItem(writer->queue);
         }
 
-        if (writer->selector != NULL) {
-            SelectorWakeUp(writer->selector);
-        }
-
         ThreadJoin(writer->thread);
     }
-
-    FreeSelector(&writer->selector);
 
     if (writer->name != NULL) {
         aio4c_free(writer->name);
@@ -236,19 +165,13 @@ void WriterEnd(Writer* writer) {
     aio4c_free(writer);
 }
 
-static void _WriterCloseHandler(Event event, Connection* source, Writer* writer) {
-    if (event != AIO4C_CLOSE_EVENT && event != AIO4C_PENDING_CLOSE_EVENT) {
-        return;
-    }
-
+static void _WriterCloseHandler(Event event __attribute__((unused)), Connection* source, Writer* writer) {
     if (writer->queue == NULL || !EnqueueDataItem(writer->queue, source)) {
         if (ConnectionNoMoreUsed(source, AIO4C_CONNECTION_OWNER_WRITER)) {
             FreeConnection(&source);
         }
         return;
     }
-
-    SelectorWakeUp(writer->selector);
 }
 
 static void _WriterEventHandler(Event event, Connection* source, Writer* writer) {
@@ -257,8 +180,6 @@ static void _WriterEventHandler(Event event, Connection* source, Writer* writer)
             Log(AIO4C_LOG_LEVEL_WARN, "event %d for connection %s lost", event, source->string);
             return;
         }
-
-        SelectorWakeUp(writer->selector);
     }
 }
 

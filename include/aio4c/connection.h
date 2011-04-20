@@ -119,6 +119,10 @@ extern AIO4C_API Connection* ConnectionAddHandler(Connection* connection, Event 
 
 extern AIO4C_API Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
 
+extern AIO4C_API Buffer* ConnectionGetWriteBuffer(Connection* connection);
+
+extern AIO4C_API Buffer* ConnectionGetReadBuffer(Connection* connection);
+
 extern AIO4C_API void FreeConnection(Connection** connection);
 
 #endif

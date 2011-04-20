@@ -30,9 +30,7 @@ typedef struct s_Writer {
     char*         name;
     Thread*       thread;
     aio4c_size_t  bufferSize;
-    Selector*     selector;
     Queue*        queue;
-    Queue*        toUnregister;
 } Writer;
 
 extern AIO4C_API Writer* NewWriter(char* pipeName, aio4c_size_t bufferSize);
