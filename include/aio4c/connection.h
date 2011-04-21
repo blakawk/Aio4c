@@ -109,6 +109,8 @@ extern AIO4C_API void EnableWriteInterest(Connection* connection);
 
 extern AIO4C_API aio4c_bool_t ConnectionWrite(Connection* connection);
 
+extern AIO4C_API Connection* ConnectionShutdown(Connection* connection);
+
 extern AIO4C_API Connection* ConnectionClose(Connection* connection, aio4c_bool_t force);
 
 extern AIO4C_API aio4c_bool_t ConnectionNoMoreUsed(Connection* connection, ConnectionOwner owner);
@@ -122,6 +124,8 @@ extern AIO4C_API Connection* ConnectionAddSystemHandler(Connection* connection, 
 extern AIO4C_API Buffer* ConnectionGetWriteBuffer(Connection* connection);
 
 extern AIO4C_API Buffer* ConnectionGetReadBuffer(Connection* connection);
+
+extern AIO4C_API char* ConnectionGetString(Connection* connection);
 
 extern AIO4C_API void FreeConnection(Connection** connection);
 

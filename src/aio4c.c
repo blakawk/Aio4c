@@ -84,8 +84,8 @@ void Aio4cUsage(void) {
     fprintf(stderr, "\t-Lo logfile : where to output the logs (default: stderr)\n");
 #if AIO4C_ENABLE_STATS
     fprintf(stderr, "\t-So statfile: where to output stats (default: stats-[PID].csv)\n");
-    fprintf(stderr, "\t-Si interval: defines the statistics sample interval (default: 1s)\n");
-    fprintf(stderr, "\t-Sd         : if set, disable periodic statistics output to stderr (default: enabled)\n");
+    fprintf(stderr, "\t-Si interval: defines the statistics sample interval (default: 0 = disabled)\n");
+    fprintf(stderr, "\t-Se         : enable periodic statistics output to stderr (default: disabled)\n");
 #endif /* AIO4C_ENABLE_STATS */
 }
 
@@ -153,8 +153,8 @@ static void _ParseArguments(int argc, char* argv[]) {
                                     optind++;
                                 }
                                 break;
-                            case 'd':
-                                AIO4C_STATS_ENABLE_PERIODIC_OUTPUT = false;
+                            case 'e':
+                                AIO4C_STATS_ENABLE_PERIODIC_OUTPUT = true;
                                 break;
                             default:
                                 break;

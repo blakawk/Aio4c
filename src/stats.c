@@ -40,8 +40,8 @@
 #include <string.h>
 
 char* AIO4C_STATS_OUTPUT_FILE = NULL;
-aio4c_bool_t AIO4C_STATS_ENABLE_PERIODIC_OUTPUT = true;
-int AIO4C_STATS_INTERVAL = 1;
+aio4c_bool_t AIO4C_STATS_ENABLE_PERIODIC_OUTPUT = false;
+int AIO4C_STATS_INTERVAL = 0;
 
 static Thread*          _statsThread = NULL;
 static FILE*            _statsFile = NULL;

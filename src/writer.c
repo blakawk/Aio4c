@@ -80,6 +80,12 @@ static aio4c_bool_t _WriterRun(Writer* writer) {
                         Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                         FreeConnection(&connection);
                     }
+                } else if (connection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
+                    if (!RemoveAll(writer->queue, aio4c_remove_callback(_WriterRemove), aio4c_remove_discriminant(connection))) {
+                        ConnectionShutdown(connection);
+                    } else {
+                        EnqueueEventItem(writer->queue, AIO4C_OUTBOUND_DATA_EVENT, connection);
+                    }
                 }
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:

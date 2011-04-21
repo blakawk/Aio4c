@@ -340,5 +340,6 @@ envuser.Program('build/client', 'build/test/client.c', LIBPATH='build', CPPPATH=
 envuser.Program('build/server', 'build/test/server.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
 envuser.Program('build/queue', 'build/test/queue.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
 envuser.Program('build/selector', 'build/test/selector.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/benchmark', 'build/test/benchmark.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
 
 envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')

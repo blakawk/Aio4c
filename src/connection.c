@@ -237,6 +237,8 @@ static Connection* __ConnectionHandleError(char* file, int line, Connection* con
             code->connection = connection;
             _Raise(file, line, level, AIO4C_CONNECTION_STATE_ERROR_TYPE, error, code);
             break;
+        case AIO4C_CONNECTION_DISCONNECTED:
+            connection->closedForError = false;
         default:
             code->connection = connection;
             _Raise(file, line, level, AIO4C_CONNECTION_ERROR_TYPE, error, code);
@@ -420,6 +422,16 @@ Connection* ConnectionProcessData(Connection* connection) {
     return connection;
 }
 
+Connection* ConnectionShutdown(Connection* connection) {
+    Log(AIO4C_LOG_LEVEL_DEBUG, "shutting down writing end on connection %s", connection->string);
+#ifndef AIO4C_WIN32
+    shutdown(connection->socket, SHUT_WR);
+#else /* AIO4C_WIN32 */
+    shutdown(connection->socket, SD_SEND);
+#endif /* AIO4C_WIN32 */
+    return connection;
+}
+
 aio4c_bool_t ConnectionWrite(Connection* connection) {
     ssize_t nbWrite = 0;
     Buffer* buffer = connection->writeBuffer;
@@ -465,12 +477,7 @@ aio4c_bool_t ConnectionWrite(Connection* connection) {
     if (BufferHasRemaining(connection->writeBuffer)) {
         return true;
     } else if (pendingCloseMemorized) {
-        Log(AIO4C_LOG_LEVEL_DEBUG, "shutting down writing end on connection %s", connection->string);
-#ifndef AIO4C_WIN32
-        shutdown(connection->socket, SHUT_WR);
-#else /* AIO4C_WIN32 */
-        shutdown(connection->socket, SD_SEND);
-#endif /* AIO4C_WIN32 */
+        ConnectionShutdown(connection);
     }
 
     return false;
@@ -583,15 +590,21 @@ Buffer* ConnectionGetWriteBuffer(Connection* connection) {
     return connection->writeBuffer;
 }
 
+char* ConnectionGetString(Connection* connection) {
+    return connection->string;
+}
+
 void FreeConnection(Connection** connection) {
     Connection* pConnection = NULL;
 
     if (connection != NULL && (pConnection = *connection) != NULL) {
+        if (pConnection->socket != -1) {
 #ifndef AIO4C_WIN32
-        close(pConnection->socket);
+            close(pConnection->socket);
 #else /* AIO4C_WIN32 */
-        closesocket(pConnection->socket);
+            closesocket(pConnection->socket);
 #endif /* AIO4C_WIN32 */
+        }
 
         _ConnectionEventHandle(pConnection, AIO4C_FREE_EVENT);
 
