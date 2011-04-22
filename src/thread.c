@@ -136,7 +136,7 @@ static Thread* _runThread(Thread* thread) {
 #ifndef AIO4C_WIN32
     pthread_exit(thread);
 #else /* AIO4C_WIN32 */
-    ExitThread((DWORD)thread);
+    ExitThread(0);
 #endif /* AIO4C_WIN32 */
 
     return thread;

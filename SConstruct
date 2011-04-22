@@ -334,12 +334,12 @@ libfiles = Glob('build/src/*.c')
 if not GetOption('STATISTICS'):
     libfiles.remove(File('build/src/stats.c'))
 
-envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'), CPPPATH=env['CPPPATH'])
+envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'))
 
-envuser.Program('build/client', 'build/test/client.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
-envuser.Program('build/server', 'build/test/server.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
-envuser.Program('build/queue', 'build/test/queue.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
-envuser.Program('build/selector', 'build/test/selector.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
-envuser.Program('build/benchmark', 'build/test/benchmark.c', LIBPATH='build', CPPPATH=env['CPPPATH'])
+envuser.Program('build/client', 'build/test/client.c', LIBPATH='build')
+envuser.Program('build/server', 'build/test/server.c', LIBPATH='build')
+envuser.Program('build/queue', 'build/test/queue.c', LIBPATH='build')
+envuser.Program('build/selector', 'build/test/selector.c', LIBPATH='build')
+envuser.Program('build/benchmark', 'build/test/benchmark.c', LIBPATH='build')
 
 envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')

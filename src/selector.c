@@ -425,7 +425,7 @@ aio4c_size_t _Select(char* file, int line, Selector* selector) {
         fdAdded = false;
 
         if (selector->polls[i].fd >= FD_SETSIZE) {
-            Log(AIO4C_LOG_LEVEL_WARN, "descriptor %d overpasses FD_SETSIZE (%d), ignoring", selector->polls[i].fd, FD_SETSIZE);
+            Log(AIO4C_LOG_LEVEL_WARN, "descriptor %d overpasses FD_SETSIZE (%d), ignoring", (int)selector->polls[i].fd, FD_SETSIZE);
             continue;
         }
 

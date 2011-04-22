@@ -158,7 +158,7 @@ static aio4c_size_t _LogPrefix(Thread* from, LogLevel level, char** message) {
     }
 
     gettimeofday(&tv, NULL);
-    tm = localtime(&tv.tv_sec);
+    tm = localtime((time_t*)&tv.tv_sec);
 
     switch(level) {
         case AIO4C_LOG_LEVEL_INFO:

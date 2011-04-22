@@ -159,13 +159,14 @@ static void clientHandler(Event event, Connection* connection, ClientData* cd) {
             buf = connection->dataBuffer;
             BufferGet(buf, data, blockSize);
             BufferGet(buf, &req, sizeof(struct timeval));
-            memcpy(&data[blockSize - 1], &req, sizeof(struct timeval));
+            memcpy(&data[blockSize], &req, sizeof(struct timeval));
             BufferGetInt(buf, &crc);
             ck = crc32(data, blockSize + sizeof(struct timeval));
             gettimeofday(&now, NULL);
             ProbeSize(AIO4C_PROBE_LATENCY_COUNT, 1);
             ProbeTime(AIO4C_TIME_PROBE_LATENCY, &req, &now);
             if (ck != crc) {
+                Log(AIO4C_LOG_LEVEL_DEBUG, "checksum error (received: %u, computed: %u)", ck, crc);
                 ConnectionClose(connection, false);
             } else if (cd->exchanged >= (unsigned long int)blockSize) {
                 cd->exchanged -= blockSize;
