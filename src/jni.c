@@ -23,6 +23,7 @@
 #include <aio4c/log.h>
 
 #include <string.h>
+#include <stdarg.h>
 
 void _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call, void** stock) {
     if(result == NULL) {
@@ -37,6 +38,21 @@ void _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call, 
             *stock = result;
         }
     }
+}
+
+void RaiseException(JNIEnv* jvm, char* name, char* signature, ...) {
+    va_list ap;
+    jclass clazz = NULL;
+    jmethodID constructor = NULL;
+    jobject exception = NULL;
+
+    CheckJNICall(jvm, (*jvm)->FindClass(jvm, name), clazz);
+    CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, clazz, "<init>", signature), constructor);
+    va_start(ap, signature);
+    CheckJNICall(jvm, (*jvm)->NewObjectV(jvm, clazz, constructor, ap), exception);
+    va_end(ap);
+
+    (*jvm)->Throw(jvm, exception);
 }
 
 void GetPointer(JNIEnv* jvm, jobject object, void** pointer) {

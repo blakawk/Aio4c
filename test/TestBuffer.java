@@ -17,34 +17,24 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-package com.aio4c;
+import com.aio4c.Aio4c;
+import com.aio4c.buffer.Buffer;
+import com.aio4c.buffer.BufferUnderflowException;
 
-/**
- * Enum that represents the kinds of addresses supported by the library.
- *
- * @author blakawk
- * @see "aio4c/address.h"
- */
-public enum AddressType {
-    /**
-     * Address is an IPv4.
-     */
-    IPV4(0),
-    /**
-     * Address is an IPv6
-     */
-    IPV6(1);
-    /**
-     * The enum's value.
-     */
-    public int value;
-    /**
-     * The AddressType constructor.
-     *
-     * @param int
-     *   The enum's value.
-     */
-    private AddressType(int value) {
-        this.value = value;
+public class TestBuffer {
+    public static void main(String[] args) {
+        Aio4c.init(args);
+        Buffer b = Buffer.allocate(5);
+        try {
+            b.get();
+            b.get();
+            b.get();
+            b.get();
+            b.get();
+            b.get();
+        } catch (BufferUnderflowException e) {
+            e.printStackTrace();
+        }
+        Aio4c.end();
     }
 }

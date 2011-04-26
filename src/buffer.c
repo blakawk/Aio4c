@@ -29,7 +29,7 @@
 #include <string.h>
 #include <wchar.h>
 
-static Buffer* _NewBuffer(int size) {
+Buffer* NewBuffer(int size) {
     Buffer* buffer = NULL;
 
     if ((buffer = aio4c_malloc(sizeof(Buffer))) == NULL) {
@@ -48,7 +48,7 @@ static Buffer* _NewBuffer(int size) {
     return buffer;
 }
 
-static void _FreeBuffer(Buffer** buffer) {
+void FreeBuffer(Buffer** buffer) {
     Buffer* pBuffer = NULL;
 
     if (buffer != NULL && ((pBuffer = *buffer) != NULL)) {
@@ -74,7 +74,7 @@ BufferPool* NewBufferPool(aio4c_size_t bufferSize) {
     pool->buffers = NewQueue();
 
     for (i = 0; i < AIO4C_BUFFER_POOL_BATCH_SIZE; i++) {
-        buffer = _NewBuffer(bufferSize);
+        buffer = NewBuffer(bufferSize);
 
         if (buffer == NULL) {
             break;
@@ -100,7 +100,7 @@ Buffer* AllocateBuffer(BufferPool* pool) {
 
     if (!Dequeue(pool->buffers, &item, false)) {
         for (i = 0; i < pool->batch; i++) {
-            buffer = _NewBuffer(pool->bufferSize);
+            buffer = NewBuffer(pool->bufferSize);
 
             if (buffer == NULL) {
                 break;
@@ -133,7 +133,7 @@ void ReleaseBuffer(Buffer** pBuffer) {
 
     if (pBuffer != NULL && (buffer = *pBuffer) != NULL) {
         if ((pool = buffer->pool) == NULL) {
-            _FreeBuffer(pBuffer);
+            FreeBuffer(pBuffer);
             return;
         }
 
@@ -155,7 +155,7 @@ void FreeBufferPool(BufferPool** pPool) {
 
     if (pPool != NULL && (pool = *pPool) != NULL) {
         while (Dequeue(pool->buffers, &item, false)) {
-            _FreeBuffer((Buffer**)&item.content.data);
+            FreeBuffer((Buffer**)&item.content.data);
         }
 
         FreeQueue(&pool->buffers);

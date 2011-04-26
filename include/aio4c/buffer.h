@@ -49,6 +49,10 @@ struct s_BufferPool {
     int      bufferSize;
 };
 
+extern AIO4C_API Buffer* NewBuffer(int size);
+
+extern AIO4C_API void FreeBuffer(Buffer** buffer);
+
 extern AIO4C_API BufferPool* NewBufferPool(aio4c_size_t bufferSize);
 
 extern AIO4C_API Buffer* AllocateBuffer(BufferPool* pool);

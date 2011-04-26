@@ -19,11 +19,33 @@
  **/
 package com.aio4c;
 
+/**
+ * Class allowing initialization of aio4c library.
+ */
 public class Aio4c {
     static {
+        /**
+         * Try to load the library.
+         */
         System.loadLibrary("aio4c");
     }
+    /**
+     * Displays the parameters and usage of the library
+     */
     public static native void usage();
+    /**
+     * Initializes aio4c.
+     *
+     * Needs to be called once before using the library.
+     *
+     * @params args
+     *   The arguments passed on the JVM command line
+     */
     public static native void init(String[] args);
+    /**
+     * Frees all resources used by aio4c.
+     *
+     * Needs to be called once the library is no more used by the program.
+     */
     public static native void end();
 }

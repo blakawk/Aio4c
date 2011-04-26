@@ -17,34 +17,31 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-package com.aio4c;
+package com.aio4c.buffer;
 
-/**
- * Enum that represents the kinds of addresses supported by the library.
- *
- * @author blakawk
- * @see "aio4c/address.h"
- */
-public enum AddressType {
+public class BufferException extends Exception {
     /**
-     * Address is an IPv4.
+     * The Buffer which caused this exception.
      */
-    IPV4(0),
-    /**
-     * Address is an IPv6
-     */
-    IPV6(1);
-    /**
-     * The enum's value.
-     */
-    public int value;
-    /**
-     * The AddressType constructor.
-     *
-     * @param int
-     *   The enum's value.
-     */
-    private AddressType(int value) {
-        this.value = value;
+    private Buffer buffer;
+
+    public BufferException(String message, Buffer buffer) {
+        super(message);
+        this.buffer = buffer;
+    }
+
+    @Override
+    public String getMessage() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(super.getMessage());
+        sb.append(System.getProperty("line.separator"));
+        sb.append('\t');
+        sb.append("caused by: ");
+        if (buffer != null) {
+            sb.append(buffer.toString());
+        } else {
+            sb.append("<unknown buffer>");
+        }
+        return sb.toString();
     }
 }

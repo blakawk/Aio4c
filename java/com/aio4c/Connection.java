@@ -19,6 +19,8 @@
  **/
 package com.aio4c;
 
+import com.aio4c.buffer.Buffer;
+
 public abstract class Connection {
     /**
      * Pointer to the underlying connection structure on 32 bits architectures.

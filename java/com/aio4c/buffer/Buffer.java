@@ -17,12 +17,51 @@
  * General Public License along with this program.  If
  * not, see <http://www.gnu.org/licenses/>.
  **/
-package com.aio4c;
+package com.aio4c.buffer;
 
+/**
+ * Class that represents a buffer used for I/O operations.
+ *
+ * @author blakawk
+ * @see "aio4c/buffer.h"
+ */
 public class Buffer {
+    /**
+     * Retrieves a copy of this buffer's underlying byte array.
+     *
+     * As the returned array is only a copy, if modifications are made to it,
+     * it must be sent back to the library using the setter.
+     *
+     * The array size and data matches this buffer's bytes between its position
+     * and its limit (thus, it can be empty).
+     *
+     * @return
+     *   A copy of this buffer's byte array.
+     *
+     * @see com.aio4c.buffer.Buffer#array(byte[])
+     */
     public native byte[] array();
+    /**
+     * Sets the underlying buffer's byte array.
+     *
+     * If the array is greater than this buffer's remaining bytes, the supplementary
+     * data is discarded.
+     *
+     * @param array
+     *   Sets this buffer's bytes, updating this buffer's position.
+     */
     public native void array(byte[] array);
-    public native byte get();
+    /**
+     * Retrieves the <code>byte</code> at this buffer's position.
+     *
+     * Increments this buffer's position by 1 if there is remaining bytes.
+     *
+     * @return
+     *   The <code>byte</code> at this current buffer's position.
+     * @throws com.aio4c.buffer.BufferUnderflowException
+     *   When this buffer's position exceeds this buffer's limit.
+     */
+    public native byte get() throws BufferUnderflowException;
     public native short getShort();
     public native int getInt();
     public native long getLong();
@@ -44,6 +83,7 @@ public class Buffer {
     public native void flip();
     public native int capacity();
     public native void reset();
+    public static native Buffer allocate(int capacity);
     @Override
     public native String toString();
     /**
