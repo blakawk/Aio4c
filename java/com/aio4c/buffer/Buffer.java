@@ -1,22 +1,24 @@
 /**
- * Copyright © 2011 blakawk <blakawk@gentooist.com>
- * All rights reserved.  Released under GPLv3 License.
+ * This file is part of Aio4c <http://aio4c.so>.
  *
- * This program is free software: you can redistribute
- * it  and/or  modify  it under  the  terms of the GNU.
- * General  Public  License  as  published by the Free
- * Software Foundation, version 3 of the License.
+ * Aio4c <http://aio4c.so> is free software: you
+ * can  redistribute  it  and/or modify it under
+ * the  terms  of the GNU General Public License
+ * as published by the Free Software Foundation,
+ * version 3 of the License.
  *
- * This  program  is  distributed  in the hope that it
- * will be useful, but  WITHOUT  ANY WARRANTY; without
- * even  the  implied  warranty  of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.
+ * This  program is distributed in the hope that
+ * it  will be useful, but WITHOUT ANY WARRANTY;
+ * without   even   the   implied   warranty  of
+ * MERCHANTABILITY  or  FITNESS FOR A PARTICULAR
+ * PURPOSE.
  *
- * See   the  GNU  General  Public  License  for  more
- * details. You should have received a copy of the GNU
- * General Public License along with this program.  If
- * not, see <http://www.gnu.org/licenses/>.
- **/
+ * See  the  GNU General Public License for more
+ * details.  You  should have received a copy of
+ * the  GNU  General  Public  License along with
+ * Aio4c    <http://aio4c.so>.   If   not,   see
+ * <http://www.gnu.org/licenses/>.
+ */
 package com.aio4c.buffer;
 
 /**
@@ -62,28 +64,28 @@ public class Buffer {
      *   When this buffer's position exceeds this buffer's limit.
      */
     public native byte get() throws BufferUnderflowException;
-    public native short getShort();
-    public native int getInt();
-    public native long getLong();
-    public native float getFloat();
-    public native double getDouble();
+    public native short getShort() throws BufferUnderflowException;
+    public native int getInt() throws BufferUnderflowException;
+    public native long getLong() throws BufferUnderflowException;
+    public native float getFloat() throws BufferUnderflowException;
+    public native double getDouble() throws BufferUnderflowException;
     public native String getString();
-    public native void put(byte b);
-    public native void putShort(short s);
-    public native void putInt(int i);
-    public native void putLong(long l);
-    public native void putFloat(float f);
-    public native void putDouble(double d);
-    public native void putString(String s);
+    public native void put(byte b) throws BufferOverflowException;
+    public native void putShort(short s) throws BufferOverflowException;
+    public native void putInt(int i) throws BufferOverflowException;
+    public native void putLong(long l) throws BufferOverflowException;
+    public native void putFloat(float f) throws BufferOverflowException;
+    public native void putDouble(double d) throws BufferOverflowException;
+    public native void putString(String s) throws BufferOverflowException;
     public native boolean hasRemaining();
     public native int position();
-    public native void position(int position);
+    public native void position(int position) throws IllegalArgumentException;
     public native int limit();
-    public native void limit(int limit);
+    public native void limit(int limit) throws IllegalArgumentException;
     public native void flip();
     public native int capacity();
     public native void reset();
-    public static native Buffer allocate(int capacity);
+    public static native Buffer allocate(int capacity) throws OutOfMemoryError;
     @Override
     public native String toString();
     /**

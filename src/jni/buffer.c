@@ -1,40 +1,35 @@
 /**
- * Copyright © 2011 blakawk <blakawk@gentooist.com>
- * All rights reserved.  Released under GPLv3 License.
+ * This file is part of Aio4c <http://aio4c.so>.
  *
- * This program is free software: you can redistribute
- * it  and/or  modify  it under  the  terms of the GNU.
- * General  Public  License  as  published by the Free
- * Software Foundation, version 3 of the License.
+ * Aio4c <http://aio4c.so> is free software: you
+ * can  redistribute  it  and/or modify it under
+ * the  terms  of the GNU General Public License
+ * as published by the Free Software Foundation,
+ * version 3 of the License.
  *
- * This  program  is  distributed  in the hope that it
- * will be useful, but  WITHOUT  ANY WARRANTY; without
- * even  the  implied  warranty  of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.
+ * This  program is distributed in the hope that
+ * it  will be useful, but WITHOUT ANY WARRANTY;
+ * without   even   the   implied   warranty  of
+ * MERCHANTABILITY  or  FITNESS FOR A PARTICULAR
+ * PURPOSE.
  *
- * See   the  GNU  General  Public  License  for  more
- * details. You should have received a copy of the GNU
- * General Public License along with this program.  If
- * not, see <http://www.gnu.org/licenses/>.
- **/
+ * See  the  GNU General Public License for more
+ * details.  You  should have received a copy of
+ * the  GNU  General  Public  License along with
+ * Aio4c    <http://aio4c.so>.   If   not,   see
+ * <http://www.gnu.org/licenses/>.
+ */
 #include <aio4c/jni/buffer.h>
 
 #include <aio4c/alloc.h>
 #include <aio4c/jni.h>
 #include <aio4c/buffer.h>
 
-static void _ThrowBufferUnderflow(JNIEnv* jvm, jobject buffer, char* message) {
-    jstring jmsg = NULL;
+#define _ThrowBufferUnderflow(jvm,buffer) \
+    RaiseException(jvm,"com/aio4c/buffer/BufferUnderflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)
 
-    CheckJNICall(jvm, (*jvm)->NewStringUTF(jvm, message), jmsg);
-
-    RaiseException(
-            jvm,
-            "com/aio4c/buffer/BufferUnderflowException",
-            "(Ljava/lang/String;Lcom/aio4c/buffer/Buffer;)V",
-            jmsg,
-            buffer);
-}
+#define _ThrowBufferOverflow(jvm,buffer) \
+    RaiseException(jvm,"com/aio4c/buffer/BufferOverflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)
 
 static Buffer* _GetBuffer(JNIEnv* jvm, jobject buffer) {
     Buffer* _buffer = NULL;
@@ -59,7 +54,7 @@ JNIEXPORT jobject JNICALL Java_com_aio4c_buffer_Buffer_allocate(JNIEnv* jvm, jcl
         CheckJNICall(jvm, (*jvm)->NewStringUTF(jvm, "cannot allocate buffer"), jmsg);
         RaiseException(
                 jvm,
-                "java/lang/RuntimeException",
+                "java/lang/OutOfMemoryError",
                 "(Ljava/lang/String;)V",
                 jmsg);
     } else {
@@ -92,7 +87,7 @@ JNIEXPORT jbyte JNICALL Java_com_aio4c_buffer_Buffer_get(JNIEnv* jvm, jobject bu
     jbyte _byte = 0;
 
     if (!BufferGetByte(_buffer, &_byte)) {
-        _ThrowBufferUnderflow(jvm, buffer, "cannot retrieve byte");
+        _ThrowBufferUnderflow(jvm, buffer);
     }
 
     return _byte;
@@ -102,7 +97,9 @@ JNIEXPORT jshort JNICALL Java_com_aio4c_buffer_Buffer_getShort(JNIEnv* jvm, jobj
     Buffer* _buffer = _GetBuffer(jvm, buffer);
     jshort _short = 0;
 
-    BufferGetShort(_buffer, &_short);
+    if (!BufferGetShort(_buffer, &_short)) {
+        _ThrowBufferUnderflow(jvm, buffer);
+    }
 
     return _short;
 }
@@ -111,7 +108,9 @@ JNIEXPORT jint JNICALL Java_com_aio4c_buffer_Buffer_getInt(JNIEnv* jvm, jobject 
     Buffer* _buffer = _GetBuffer(jvm, buffer);
     jint _int = 0;
 
-    BufferGetInt(_buffer, &_int);
+    if (!BufferGetInt(_buffer, &_int)) {
+        _ThrowBufferUnderflow(jvm, buffer);
+    }
 
     return _int;
 }
@@ -120,7 +119,9 @@ JNIEXPORT jlong JNICALL Java_com_aio4c_buffer_Buffer_getLong(JNIEnv* jvm, jobjec
     Buffer* _buffer = _GetBuffer(jvm, buffer);
     jlong _long = 0;
 
-    BufferGet(_buffer, &_long, sizeof(jlong));
+    if (!BufferGet(_buffer, &_long, sizeof(jlong))) {
+        _ThrowBufferUnderflow(jvm, buffer);
+    }
 
     return _long;
 }
@@ -129,7 +130,9 @@ JNIEXPORT jfloat JNICALL Java_com_aio4c_buffer_Buffer_getFloat(JNIEnv* jvm, jobj
     Buffer* _buffer = _GetBuffer(jvm, buffer);
     jfloat _float = 0;
 
-    BufferGetFloat(_buffer, &_float);
+    if (!BufferGetFloat(_buffer, &_float)) {
+        _ThrowBufferUnderflow(jvm, buffer);
+    }
 
     return _float;
 }
@@ -138,7 +141,9 @@ JNIEXPORT jdouble JNICALL Java_com_aio4c_buffer_Buffer_getDouble(JNIEnv* jvm, jo
     Buffer* _buffer = _GetBuffer(jvm, buffer);
     jdouble _double = 0;
 
-    BufferGetDouble(_buffer, &_double);
+    if (!BufferGetDouble(_buffer, &_double)) {
+        _ThrowBufferUnderflow(jvm, buffer);
+    }
 
     return _double;
 }
@@ -158,44 +163,58 @@ JNIEXPORT jstring JNICALL Java_com_aio4c_buffer_Buffer_getString(JNIEnv* jvm, jo
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_put(JNIEnv* jvm, jobject buffer, jbyte b) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    BufferPutByte(_buffer, &b);
+    if (!BufferPutByte(_buffer, &b)) {
+        _ThrowBufferOverflow(jvm, buffer);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_putShort(JNIEnv* jvm, jobject buffer, jshort s) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    BufferPutShort(_buffer, &s);
+    if (!BufferPutShort(_buffer, &s)) {
+        _ThrowBufferOverflow(jvm, buffer);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_putInt(JNIEnv* jvm, jobject buffer, jint i) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    BufferPutInt(_buffer, &i);
+    if (!BufferPutInt(_buffer, &i)) {
+        _ThrowBufferOverflow(jvm, buffer);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_putLong(JNIEnv* jvm, jobject buffer, jlong l) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    BufferPut(_buffer, &l, sizeof(jlong));
+    if (!BufferPut(_buffer, &l, sizeof(jlong))) {
+        _ThrowBufferOverflow(jvm, buffer);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_putFloat(JNIEnv* jvm, jobject buffer, jfloat f) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    BufferPutFloat(_buffer, &f);
+    if (!BufferPutFloat(_buffer, &f)) {
+        _ThrowBufferOverflow(jvm, buffer);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_putDouble(JNIEnv* jvm, jobject buffer, jdouble d) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    BufferPutDouble(_buffer, &d);
+    if (!BufferPutDouble(_buffer, &d)) {
+        _ThrowBufferOverflow(jvm, buffer);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_putString(JNIEnv* jvm, jobject buffer, jstring s) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
     const char* str = (*jvm)->GetStringUTFChars(jvm, s, NULL);
 
-    BufferPutString(_buffer, (char*)str);
+    if (!BufferPutString(_buffer, (char*)str)) {
+        _ThrowBufferOverflow(jvm, buffer);
+    }
 
     (*jvm)->ReleaseStringUTFChars(jvm, s, str);
 }
@@ -216,7 +235,7 @@ JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_position__I(JNIEnv* jvm, job
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
     if (BufferPosition(_buffer, position) == NULL) {
-        (*jvm)->ThrowNew(jvm, (*jvm)->FindClass(jvm, "Ljava/lang/RuntimeException;"), "invalid position");
+        (*jvm)->ThrowNew(jvm, (*jvm)->FindClass(jvm, "Ljava/lang/IllegalArgumentException;"), "invalid position");
         return;
     }
 }
@@ -231,7 +250,7 @@ JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_limit__I(JNIEnv* jvm, jobjec
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
     if (BufferLimit(_buffer, limit) == NULL) {
-        (*jvm)->ThrowNew(jvm, (*jvm)->FindClass(jvm, "Ljava/lang/RuntimeException;"), "invalid limit");
+        (*jvm)->ThrowNew(jvm, (*jvm)->FindClass(jvm, "Ljava/lang/IllegalArgumentException;"), "invalid limit");
         return;
     }
 }
@@ -269,6 +288,7 @@ JNIEXPORT jstring JNICALL Java_com_aio4c_buffer_Buffer_toString(JNIEnv* jvm, job
     }
 #endif /* AIO4C_WIN32 */
     jstring s = (*jvm)->NewStringUTF(jvm, _s);
+    aio4c_free(_s);
 
     return s;
 }
