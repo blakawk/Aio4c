@@ -346,14 +346,24 @@ Acceptor* NewAcceptor(char* name, Address* address, Connection* factory, int nbP
     acceptor->thread = NULL;
     acceptor->selector = NewSelector();
 
-    NewThread(acceptor->name,
+    acceptor->thread = NewThread(
+            acceptor->name,
             aio4c_thread_init(_AcceptorInit),
             aio4c_thread_run(_AcceptorRun),
             aio4c_thread_exit(_AcceptorExit),
-            aio4c_thread_arg(acceptor),
-            &acceptor->thread);
+            aio4c_thread_arg(acceptor));
 
     if (acceptor->thread == NULL) {
+        FreeAddress(&acceptor->address);
+        FreeSelector(&acceptor->selector);
+        if (acceptor->name != NULL) {
+            aio4c_free(acceptor->name);
+        }
+        aio4c_free(acceptor);
+        return NULL;
+    }
+
+    if (!ThreadStart(acceptor->thread)) {
         FreeAddress(&acceptor->address);
         FreeSelector(&acceptor->selector);
         if (acceptor->name != NULL) {

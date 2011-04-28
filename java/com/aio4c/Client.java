@@ -37,6 +37,7 @@ public class Client {
     @SuppressWarnings("unused")
     private long lPointer = 0;
     private native void initialize(ClientConfig config, ConnectionFactory factory);
+    public native boolean start();
     public native void join();
     public Client(ClientConfig config, ConnectionFactory factory) {
         initialize(config, factory);

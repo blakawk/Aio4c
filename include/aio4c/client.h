@@ -30,8 +30,6 @@
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 
-#define AIO4C_CLIENT_NAME_SUFFIX "-client%04d"
-
 typedef struct s_Client {
     char*        name;
     Address*     address;
@@ -57,6 +55,8 @@ typedef struct s_Client {
     (void*)h
 
 extern AIO4C_API Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void *handlerArg);
+
+extern AIO4C_API aio4c_bool_t ClientStart(Client* client);
 
 extern AIO4C_API Connection* ClientGetConnection(Client* client);
 

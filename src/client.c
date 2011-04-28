@@ -207,12 +207,12 @@ Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t
     client->connected  = false;
     client->exiting    = false;
 
-    NewThread(client->name,
+    client->thread = NewThread(
+            client->name,
             aio4c_thread_init(_clientInit),
             aio4c_thread_run(_clientRun),
             aio4c_thread_exit(_clientExit),
-            aio4c_thread_arg(client),
-            &client->thread);
+            aio4c_thread_arg(client));
 
     if (client->thread == NULL) {
         FreeQueue(&client->queue);
@@ -227,19 +227,25 @@ Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t
     return client;
 }
 
+aio4c_bool_t ClientStart(Client* client) {
+    return ThreadStart(client->thread);
+}
+
 Connection* ClientGetConnection(Client* client) {
     return client->connection;
 }
 
 void ClientEnd(Client* client) {
-    if (client->thread != NULL) {
-        ThreadJoin(client->thread);
-    }
+    if (client != NULL) {
+        if (client->thread != NULL) {
+            ThreadJoin(client->thread);
+        }
 
-    if (client->name != NULL) {
-        aio4c_free(client->name);
-    }
+        if (client->name != NULL) {
+            aio4c_free(client->name);
+        }
 
-    aio4c_free(client);
+        aio4c_free(client);
+    }
 }
 

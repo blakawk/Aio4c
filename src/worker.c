@@ -142,20 +142,27 @@ Worker* NewWorker(char* pipeName, aio4c_size_t bufferSize) {
         if (worker->name != NULL) {
             snprintf(worker->name, strlen(pipeName) + 1 + 7, "%s-worker", pipeName);
         }
-        worker->thread     = NULL;
     } else {
         worker->pipe = NULL;
         worker->name = NULL;
     }
 
-    NewThread(worker->name,
+    worker->thread = NewThread(
+            worker->name,
             aio4c_thread_init(_WorkerInit),
             aio4c_thread_run(_WorkerRun),
             aio4c_thread_exit(_WorkerExit),
-            aio4c_thread_arg(worker),
-            &worker->thread);
+            aio4c_thread_arg(worker));
 
     if (worker->thread == NULL) {
+        if (worker->name != NULL) {
+            aio4c_free(worker->name);
+        }
+        aio4c_free(worker);
+        return NULL;
+    }
+
+    if (!ThreadStart(worker->thread)) {
         if (worker->name != NULL) {
             aio4c_free(worker->name);
         }

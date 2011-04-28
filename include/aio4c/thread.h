@@ -58,6 +58,7 @@
 }
 
 typedef enum e_ThreadState {
+    AIO4C_THREAD_STATE_NONE,
     AIO4C_THREAD_STATE_RUNNING,
     AIO4C_THREAD_STATE_BLOCKED,
     AIO4C_THREAD_STATE_IDLE,
@@ -112,13 +113,16 @@ struct s_Thread {
     aio4c_bool_t    (*run)(void*);
     void            (*exit)(void*);
     void*             arg;
+    void            (*start)(void);
 };
 
 extern AIO4C_API void ThreadMain(void);
 
 extern AIO4C_API int GetNumThreads(void);
 
-extern AIO4C_API void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread);
+extern AIO4C_API Thread* NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg);
+
+extern AIO4C_API aio4c_bool_t ThreadStart(Thread* thread);
 
 extern AIO4C_API aio4c_bool_t ThreadRunning(Thread* thread);
 
@@ -131,6 +135,8 @@ extern AIO4C_API aio4c_bool_t ThreadRunning(Thread* thread);
 #endif /* AIO4C_DEBUG */
 extern AIO4C_API Thread* _ThreadSelf(void);
 
-extern AIO4C_API Thread* ThreadJoin(Thread* thread);
+extern AIO4C_API void ThreadJoin(Thread* thread);
+
+extern AIO4C_API void FreeThread(Thread** thread);
 
 #endif

@@ -171,6 +171,14 @@ JNIEXPORT void JNICALL Java_com_aio4c_Server_initialize(JNIEnv* jvm, jobject ser
     ProbeTimeEnd(AIO4C_TIME_PROBE_JNI_OVERHEAD);
 }
 
+JNIEXPORT jboolean JNICALL Java_com_aio4c_Server_start(JNIEnv* jvm, jobject server) {
+    JavaServer* cServer = NULL;
+
+    GetPointer(jvm, server, (void**)&cServer);
+
+    return (jboolean)ServerStart(cServer->server);
+}
+
 JNIEXPORT void JNICALL Java_com_aio4c_Server_stop(JNIEnv* jvm, jobject server) {
     JavaServer* cServer = NULL;
 

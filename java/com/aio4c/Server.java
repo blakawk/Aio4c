@@ -37,6 +37,7 @@ public class Server {
     @SuppressWarnings("unused")
     private long lPointer = 0;
     private native void initialize(ServerConfig config, ConnectionFactory factory);
+    public native boolean start();
     public native void stop();
     public native void join();
     public Server(ServerConfig config, ConnectionFactory factory) {

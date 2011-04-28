@@ -158,16 +158,26 @@ Reader* NewReader(char* pipeName, aio4c_size_t bufferSize) {
         reader->name = NULL;
     }
 
-    reader->thread     = NULL;
-
-    NewThread(reader->name,
+    reader->thread = NewThread(
+            reader->name,
            aio4c_thread_init(_ReaderInit),
            aio4c_thread_run(_ReaderRun),
            aio4c_thread_exit(_ReaderExit),
-           aio4c_thread_arg(reader),
-           &reader->thread);
+           aio4c_thread_arg(reader));
 
     if (reader->thread == NULL) {
+        FreeSelector(&reader->selector);
+        if (reader->pipe != NULL) {
+            aio4c_free(reader->pipe);
+        }
+        if (reader->name != NULL) {
+            aio4c_free(reader->name);
+        }
+        aio4c_free(reader);
+        return NULL;
+    }
+
+    if (!ThreadStart(reader->thread)) {
         FreeSelector(&reader->selector);
         if (reader->pipe != NULL) {
             aio4c_free(reader->pipe);

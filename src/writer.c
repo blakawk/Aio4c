@@ -139,16 +139,22 @@ Writer* NewWriter(char* pipeName, aio4c_size_t bufferSize) {
     } else {
         writer->name = NULL;
     }
-    writer->thread       = NULL;
-
-    NewThread(writer->name,
-           aio4c_thread_init(_WriterInit),
-           aio4c_thread_run(_WriterRun),
-           aio4c_thread_exit(_WriterExit),
-           aio4c_thread_arg(writer),
-           &writer->thread);
+    writer->thread       = NewThread(
+            writer->name,
+            aio4c_thread_init(_WriterInit),
+            aio4c_thread_run(_WriterRun),
+            aio4c_thread_exit(_WriterExit),
+            aio4c_thread_arg(writer));
 
     if (writer->thread == NULL) {
+        if (writer->name != NULL) {
+            aio4c_free(writer->name);
+        }
+        aio4c_free(writer);
+        return NULL;
+    }
+
+    if (!ThreadStart(writer->thread)) {
         if (writer->name != NULL) {
             aio4c_free(writer->name);
         }

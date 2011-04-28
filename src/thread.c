@@ -42,6 +42,7 @@
 #include <string.h>
 
 char* ThreadStateString[AIO4C_THREAD_STATE_MAX] = {
+    "NONE",
     "RUNNING",
     "BLOCKED",
     "IDLE",
@@ -228,37 +229,8 @@ Thread* _ThreadSelf(void) {
     return self;
 }
 
-void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg, Thread** pThread) {
-    Thread* thread = NULL;
+aio4c_bool_t ThreadStart(Thread* thread) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-
-    if (_numThreads >= AIO4C_MAX_THREADS) {
-        Log(AIO4C_LOG_LEVEL_FATAL, "too much threads (%d), cannot create more", _numThreads);
-        return;
-    }
-
-    if ((thread = aio4c_malloc(sizeof(Thread))) == NULL) {
-#ifndef AIO4C_WIN32
-        code.error = errno;
-#else /* AIO4C_WIN32 */
-        code.source = AIO4C_ERRNO_SOURCE_SYS;
-#endif /* AIO4C_WIN32 */
-        code.size = sizeof(Thread);
-        code.type = "Thread";
-        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
-        return;
-    }
-
-    thread->name = name;
-    thread->state = AIO4C_THREAD_STATE_RUNNING;
-    thread->lock = NewLock();
-    thread->condInit = NewCondition();
-    thread->initialized = false;
-    thread->init = init;
-    thread->run = run;
-    thread->exit = exit;
-    thread->arg = arg;
-    thread->running = false;
 
     TakeLock(thread->lock);
 
@@ -272,13 +244,8 @@ void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void
 #endif /* AIO4C_WIN32 */
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_CREATE_ERROR, &code);
         ReleaseLock(thread->lock);
-        FreeCondition(&thread->condInit);
-        FreeLock(&thread->lock);
-        aio4c_free(thread);
-        return;
+        return false;
     }
-
-    *pThread = thread;
 
     _addThread(thread);
 
@@ -287,6 +254,49 @@ void NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void
     }
 
     ReleaseLock(thread->lock);
+
+    return true;
+}
+
+Thread* NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg) {
+    Thread* thread = NULL;
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+
+    if (_numThreads >= AIO4C_MAX_THREADS) {
+        Log(AIO4C_LOG_LEVEL_FATAL, "too much threads (%d), cannot create more", _numThreads);
+        return NULL;
+    }
+
+    if ((thread = aio4c_malloc(sizeof(Thread))) == NULL) {
+#ifndef AIO4C_WIN32
+        code.error = errno;
+#else /* AIO4C_WIN32 */
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+#endif /* AIO4C_WIN32 */
+        code.size = sizeof(Thread);
+        code.type = "Thread";
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
+        return NULL;
+    }
+
+    thread->name = name;
+    thread->state = AIO4C_THREAD_STATE_NONE;
+    thread->lock = NewLock();
+    thread->condInit = NewCondition();
+
+    if (thread->lock == NULL || thread->condInit == NULL) {
+        aio4c_free(thread);
+        return NULL;
+    }
+
+    thread->initialized = false;
+    thread->init = init;
+    thread->run = run;
+    thread->exit = exit;
+    thread->arg = arg;
+    thread->running = false;
+
+    return thread;
 }
 
 aio4c_bool_t ThreadRunning(Thread* thread) {
@@ -296,13 +306,14 @@ aio4c_bool_t ThreadRunning(Thread* thread) {
         running = (running || thread->state == AIO4C_THREAD_STATE_RUNNING);
         running = (running || thread->state == AIO4C_THREAD_STATE_IDLE);
         running = (running || thread->state == AIO4C_THREAD_STATE_BLOCKED);
-        running = (running && thread->running);
+        running = (running || thread->state == AIO4C_THREAD_STATE_EXITED);
+        running = (running || thread->running);
     }
 
     return running;
 }
 
-static void _FreeThread(Thread** thread) {
+void FreeThread(Thread** thread) {
     Thread* pThread = NULL;
 
     if (thread != NULL && (pThread = *thread) != NULL) {
@@ -313,49 +324,49 @@ static void _FreeThread(Thread** thread) {
     }
 }
 
-Thread* ThreadJoin(Thread* thread) {
+void ThreadJoin(Thread* thread) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     void* returnValue = NULL;
 
-    _numThreadsRunning--;
+    if (ThreadRunning(thread)) {
+        _numThreadsRunning--;
 
 #ifndef AIO4C_WIN32
-    if ((code.error = pthread_join(thread->id, &returnValue)) != 0) {
-        code.thread = thread;
-        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_JOIN_ERROR, &code);
-    }
+        if ((code.error = pthread_join(thread->id, &returnValue)) != 0) {
+            code.thread = thread;
+            Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_JOIN_ERROR, &code);
+        }
 #else /* AIO4C_WIN32 */
-    switch (WaitForSingleObject(thread->handle, INFINITE)) {
-        case WAIT_OBJECT_0:
-            break;
-        case WAIT_ABANDONED:
-            Log(AIO4C_LOG_LEVEL_ERROR, "%s:%d: join thread %p[%s]: abandon",
-                    __FILE__, __LINE__, (void*)thread, ThreadStateString[thread->state]);
-            break;
-        case WAIT_FAILED:
+        switch (WaitForSingleObject(thread->handle, INFINITE)) {
+            case WAIT_OBJECT_0:
+                break;
+            case WAIT_ABANDONED:
+                Log(AIO4C_LOG_LEVEL_ERROR, "%s:%d: join thread %p[%s]: abandon",
+                        __FILE__, __LINE__, (void*)thread, ThreadStateString[thread->state]);
+                break;
+            case WAIT_FAILED:
+                code.source = AIO4C_ERRNO_SOURCE_SYS;
+                code.thread = thread;
+                Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_JOIN_ERROR, &code);
+                break;
+            default:
+                break;
+        }
+
+        if (GetExitCodeThread(thread->handle, (LPDWORD)&returnValue) == 0) {
             code.source = AIO4C_ERRNO_SOURCE_SYS;
             code.thread = thread;
             Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_JOIN_ERROR, &code);
-            break;
-        default:
-            break;
-    }
+        }
 
-    if (GetExitCodeThread(thread->handle, (LPDWORD)&returnValue) == 0) {
-        code.source = AIO4C_ERRNO_SOURCE_SYS;
-        code.thread = thread;
-        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_ERROR_TYPE, AIO4C_THREAD_JOIN_ERROR, &code);
-    }
-
-    CloseHandle(thread->handle);
+        CloseHandle(thread->handle);
 #endif /* AIO4C_WIN32 */
 
-    _numThreadsRunning++;
+        _numThreadsRunning++;
 
-    thread->state = AIO4C_THREAD_STATE_JOINED;
+        thread->state = AIO4C_THREAD_STATE_JOINED;
+    }
 
-    _FreeThread(&thread);
-
-    return thread;
+    FreeThread(&thread);
 }
 

@@ -76,6 +76,7 @@ public class Server {
                         };
                     }
                 });
+                server.start();
                 Runtime.getRuntime().addShutdownHook(new Thread() {
                     public void run() {
                         server.stop();

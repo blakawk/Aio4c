@@ -153,6 +153,14 @@ JNIEXPORT void JNICALL Java_com_aio4c_Client_initialize(JNIEnv* jvm, jobject cli
     ProbeTimeEnd(AIO4C_TIME_PROBE_JNI_OVERHEAD);
 }
 
+JNIEXPORT jboolean JNICALL Java_com_aio4c_Client_start(JNIEnv* jvm, jobject client) {
+    JavaClient* cClient = NULL;
+
+    GetPointer(jvm, client, (void**)&cClient);
+
+    return (jboolean)ClientStart(cClient->client);
+}
+
 JNIEXPORT void JNICALL Java_com_aio4c_Client_join(JNIEnv* jvm, jobject client) {
     JavaClient* cClient = NULL;
 

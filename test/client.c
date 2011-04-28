@@ -169,6 +169,11 @@ int main (int argc, char* argv[]) {
             printf("only %d clients were started !\n", i);
             break;
         }
+        if (!ClientStart(clients[i])) {
+            printf("client %d failed to start !\n", i);
+            ClientEnd(clients[i]);
+            break;
+        }
     }
 
     if (i == nbClients) {

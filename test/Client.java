@@ -80,6 +80,7 @@ public class Client {
                 };
             }
         });
+        c.start();
         c.join();
 
         Aio4c.end();

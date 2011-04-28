@@ -105,13 +105,13 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSiz
     server->handler    = handler;
     server->queue      = NewQueue();
     server->nbPipes    = nbPipes;
-    server->thread     = NULL;
-    NewThread("server",
+    server->thread     = NewThread(
+            "server",
             aio4c_thread_init(_serverInit),
             aio4c_thread_run(_serverRun),
             aio4c_thread_exit(_serverExit),
-            aio4c_thread_arg(server),
-            &server->thread);
+            aio4c_thread_arg(server));
+
     if (server->thread == NULL) {
         FreeAddress(&server->address);
         FreeBufferPool(&server->pool);
@@ -124,15 +124,21 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSiz
     return server;
 }
 
+aio4c_bool_t ServerStart(Server* server) {
+    return ThreadStart(server->thread);
+}
+
 void ServerJoin(Server* server) {
-    if (server->thread != NULL) {
-        ThreadJoin(server->thread);
+    if (server != NULL) {
+        if (server->thread != NULL) {
+            ThreadJoin(server->thread);
+        }
+        aio4c_free(server);
     }
-    aio4c_free(server);
 }
 
 void ServerStop(Server* server) {
-    if (server->thread != NULL) {
+    if (server != NULL && server->thread != NULL) {
         EnqueueExitItem(server->queue);
     }
 }

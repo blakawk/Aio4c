@@ -26,7 +26,9 @@
 
 #include <aio4c/address.h>
 #include <aio4c/connection.h>
+#include <aio4c/queue.h>
 #include <aio4c/reader.h>
+#include <aio4c/selector.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
 

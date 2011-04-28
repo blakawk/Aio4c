@@ -127,15 +127,17 @@ void LogInit(void) {
     if ((_logger.queue = NewQueue()) == NULL) {
         Log(AIO4C_LOG_LEVEL_WARN, "cannot create log messages queue: %s, therefore no thread will be used", strerror(errno));
     } else {
-        _logger.thread = NULL;
-        NewThread("logger",
-               aio4c_thread_init(_LogInit),
-               aio4c_thread_run(_LogRun),
-               aio4c_thread_exit(_LogExit),
-               aio4c_thread_arg(&_logger),
-               &_logger.thread);
+        _logger.thread = NewThread(
+                "logger",
+                aio4c_thread_init(_LogInit),
+                aio4c_thread_run(_LogRun),
+                aio4c_thread_exit(_LogExit),
+                aio4c_thread_arg(&_logger));
         if (_logger.thread == NULL) {
             Log(AIO4C_LOG_LEVEL_WARN, "cannot create logging thread, logging may slow down performances");
+        } else if (!ThreadStart(_logger.thread)) {
+            Log(AIO4C_LOG_LEVEL_WARN, "cannot start logging thread, logging may slow down performances");
+            FreeThread(&_logger.thread);
         }
     }
 }

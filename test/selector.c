@@ -292,8 +292,11 @@ int main(int argc, char* argv[]) {
 
     assert((lock = NewLock()) != NULL);
 
-    NewThread("consumer", aio4c_thread_init(init), aio4c_thread_run(run), aio4c_thread_exit(end), aio4c_thread_arg(&consumerType), &consumer);
-    NewThread("producer", aio4c_thread_init(init), aio4c_thread_run(run), aio4c_thread_exit(end), aio4c_thread_arg(&producerType), &producer);
+    consumer = NewThread("consumer", aio4c_thread_init(init), aio4c_thread_run(run), aio4c_thread_exit(end), aio4c_thread_arg(&consumerType));
+    producer = NewThread("producer", aio4c_thread_init(init), aio4c_thread_run(run), aio4c_thread_exit(end), aio4c_thread_arg(&producerType));
+
+    assert(ThreadStart(consumer));
+    assert(ThreadStart(producer));
 
     if(consumer != NULL && producer != NULL) {
         ko = 0;

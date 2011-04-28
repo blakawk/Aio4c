@@ -94,18 +94,20 @@ int main(int argc, char* argv[]) {
     Aio4cInit(argc, argv);
 
     Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, 8192, 1, aio4c_server_handler(serverHandler), NULL, dataFactory);
-
-    while ((nbRead = read(STDIN_FILENO, buffer, 31)) > 0) {
-        buffer[nbRead] = '\0';
-        if (memcmp(buffer, "QUIT\n", 6) == 0) {
-            printf("EXITING\n");
-            break;
-        } else {
-            printf("ERROR\n");
+    if (server != NULL && ServerStart(server)) {
+        while ((nbRead = read(STDIN_FILENO, buffer, 31)) > 0) {
+            buffer[nbRead] = '\0';
+            if (memcmp(buffer, "QUIT\n", 6) == 0) {
+                printf("EXITING\n");
+                break;
+            } else {
+                printf("ERROR\n");
+            }
         }
+
+        ServerStop(server);
     }
 
-    ServerStop(server);
     ServerJoin(server);
     Aio4cEnd();
 
