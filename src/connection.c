@@ -96,6 +96,7 @@ Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeA
     connection->dataFactoryArg = NULL;
     connection->canRead = false;
     connection->canWrite = false;
+    connection->isFactory = false;
 
     return connection;
 }
@@ -130,6 +131,7 @@ Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connecti
     connection->dataFactoryArg = dataFactoryArg;
     connection->canRead = false;
     connection->canWrite = false;
+    connection->isFactory = true;
 
     return connection;
 }
@@ -610,7 +612,9 @@ void FreeConnection(Connection** connection) {
 #endif /* AIO4C_WIN32 */
         }
 
-        _ConnectionEventHandle(pConnection, AIO4C_FREE_EVENT);
+        if (!pConnection->isFactory) {
+            _ConnectionEventHandle(pConnection, AIO4C_FREE_EVENT);
+        }
 
         if (pConnection->readBuffer != NULL) {
             ReleaseBuffer(&pConnection->readBuffer);

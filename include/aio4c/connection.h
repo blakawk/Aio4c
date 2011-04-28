@@ -81,6 +81,7 @@ struct s_Connection {
     aio4c_bool_t         canWrite;
     void*              (*dataFactory)(Connection*,void*);
     void*                dataFactoryArg;
+    aio4c_bool_t         isFactory;
 };
 
 #define aio4c_connection_handler(handler) \
