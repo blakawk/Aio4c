@@ -74,12 +74,12 @@ static void _jniClientEventHandler(Event event, Connection* connection, JavaClie
             (*jvm)->CallVoidMethod(jvm, client->jConnection, jMethod);
             break;
         case AIO4C_INBOUND_DATA_EVENT:
-            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onRead", "(Lcom/aio4c/Buffer;)V"), jMethod);
+            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onRead", "(Lcom/aio4c/buffer/Buffer;)V"), jMethod);
             jBuffer = New_com_aio4c_Buffer(jvm, connection->dataBuffer);
             (*jvm)->CallVoidMethod(jvm, client->jConnection, jMethod, jBuffer);
             break;
         case AIO4C_WRITE_EVENT:
-            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onWrite", "(Lcom/aio4c/Buffer;)V"), jMethod);
+            CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onWrite", "(Lcom/aio4c/buffer/Buffer;)V"), jMethod);
             jBuffer = New_com_aio4c_Buffer(jvm, connection->writeBuffer);
             (*jvm)->CallVoidMethod(jvm, client->jConnection, jMethod, jBuffer);
             break;

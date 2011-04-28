@@ -174,7 +174,7 @@ jobject New_com_aio4c_Buffer(JNIEnv* jvm, Buffer* buffer) {
     jmethodID mBuffer = NULL;
     jobject com_aio4c_Buffer = NULL;
 
-    CheckJNICall(jvm, (*jvm)->FindClass(jvm, "com/aio4c/Buffer"), cBuffer);
+    CheckJNICall(jvm, (*jvm)->FindClass(jvm, "com/aio4c/buffer/Buffer"), cBuffer);
     CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cBuffer, "<init>", "()V"), mBuffer);
     CheckJNICall(jvm, (*jvm)->NewObject(jvm, cBuffer, mBuffer), com_aio4c_Buffer);
     SetPointer(jvm, com_aio4c_Buffer, buffer);
