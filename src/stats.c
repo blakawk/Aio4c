@@ -132,12 +132,15 @@ void StatsInit(void) {
 
     _statsThread = NULL;
     if (AIO4C_STATS_INTERVAL) {
-        NewThread("stats",
+        _statsThread = NewThread("stats",
                 aio4c_thread_init(_statsInit),
                 aio4c_thread_run(_statsRun),
                 aio4c_thread_exit(_statsExit),
-                aio4c_thread_arg(NULL),
-                &_statsThread);
+                aio4c_thread_arg(NULL));
+
+        if (_statsThread != NULL && !ThreadStart(_statsThread)) {
+            FreeThread(&_statsThread);
+        }
     }
 }
 
