@@ -29,20 +29,22 @@ import sys
 VariantDir('build/src', 'src', duplicate=0)
 VariantDir('build/test', 'test', duplicate=0)
 
-AddOption('--enable-debug',
+AddOption('--disable-debug',
           dest = 'DEBUG',
-          action = 'store_true',
-          help = 'Enable compilation with debugging symbols')
+          action = 'store_false',
+          default = True,
+          help = 'Disable compilation with debugging symbols')
 
 AddOption('--enable-debug-threads',
           dest = 'DEBUG_THREADS',
           action = 'store_true',
           help = 'Enable threads debugging')
 
-AddOption('--enable-statistics',
+AddOption('--disable-statistics',
           dest = 'STATISTICS',
-          action = 'store_true',
-          help = 'Enable compilation with statistics')
+          action = 'store_false',
+          default = True,
+          help = 'Disable compilation with statistics')
 
 AddOption('--use-select',
           dest = 'USE_POLL',
@@ -84,10 +86,11 @@ AddOption('--max-threads',
           default = 4096,
           help = 'Allow NUM_THREADS creation (default: %default)')
 
-AddOption('--ignore-java-home',
+AddOption('--use-java-home',
           dest = 'IGNORE_JAVA_HOME',
-          action = 'store_true',
-          help = 'Try to build using default includes (requires gcj)')
+          action = 'store_false',
+          default = True,
+          help = 'Try to build JNI using JDK indicated in JAVA_HOME environment variable')
 
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L',
                   ENV = {'PATH': os.environ['PATH']})
