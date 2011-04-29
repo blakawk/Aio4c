@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2011 blakawk
  *
  * This file is part of Aio4c <http://aio4c.so>.
@@ -23,23 +23,43 @@
  */
 package com.aio4c.buffer;
 
-public class BufferException extends Exception {
+/**
+ * Buffer exceptions superclass.
+ *
+ * All exceptions raised by Buffer's methods should be children of this class.
+ * 
+ * @author blakawk
+ * 
+ * @see com.aio4c.buffer.Buffer
+ */
+public abstract class BufferException extends Exception {
+    /**
+     * Used for serialization process.
+     */
+    private static final long serialVersionUID = -8203712034321914597L;
     /**
      * The Buffer which caused this exception.
      */
     private Buffer buffer;
-
+    /**
+     * Constructs a new BufferException.
+     * 
+     * @param buffer
+     *   The buffer that triggered this Exception.
+     */
     public BufferException(Buffer buffer) {
         super();
         this.buffer = buffer;
     }
-
+    /*
+     * @see java.lang.Throwable#getMessage()
+     */
     @Override
     public String getMessage() {
         StringBuilder sb = new StringBuilder();
         sb.append("in ");
-        if (buffer != null) {
-            sb.append(buffer.toString());
+        if (this.buffer != null) {
+            sb.append(this.buffer.toString());
         } else {
             sb.append("<unknown buffer>");
         }

@@ -23,7 +23,30 @@
  */
 package com.aio4c.buffer;
 
+/**
+ * Exception raised when trying to retrieve data from a buffer with not enough
+ * remaining data.
+ *
+ * @author blakawk
+ * 
+ * @see com.aio4c.buffer.Buffer
+ * @see com.aio4c.buffer.BufferException
+ */
 public class BufferUnderflowException extends BufferException {
+    /**
+     * Used for serialization process.
+     */
+    private static final long serialVersionUID = -7224988735421974047L;
+    /**
+     * Constructs a BufferUnderflowException instance.
+     * 
+     * Does nothing except calling {@link BufferException#BufferException(Buffer)}.
+     * 
+     * @param buffer
+     *   The buffer that caused this Exception.
+     * 
+     * @see BufferException#BufferException(Buffer)
+     */
     public BufferUnderflowException(Buffer buffer) {
         super(buffer);
     }

@@ -45,7 +45,7 @@ public enum AddressType {
     /**
      * The AddressType constructor.
      *
-     * @param int
+     * @param value
      *   The enum's value.
      */
     private AddressType(int value) {

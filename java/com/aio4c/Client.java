@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2011 blakawk
  *
  * This file is part of Aio4c <http://aio4c.so>.
@@ -23,22 +23,60 @@
  */
 package com.aio4c;
 
+/**
+ * Class that represents a Client.
+ *
+ * @author blakawk
+ * @see "aio4c/client.h"
+ */
 public class Client {
     /**
      * Pointer to the underlying client structure on 32 bits architectures.
      * Do not remove ! Used by JNI.
      */
-    @SuppressWarnings("unused")
     private int  iPointer = 0;
     /**
      * Pointer to the underlying client structure on 64 bits architectures.
      * Do not remove ! Used by JNI.
      */
-    @SuppressWarnings("unused")
     private long lPointer = 0;
+    /**
+     * Initializes this client.
+     * 
+     * @param config
+     *   This Client configuration.
+     * @param factory
+     *   The factory that will be used to create Connection instances.
+     *
+     * @see com.aio4c.ClientConfig
+     * @see com.aio4c.Connection
+     * @see com.aio4c.ConnectionFactory
+     */
     private native void initialize(ClientConfig config, ConnectionFactory factory);
+    /**
+     * Starts this client.
+     * 
+     * @return
+     *   <code>true</code> if this Client was successfully started,
+     *   <code>false</code> in any other case.
+     */
     public native boolean start();
+    /**
+     * Joins this client.
+     * 
+     * Waits for the Client to terminate. The Client will terminate only if it exceeds connection retry count.
+     * 
+     * @see com.aio4c.ClientConfig#retries
+     */
     public native void join();
+    /**
+     * Constructs a Client instance.
+     * 
+     * @param config
+     *   The ClientConfig to use to configure this Client.
+     * @param factory
+     *   The ConnectionFactory to use to create Connection instances. 
+     */
     public Client(ClientConfig config, ConnectionFactory factory) {
         initialize(config, factory);
     }

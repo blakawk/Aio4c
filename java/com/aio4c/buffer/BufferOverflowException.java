@@ -23,7 +23,29 @@
  */
 package com.aio4c.buffer;
 
+/**
+ * Exception raised when trying to store data in a buffer with not enough room.
+ *
+ * @author blakawk
+ * 
+ * @see com.aio4c.buffer.Buffer
+ * @see com.aio4c.buffer.BufferException
+ */
 public class BufferOverflowException extends BufferException {
+    /**
+     * Used for serialization process.
+     */
+    private static final long serialVersionUID = -4551442801975345371L;
+    /**
+     * Constructs a BufferOverflowException instance.
+     * 
+     * Does nothing except calling {@link BufferException#BufferException(Buffer)}.
+     * 
+     * @param buffer
+     *   The buffer that caused this Exception.
+     * 
+     * @see BufferException#BufferException(Buffer)
+     */
     public BufferOverflowException(Buffer buffer) {
         super(buffer);
     }
