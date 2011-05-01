@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2011 blakawk
  *
  * This file is part of Aio4c <http://aio4c.so>.
@@ -23,12 +23,45 @@
  */
 package com.aio4c;
 
+/**
+ * Represents a Client configuration.
+ *
+ * @author blakawk
+ * 
+ * @see com.aio4c.Client
+ */
 public class ClientConfig {
+    /**
+     * The Client identifier (used only for debug purpose).
+     */
     public int clientId      = 0;
+    /**
+     * The kind of address to connect to.
+     * 
+     * @see com.aio4c.AddressType
+     */
     public AddressType type  = AddressType.IPV4;
+    /**
+     * The address or host name the Client will connect to.
+     */
     public String address    = "localhost";
+    /**
+     * The TCP port the Client will connect to.
+     */
     public short port        = 8080;
+    /**
+     * The maximum number of retries when the Client loose Connection with the
+     * Server unexpectedly.
+     */
     public int retries       = 3;
+    /**
+     * The interval in seconds between two retries.
+     */
     public int retryInterval = 30;
+    /**
+     * The Buffer capacity to use for network operations.
+     * 
+     * @see com.aio4c.buffer.Buffer#allocate(int)
+     */
     public int bufferSize    = 8192;
 }
