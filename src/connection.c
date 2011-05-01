@@ -80,7 +80,7 @@ Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeA
     connection->userHandlers = NewEventQueue();
     connection->address = address;
     connection->closedForError = false;
-    connection->string = address->string;
+    connection->string = AddressGetString(address);
     memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
     connection->closedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR] = true;
     connection->closedByLock = NewLock();
@@ -292,7 +292,7 @@ Connection* ConnectionConnect(Connection* connection) {
         return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_DEBUG, AIO4C_CONNECTION_STATE_ERROR, &code);
     }
 
-    if (connect(connection->socket, (struct sockaddr*)connection->address->address, sizeof(aio4c_addr_t)) == -1) {
+    if (connect(connection->socket, AddressGetAddr(connection->address), AddressGetAddrSize(connection->address)) == -1) {
 #ifndef AIO4C_WIN32
         code.error = errno;
         if (errno == EINPROGRESS) {

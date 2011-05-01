@@ -48,6 +48,13 @@
 #endif
 #endif
 
+struct s_Address {
+    char*            string;
+    AddressType      type;
+    aio4c_addr_t*    address;
+    aio4c_size_t     size;
+};
+
 static void ResolveIP(AddressType type, char* address, struct sockaddr* ip) {
     struct addrinfo hints;
     struct addrinfo* result = NULL;
@@ -161,6 +168,28 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
     }
 
     return pAddress;
+}
+
+aio4c_addr_t* AddressGetAddr(Address* address) {
+    return address->address;
+}
+
+int AddressGetAddrSize(Address* address) {
+    return address->size;
+}
+
+char* AddressGetString(Address* address) {
+    char* result = "<unknown address>";
+
+    if (address->string != NULL) {
+        result = address->string;
+    }
+
+    return result;
+}
+
+AddressType AddressGetType(Address* address) {
+    return address->type;
 }
 
 void FreeAddress(Address** address) {

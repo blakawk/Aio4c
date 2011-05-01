@@ -56,6 +56,8 @@
 
 static aio4c_bool_t _AcceptorInit(Acceptor* acceptor) {
     int i = 0;
+    aio4c_addr_t* addr = NULL;
+    int addrSize = 0;
 #ifndef AIO4C_WIN32
     int reuseaddr = 1;
 #else /* AIO4C_WIN32 */
@@ -128,7 +130,10 @@ static aio4c_bool_t _AcceptorInit(Acceptor* acceptor) {
         return false;
     }
 
-    if (bind(acceptor->socket, (struct sockaddr*)acceptor->address->address, acceptor->address->size) == -1) {
+    addr = AddressGetAddr(acceptor->address);
+    addrSize = AddressGetAddrSize(acceptor->address);
+
+    if (bind(acceptor->socket, addr, addrSize) == -1) {
 #ifndef AIO4C_WIN32
         close(acceptor->socket);
 #else /* AIO4C_WIN32 */
@@ -150,7 +155,7 @@ static aio4c_bool_t _AcceptorInit(Acceptor* acceptor) {
     acceptor->key = Register(acceptor->selector, AIO4C_OP_READ, acceptor->socket, NULL);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "using %d pipes to manage incoming connections", acceptor->nbReaders);
-    Log(AIO4C_LOG_LEVEL_INFO, "listening on %s", acceptor->address->string);
+    Log(AIO4C_LOG_LEVEL_INFO, "listening on %s", AddressGetString(acceptor->address));
     return true;
 }
 
@@ -196,7 +201,7 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
             if ((sock = accept(acceptor->socket, &addr, &addrSize)) >= 0) {
                 memset(hbuf, 0, sizeof(hbuf));
 
-                switch(acceptor->address->type) {
+                switch(AddressGetType(acceptor->address)) {
                     case AIO4C_ADDRESS_IPV4:
                         if (getnameinfo(&addr, sizeof(struct sockaddr_in), hbuf, sizeof(hbuf), NULL, 0, NI_NUMERICHOST) == 0) {
                             memcpy(&addr_in, &addr, sizeof(struct sockaddr_in));    
@@ -219,7 +224,7 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
                         break;
                 }
 
-                Log(AIO4C_LOG_LEVEL_INFO, "new connection from %s", address->string);
+                Log(AIO4C_LOG_LEVEL_INFO, "new connection from %s", AddressGetString(address));
 
                 connection = ConnectionFactoryCreate(acceptor->factory, address, sock);
 

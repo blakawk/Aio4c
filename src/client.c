@@ -100,18 +100,18 @@ static aio4c_bool_t _clientRun(Client* client) {
                 connection = (Connection*)item.content.event.source;
                 switch (item.content.event.type) {
                     case AIO4C_INIT_EVENT:
-                        Log(AIO4C_LOG_LEVEL_DEBUG, "connection %s initialized", client->address->string);
+                        Log(AIO4C_LOG_LEVEL_DEBUG, "connection %s initialized", AddressGetString(client->address));
                         ConnectionConnect(connection);
                         break;
                     case AIO4C_CONNECTING_EVENT:
-                        Log(AIO4C_LOG_LEVEL_DEBUG, "finishing connection to %s", client->address->string);
+                        Log(AIO4C_LOG_LEVEL_DEBUG, "finishing connection to %s", AddressGetString(client->address));
                         ConnectionFinishConnect(connection);
                         if (connection->state != AIO4C_CONNECTION_STATE_CLOSED) {
                             ReaderManageConnection(client->reader, connection);
                         }
                         break;
                     case AIO4C_CONNECTED_EVENT:
-                        Log(AIO4C_LOG_LEVEL_INFO, "connection established with success on %s", client->address->string);
+                        Log(AIO4C_LOG_LEVEL_INFO, "connection established with success on %s", AddressGetString(client->address));
                         client->connected = true;
                         client->retryCount = 0;
                         break;
@@ -125,7 +125,7 @@ static aio4c_bool_t _clientRun(Client* client) {
                         if (closedForError) {
                             if (client->retryCount < client->retries) {
                                 client->retryCount++;
-                                Log(AIO4C_LOG_LEVEL_WARN, "connection with %s lost, retrying (%d/%d) in %d seconds...", client->address->string, client->retryCount, client->retries, client->interval);
+                                Log(AIO4C_LOG_LEVEL_WARN, "connection with %s lost, retrying (%d/%d) in %d seconds...", AddressGetString(client->address), client->retryCount, client->retries, client->interval);
                                 ProbeTimeStart(AIO4C_TIME_PROBE_IDLE);
 #ifdef AIO4C_WIN32
                                 Sleep(client->interval * 1000);
@@ -136,11 +136,11 @@ static aio4c_bool_t _clientRun(Client* client) {
                                 ProbeSize(AIO4C_PROBE_CONNECTION_COUNT, -1);
                                 _connection(client);
                             } else {
-                                Log(AIO4C_LOG_LEVEL_ERROR, "retried too many times to connect %s, giving up", client->address->string);
+                                Log(AIO4C_LOG_LEVEL_ERROR, "retried too many times to connect %s, giving up", AddressGetString(client->address));
                                 client->exiting = true;
                             }
                         } else {
-                            Log(AIO4C_LOG_LEVEL_INFO, "disconnecting from %s", client->address->string);
+                            Log(AIO4C_LOG_LEVEL_INFO, "disconnecting from %s", AddressGetString(client->address));
                             client->exiting = true;
                         }
                         break;
