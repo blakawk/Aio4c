@@ -40,7 +40,7 @@ static void serverHandler(Event event, Connection* source, Data* data) {
     struct timeval pong;
 
     switch (event) {
-        case AIO4C_INBOUND_DATA_EVENT:
+        case AIO4C_READ_EVENT:
             buffer = source->dataBuffer;
             LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
             if (memcmp(&buffer->data[buffer->position], "PING ", 6) == 0) {

@@ -73,7 +73,7 @@ public abstract class Connection {
         // should be overridden if needed
     };
     /**
-     * Method called on AIO4C_INBOUND_DATA_EVENT.
+     * Method called on AIO4C_READ_EVENT.
      * 
      * This method is called when there is data received from the network
      * on the Connection.
@@ -82,7 +82,7 @@ public abstract class Connection {
      *   The Buffer handling received data.
      * 
      * @see com.aio4c.buffer.Buffer
-     * @see "aio4c/event.h#AIO4C_INBOUND_DATA_EVENT"
+     * @see "aio4c/event.h#AIO4C_READ_EVENT"
      */
     public void onRead(@SuppressWarnings("unused") Buffer data) {
         // should be overridden if needed

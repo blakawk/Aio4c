@@ -418,13 +418,13 @@ Connection* ConnectionRead(Connection* connection) {
 
     buffer->position += nbRead;
 
-    _ConnectionEventHandle(connection, AIO4C_READ_EVENT);
+    _ConnectionEventHandle(connection, AIO4C_INBOUND_DATA_EVENT);
 
     return connection;
 }
 
 Connection* ConnectionProcessData(Connection* connection) {
-    _ConnectionEventHandle(connection, AIO4C_INBOUND_DATA_EVENT);
+    _ConnectionEventHandle(connection, AIO4C_READ_EVENT);
     return connection;
 }
 

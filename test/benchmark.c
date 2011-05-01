@@ -159,7 +159,7 @@ static void clientHandler(Event event, Connection* connection, ClientData* cd) {
             Log(AIO4C_LOG_LEVEL_DEBUG, "sending CRC %u", crc);
             BufferPutInt(buf, &crc);
             break;
-        case AIO4C_INBOUND_DATA_EVENT:
+        case AIO4C_READ_EVENT:
             buf = connection->dataBuffer;
             BufferGet(buf, data, blockSize);
             BufferGet(buf, &req, sizeof(struct timeval));
@@ -210,7 +210,7 @@ static void serverHandler(Event event, Connection* connection, unsigned char* da
             buf = ConnectionGetWriteBuffer(connection);
             BufferPut(buf, data, BUFSZ);
             break;
-        case AIO4C_INBOUND_DATA_EVENT:
+        case AIO4C_READ_EVENT:
             buf = ConnectionGetReadBuffer(connection);
             BufferGet(buf, data, BUFSZ);
             _crc = (unsigned int*)&data[blockSize + sizeof(struct timeval)];
@@ -398,9 +398,16 @@ int main(int argc, char* argv[]) {
                 cds[i].exchanged = clientDataSize;
                 cds[i].finished = 0;
                 clients[i] = NewClient(i, AIO4C_ADDRESS_IPV4, clientHost, clientPort, 3, 3, BUFSZ, aio4c_client_handler(clientHandler), aio4c_client_handler_arg(&cds[i]));
+                if (clients[i] != NULL && !ClientStart(clients[i])) {
+                    ClientEnd(clients[i]);
+                    clients[i] = NULL;
+                }
             }
             success = 1;
             for (i = 0; i < nbClients; i++) {
+                if (clients[i] == NULL) {
+                    success = success && false;
+                }
                 ClientEnd(clients[i]);
                 success = success && cds[i].finished;
             }
@@ -415,6 +422,7 @@ int main(int argc, char* argv[]) {
         case 2:
             signal(SIGINT, sigint);
             server = NewServer(AIO4C_ADDRESS_IPV4, serverHost, serverPort, BUFSZ, nbPipes, aio4c_server_handler(serverHandler), NULL, serverFactory);
+            ServerStart(server);
             ServerJoin(server);
             break;
         case 0:

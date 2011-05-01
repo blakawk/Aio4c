@@ -75,7 +75,7 @@ void onWrite(Connection* source, int* seq) {
 
 void handler(Event event, Connection* source, int* seq) {
     switch (event) {
-        case AIO4C_INBOUND_DATA_EVENT:
+        case AIO4C_READ_EVENT:
             onRead(source);
             break;
         case AIO4C_WRITE_EVENT:

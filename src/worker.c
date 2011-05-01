@@ -187,20 +187,20 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
 
     ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
 
-    if (event != AIO4C_READ_EVENT || source->state == AIO4C_CONNECTION_STATE_CLOSED) {
+    if (event != AIO4C_INBOUND_DATA_EVENT || source->state == AIO4C_CONNECTION_STATE_CLOSED) {
         return;
     }
 
     bufferCopy = AllocateBuffer(worker->pool);
 
-    if (event == AIO4C_READ_EVENT) {
+    if (event == AIO4C_INBOUND_DATA_EVENT) {
         BufferFlip(source->readBuffer);
 
         BufferCopy(bufferCopy, source->readBuffer);
 
         BufferReset(source->readBuffer);
 
-        eventToProcess = AIO4C_INBOUND_DATA_EVENT;
+        eventToProcess = AIO4C_READ_EVENT;
     }
 
     if (!EnqueueTaskItem(worker->queue, eventToProcess, source, bufferCopy)) {
@@ -212,7 +212,7 @@ static void _WorkerReadHandler(Event event, Connection* source, Worker* worker) 
 }
 
 void WorkerManageConnection(Worker* worker, Connection* connection) {
-    ConnectionAddSystemHandler(connection, AIO4C_READ_EVENT, aio4c_connection_handler(_WorkerReadHandler), aio4c_connection_handler_arg(worker), false);
+    ConnectionAddSystemHandler(connection, AIO4C_INBOUND_DATA_EVENT, aio4c_connection_handler(_WorkerReadHandler), aio4c_connection_handler_arg(worker), false);
     ConnectionAddSystemHandler(connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_WorkerCloseHandler), aio4c_connection_handler_arg(worker), true);
     ConnectionManagedBy(connection, AIO4C_CONNECTION_OWNER_WORKER);
     WriterManageConnection(worker->writer, connection);
