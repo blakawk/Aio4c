@@ -44,7 +44,7 @@ void _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call, 
     }
 }
 
-void RaiseException(JNIEnv* jvm, char* name, char* signature, ...) {
+void RaiseJavaException(JNIEnv* jvm, char* name, char* signature, ...) {
     va_list ap;
     jclass clazz = NULL;
     jmethodID constructor = NULL;

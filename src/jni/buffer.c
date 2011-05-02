@@ -29,10 +29,10 @@
 #include <aio4c/log.h>
 
 #define _ThrowBufferUnderflow(jvm,buffer) \
-    RaiseException(jvm,"com/aio4c/buffer/BufferUnderflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)
+    RaiseJavaException(jvm,"com/aio4c/buffer/BufferUnderflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)
 
 #define _ThrowBufferOverflow(jvm,buffer) \
-    RaiseException(jvm,"com/aio4c/buffer/BufferOverflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)
+    RaiseJavaException(jvm,"com/aio4c/buffer/BufferOverflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)
 
 static Buffer* _GetBuffer(JNIEnv* jvm, jobject buffer) {
     Buffer* _buffer = NULL;
@@ -55,7 +55,7 @@ JNIEXPORT jobject JNICALL Java_com_aio4c_buffer_Buffer_allocate(JNIEnv* jvm, jcl
 
     if (buffer == NULL) {
         CheckJNICall(jvm, (*jvm)->NewStringUTF(jvm, "cannot allocate buffer"), jmsg);
-        RaiseException(
+        RaiseJavaException(
                 jvm,
                 "java/lang/OutOfMemoryError",
                 "(Ljava/lang/String;)V",
