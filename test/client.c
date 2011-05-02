@@ -148,7 +148,7 @@ int main (int argc, char* argv[]) {
         }
     }
 
-    Aio4cInit(argc, argv);
+    Aio4cInit(argc, argv, NULL, NULL);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "starting %d clients", nbClients);
     if (maxRequests) {

@@ -229,6 +229,7 @@ if not GetOption('clean') and not GetOption('help'):
 
 env.Append(CCFLAGS = '-g')
 env.Append(LINKFLAGS = '-g')
+env.Append(LINKFLAGS = '-Wl,-no-undefined')
 
 if not GetOption('DEBUG'):
     env.Append(CCFLAGS = '-march=native -mtune=native -O2')
@@ -335,7 +336,7 @@ envj.JavaH(target = File('include/aio4c/jni/aio4c.h'), source = 'build/java/com/
 envj.JavaH(target = File('include/aio4c/jni/buffer.h'), source = 'build/java/com/aio4c/buffer/Buffer.class', JAVACLASSDIR = 'build/java')
 envj.JavaH(target = File('include/aio4c/jni/connection.h'), source = 'build/java/com/aio4c/Connection.class', JAVACLASSDIR = 'build/java')
 envj.JavaH(target = File('include/aio4c/jni/client.h'), source = 'build/java/com/aio4c/Client.class', JAVACLASSDIR = 'build/java')
-envj.JavaH(target = File('include/aio4c/jni/log.h'), source = 'build/java/com/aio4c/Log.class', JAVACLASSDIR = 'build/java')
+envj.JavaH(target = File('include/aio4c/jni/log.h'), source = 'build/java/com/aio4c/log/Log.class', JAVACLASSDIR = 'build/java')
 envj.JavaH(target = File('include/aio4c/jni/server.h'), source = 'build/java/com/aio4c/Server.class', JAVACLASSDIR = 'build/java')
 
 libfiles = Glob('build/src/*.c')

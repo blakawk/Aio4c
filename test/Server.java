@@ -24,14 +24,15 @@
 import com.aio4c.Aio4c;
 import com.aio4c.Connection;
 import com.aio4c.ConnectionFactory;
-import com.aio4c.Log;
 import com.aio4c.ServerConfig;
 import com.aio4c.buffer.Buffer;
 import com.aio4c.buffer.BufferOverflowException;
+import com.aio4c.log.Log;
+import com.aio4c.log.DefaultLogger;
 
 public class Server {
     public static void main(String[] args) {
-        Aio4c.init(args);
+        Aio4c.init(args, new DefaultLogger());
         Thread t = new Thread() {
             @Override
             public void run() {

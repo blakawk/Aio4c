@@ -23,6 +23,8 @@
  */
 package com.aio4c;
 
+import com.aio4c.log.Logger;
+
 /**
  * Class allowing initialization of aio4c library.
  */
@@ -44,8 +46,13 @@ public class Aio4c {
      *
      * @param args
      *   The arguments passed on the JVM command line
+     * @param logger
+     *   A {@link Logger} implementation used by the library to log messages.
+     *   This parameter can be <code>null</code>, then the library will uses
+     *   a default logging implementation that can be parameterized according
+     *   to provided command-line arguments.
      */
-    public static native void init(String[] args);
+    public static native void init(String[] args, Logger logger);
     /**
      * Frees all resources used by aio4c.
      *

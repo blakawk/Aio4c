@@ -30,7 +30,7 @@ public class TestBuffer {
     private static final int BUFSZ = 10;
 
     public static void main(String[] args) {
-        Aio4c.init(args);
+        Aio4c.init(args, null);
         try {
             try {
                 Buffer b = Buffer.allocate(Integer.MAX_VALUE);

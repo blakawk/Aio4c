@@ -25,13 +25,13 @@ import com.aio4c.Aio4c;
 import com.aio4c.ClientConfig;
 import com.aio4c.Connection;
 import com.aio4c.ConnectionFactory;
-import com.aio4c.Log;
 import com.aio4c.buffer.Buffer;
 import com.aio4c.buffer.BufferOverflowException;
+import com.aio4c.log.Log;
 
 public class Client {
     public static void main(String[] args) {
-        Aio4c.init(args);
+        Aio4c.init(args, null);
 
         com.aio4c.Client c = new com.aio4c.Client(new ClientConfig(), new ConnectionFactory () {
             @Override
@@ -58,8 +58,8 @@ public class Client {
                             if (str.trim().equals("QUIT")) {
                                 toClose = true;
                             }
+                            enableWriteInterest();
                         }
-                        enableWriteInterest();
                     }
                     @Override
                     public void onWrite(Buffer data) {

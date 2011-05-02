@@ -32,12 +32,17 @@
 
 #define AIO4C_LOG_THREAD_NAME_SIZE 32
 
-#define AIO4C_LOG_PREFIX_SIZE \
-    (sizeof("[00:00:00.000 00/00/00] [level] : \n") + AIO4C_LOG_THREAD_NAME_SIZE)
 #define AIO4C_LOG_MESSAGE_SIZE \
-    (AIO4C_LOG_PREFIX_SIZE + 256)
+    (AIO4C_LOG_THREAD_NAME_SIZE + 256)
+
 #define AIO4C_LOG_BUFFER_SIZE \
-    (AIO4C_LOG_PREFIX_SIZE + sizeof("0x00000000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ................"))
+    (sizeof("0x00000000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ................"))
+
+#define aio4c_log_handler(handler) \
+    (void(*)(void*,LogLevel,char*))handler
+
+#define aio4c_log_arg(arg) \
+    (void*)arg
 
 typedef enum e_LogLevel {
     AIO4C_LOG_LEVEL_FATAL = 0,
@@ -48,22 +53,13 @@ typedef enum e_LogLevel {
     AIO4C_LOG_LEVEL_MAX = 5
 } LogLevel;
 
-typedef struct s_Logger {
-    LogLevel          level;
-    aio4c_file_t*     file;
-    Queue*            queue;
-    Thread*           thread;
-    aio4c_bool_t      exiting;
-    Lock*             lock;
-} Logger;
-
 extern LogLevel AIO4C_LOG_LEVEL;
 
 extern char* AIO4C_LOG_FILE;
 
-extern AIO4C_API void LogInit(void);
+extern AIO4C_API void LogInit(void (*handler)(void*,LogLevel,char*), void* logger);
 
-extern AIO4C_API void Log(LogLevel level, char* message, ...) __attribute__((format(printf, 2, 3)));
+extern AIO4C_API void Log(LogLevel level, char* message, ...) __attribute__((format(printf,2,3)));
 
 extern AIO4C_API void LogBuffer(LogLevel level, Buffer* buffer);
 

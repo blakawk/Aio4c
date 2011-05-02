@@ -161,6 +161,7 @@ static void clientHandler(Event event, Connection* connection, ClientData* cd) {
             break;
         case AIO4C_READ_EVENT:
             buf = connection->dataBuffer;
+            LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buf);
             BufferGet(buf, data, blockSize);
             BufferGet(buf, &req, sizeof(struct timeval));
             memcpy(&data[blockSize], &req, sizeof(struct timeval));
@@ -387,7 +388,7 @@ int main(int argc, char* argv[]) {
     }
 
     if (mode) {
-        Aio4cInit(argc, argv);
+        Aio4cInit(argc, argv, NULL, NULL);
     }
 
     switch (mode) {

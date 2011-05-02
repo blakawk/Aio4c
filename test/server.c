@@ -91,7 +91,7 @@ int main(int argc, char* argv[]) {
     char buffer[32];
     ssize_t nbRead = 0;
 
-    Aio4cInit(argc, argv);
+    Aio4cInit(argc, argv, NULL, NULL);
 
     Server* server = NewServer(AIO4C_ADDRESS_IPV4, "localhost", 11111, 8192, 1, aio4c_server_handler(serverHandler), NULL, dataFactory);
     if (server != NULL && ServerStart(server)) {

@@ -186,7 +186,7 @@ static void _ParseArguments(int argc, char* argv[]) {
     }
 }
 
-void Aio4cInit(int argc, char* argv[]) {
+void Aio4cInit(int argc, char* argv[], void (*loghandler)(void*,LogLevel,char*), void* logger) {
     _ParseArguments(argc, argv);
     ThreadMain();
 #ifdef AIO4C_WIN32
@@ -196,7 +196,7 @@ void Aio4cInit(int argc, char* argv[]) {
 #if AIO4C_ENABLE_STATS
     StatsInit();
 #endif /* AIO4C_ENABLE_STATS */
-    LogInit();
+    LogInit(loghandler, logger);
 }
 
 void Aio4cEnd(void) {

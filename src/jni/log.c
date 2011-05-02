@@ -26,7 +26,7 @@
 #include <aio4c/jni.h>
 #include <aio4c/log.h>
 
-JNIEXPORT void JNICALL Java_com_aio4c_Log_log(JNIEnv* jvm, jclass log __attribute__((unused)), jobject level, jstring message) {
+JNIEXPORT void JNICALL Java_com_aio4c_log_Log_log(JNIEnv* jvm, jclass log __attribute__((unused)), jobject level, jstring message) {
     int _level = 0;
     char* _message = NULL;
 

@@ -25,8 +25,15 @@
 
 #include <aio4c.h>
 #include <aio4c/alloc.h>
+#include <aio4c/jni.h>
+#include <aio4c/log.h>
 
 #include <string.h>
+
+typedef struct s_JavaLogger {
+    jobject ref;
+    JavaVM* jvm;
+} JavaLogger;
 
 static int _argc = 0;
 static char** _argv = NULL;
@@ -35,13 +42,37 @@ JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_usage(JNIEnv* jvm __attribute__((unu
     Aio4cUsage();
 }
 
-JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_init(JNIEnv* jvm, jclass aio4c __attribute__((unused)), jobjectArray args) {
+static char* _logLevelMethodNames[AIO4C_LOG_LEVEL_MAX] = {
+    "fatal",
+    "error",
+    "warn",
+    "info",
+    "debug"
+};
+
+static void _JniLog(JavaLogger* logger, LogLevel level, char* message) {
+    JNIEnv* jvm = NULL;
+    jclass clazz = NULL;
+    jstring jstr = NULL;
+    jmethodID method = NULL;
+
+    if (logger != NULL) {
+        (*logger->jvm)->AttachCurrentThreadAsDaemon(logger->jvm, (void**)&jvm, NULL);
+        CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, logger->ref), clazz);
+        CheckJNICall(jvm, (*jvm)->NewStringUTF(jvm, message), jstr);
+        CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, clazz, _logLevelMethodNames[level], "(Ljava/lang/String;)V"), method);
+        (*jvm)->CallVoidMethod(jvm, logger->ref, method, jstr);
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_init(JNIEnv* jvm, jclass aio4c __attribute__((unused)), jobjectArray args, jobject logger) {
     jsize nbArgs = (*jvm)->GetArrayLength(jvm, args);
     _argc = nbArgs + 1;
     _argv = aio4c_malloc(_argc * sizeof(char*));
     char* arg = NULL;
     jstring jarg = NULL;
     jsize i = 0;
+    JavaLogger* jLogger = NULL;
 
     _argv[0] = "aio4c_jni";
 
@@ -53,7 +84,17 @@ JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_init(JNIEnv* jvm, jclass aio4c __att
         (*jvm)->ReleaseStringUTFChars(jvm, jarg, arg);
     }
 
-    Aio4cInit(_argc, _argv);
+    if (logger != NULL) {
+        jLogger = aio4c_malloc(sizeof(JavaLogger));
+        if (jLogger != NULL) {
+            CheckJNICall(jvm, (*jvm)->NewGlobalRef(jvm, logger), jLogger->ref);
+            (*jvm)->GetJavaVM(jvm, &jLogger->jvm);
+        }
+
+        Aio4cInit(_argc, _argv, aio4c_log_handler(_JniLog), aio4c_log_arg(jLogger));
+    } else {
+        Aio4cInit(_argc, _argv, NULL, NULL);
+    }
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_Aio4c_end(JNIEnv* jvm __attribute__((unused)), jclass aio4c __attribute__((unused))) {

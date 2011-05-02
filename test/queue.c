@@ -204,7 +204,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    Aio4cInit(argc, argv);
+    Aio4cInit(argc, argv, NULL, NULL);
 
     srand(getpid());
 

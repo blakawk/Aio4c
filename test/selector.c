@@ -271,7 +271,7 @@ int main(int argc, char* argv[]) {
     int urandom = -1;
 #endif
 
-    Aio4cInit(argc, argv);
+    Aio4cInit(argc, argv, NULL, NULL);
 
     channel(fds[0], &to[0]);
     channel(fds[1], &to[1]);
