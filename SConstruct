@@ -326,18 +326,53 @@ else:
     envlib = env.Clone()
     envuser = env.Clone()
 
-envuser.Append(LIBS = ['aio4c'])
-envj.Append(JAVACFLAGS = '-encoding UTF-8')
+def JniInterfaceBuilder(target, source, env):
+    cls = os.path.splitext(str(source[0]))[0].replace('build/java/','').replace('/','.')
+    javah = "javah -classpath build/java -o " + str(target[0]) + " " + cls
+    result = env.Execute(javah)
+    if result == 0:
+        file = open(target[0].get_abspath())
+        found = True
+        for line in file:
+            if "JNICALL" in line:
+                funname = line.split(' ')[3].strip()
+                implname = os.path.splitext(str(target[0]).replace('include/aio4c','src'))[0]+'.c'
+                impl = open(implname)
+                funfound = False
+                for line2 in impl:
+                    if funname in line2:
+                        funfound = True
+                        break
+                if not funfound:
+                    print "error: " + funname + " defined in JNI header " + str(target[0]) + " but not implemented in " + implname
+                found = found and funfound
+        if not found:
+            env.Exit(1)
+    return result
 
-envj.Java('build/java', 'java')
+envuser.Append(LIBS = ['aio4c'])
+envj.Append(JAVACFLAGS = '-encoding UTF-8 -target 1.6 -source 1.6')
+envj.Append(JAVACLASSDIR = 'build/java')
+envj.Append(BUILDERS = {"JniInterface": Builder(action = JniInterfaceBuilder)})
+envj.Append(JAVAVERSION = '1.6')
+
+javafiles = []
+for dir, _, file in os.walk('java'):
+    for f in file:
+        name = os.path.join(dir, f)
+        if 'package-info.java' not in name and '.java' in name:
+            javafiles.append(name)
+
+javafiles.sort()
+envj.Java('build/java', javafiles, JAVASOURCEPATH = 'java')
 envj.Jar('build/aio4c.jar', 'build/java', JARCHDIR = 'build/java')
 
-envj.JavaH(target = File('include/aio4c/jni/aio4c.h'), source = 'build/java/com/aio4c/Aio4c.class', JAVACLASSDIR = 'build/java')
-envj.JavaH(target = File('include/aio4c/jni/buffer.h'), source = 'build/java/com/aio4c/buffer/Buffer.class', JAVACLASSDIR = 'build/java')
-envj.JavaH(target = File('include/aio4c/jni/connection.h'), source = 'build/java/com/aio4c/Connection.class', JAVACLASSDIR = 'build/java')
-envj.JavaH(target = File('include/aio4c/jni/client.h'), source = 'build/java/com/aio4c/Client.class', JAVACLASSDIR = 'build/java')
-envj.JavaH(target = File('include/aio4c/jni/log.h'), source = 'build/java/com/aio4c/log/Log.class', JAVACLASSDIR = 'build/java')
-envj.JavaH(target = File('include/aio4c/jni/server.h'), source = 'build/java/com/aio4c/Server.class', JAVACLASSDIR = 'build/java')
+envj.JniInterface(target = File('include/aio4c/jni/aio4c.h'), source = 'build/java/com/aio4c/Aio4c.class')
+envj.JniInterface(target = File('include/aio4c/jni/buffer.h'), source = 'build/java/com/aio4c/buffer/Buffer.class')
+envj.JniInterface(target = File('include/aio4c/jni/connection.h'), source = 'build/java/com/aio4c/Connection.class')
+envj.JniInterface(target = File('include/aio4c/jni/client.h'), source = 'build/java/com/aio4c/Client.class')
+envj.JniInterface(target = File('include/aio4c/jni/log.h'), source = 'build/java/com/aio4c/log/Log.class')
+envj.JniInterface(target = File('include/aio4c/jni/server.h'), source = 'build/java/com/aio4c/Server.class')
 
 libfiles = Glob('build/src/*.c')
 
