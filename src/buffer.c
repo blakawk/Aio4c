@@ -31,7 +31,6 @@
 #include <aio4c/types.h>
 
 #include <string.h>
-#include <wchar.h>
 
 Buffer* NewBuffer(int size) {
     Buffer* buffer = NULL;
@@ -241,24 +240,10 @@ aio4c_bool_t BufferGetString(Buffer* buffer, char** out) {
     if (len > (buffer->limit - buffer->position)) {
         len = buffer->limit - buffer->position;
         buffer->data[buffer->limit] = '\0';
-    }
-
-    *out = (char*)&buffer->data[buffer->position];
-    buffer->position += len;
-
-    return true;
-}
-
-aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t** out) {
-    int len = (wcslen((wchar_t*)&buffer->data[buffer->position]) + 1) * sizeof(wchar_t);
-
-    if (len > (buffer->limit - buffer->position)) {
-        len = buffer->limit - buffer->position;
-        buffer->data[buffer->limit]     = '\0';
         buffer->data[buffer->limit + 1] = '\0';
     }
 
-    *out = (wchar_t*)&buffer->data[buffer->position];
+    *out = (char*)&buffer->data[buffer->position];
     buffer->position += len;
 
     return true;

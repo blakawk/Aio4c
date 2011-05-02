@@ -28,7 +28,6 @@
 #include <aio4c/types.h>
 
 #include <string.h>
-#include <wchar.h>
 
 #define AIO4C_BUFFER_POOL_BATCH_SIZE 16
 
@@ -107,8 +106,6 @@ extern AIO4C_API aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size);
 
 extern AIO4C_API aio4c_bool_t BufferGetString(Buffer* buffer, char** out);
 
-extern AIO4C_API aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t** out);
-
 #define BufferPutByte(buffer, in) \
     BufferPut(buffer, in, sizeof(aio4c_byte_t))
 
@@ -129,9 +126,6 @@ extern AIO4C_API aio4c_bool_t BufferGetStringUTF(Buffer* buffer, wchar_t** out);
 
 #define BufferPutString(buffer,in) \
     BufferPut(buffer, in, (strlen(in) + 1) * sizeof(char))
-
-#define BufferPutStringUTF(buffer,in) \
-    BufferPut(buffer, in, (wcslen(in) + 1) * sizeof(wchar_t))
 
 extern AIO4C_API aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size);
 

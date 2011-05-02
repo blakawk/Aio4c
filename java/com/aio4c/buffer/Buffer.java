@@ -143,43 +143,11 @@ public class Buffer {
      * that if the <code>String</code> contained UTF-8 characters, they were
      * stored as 2-bytes, while simple ASCII characters were stored as 1-byte,
      * as well as terminating '\0'.
-     * 
-     * If you want to retrieve <code>String</code> stored in plain UTF-8 format,
-     * use {@link Buffer#getWideString()}.
      *
      * @return
      *   The <code>String</code> at this buffer's position.
      */
     public native String getString();
-    /**
-     * Retrieves one <code>String</code> at this buffer's position.
-     *
-     * Increments this buffer's position by two times {@link String#length()}
-     * plus two if there is enough data.
-     * 
-     * If there is not enough data, there is two cases:
-     * <ul>
-     *   <li>there is remaining data in this buffer, but no terminating '\0',
-     *   then, the returned <code>String</code> will contains the characters
-     *   between this current buffer's position and limit (meaning that the
-     *   terminating '\0' will be added automatically)</li>
-     *   <li>there is no available data in the buffer, then an empty <code>
-     *   String</code> is returned and this buffer's position and limit are
-     *   left unchanged.</li>
-     * </ul>
-     * 
-     * The <code>String</code> will be retrieved from the buffer considering
-     * that the <code>String</code> was stored in plain UTF-8 format, meaning
-     * that all <code>String</code>'s characters were stored as 2-bytes, even
-     * the terminating '\0'.
-     * 
-     * If you want to retrieve <code>String</code> stored in modified UTF-8
-     * format, use {@link Buffer#getString()}.
-     *
-     * @return
-     *   The <code>String</code> at this buffer's position.
-     */
-    public native String getWideString();
     /**
      * Puts one <code>byte</code> at this buffer's position.
      *
@@ -253,8 +221,6 @@ public class Buffer {
      * The <code>String</code> will be stored in the buffer as a modified UTF-8 string, meaning that
      * if the <code>String</code> contains UTF-8 characters, they will be stored as 2-bytes, while
      * simple ASCII characters will be stored as 1-byte, as well as terminating '\0'.
-     * 
-     * If you want to store plain UTF-8 strings, use {@link Buffer#putWideString(String)}.
      *
      * @param s
      *   The <code>String</code> to put at this buffer's position.
@@ -262,25 +228,6 @@ public class Buffer {
      *   When there is not enough room.
      */
     public native void putString(String s) throws BufferOverflowException;
-    /**
-     * Puts one <code>String</code> at this buffer's position.
-     *
-     * Increments this buffer's position by two times {@link String#length()}
-     * plus two if there is enough room.
-     * 
-     * The <code>String</code> will be stored in the buffer as wide UTF-8
-     * string, meaning that all <code>String</code>'s characters will be
-     * stored as 2-bytes, even the terminating '\0'.
-     * 
-     * If you want to store modified UTF-8 strings, use
-     * {@link Buffer#putString(String)} instead.
-     *
-     * @param s
-     *   The <code>String</code> to put at this buffer's position.
-     * @throws com.aio4c.buffer.BufferOverflowException
-     *   When there is not enough room.
-     */
-    public native void putWideString(String s) throws BufferOverflowException;
     /**
      * Determines if this buffer has remaining data.
      * 

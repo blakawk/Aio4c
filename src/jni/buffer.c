@@ -24,8 +24,9 @@
 #include <aio4c/jni/buffer.h>
 
 #include <aio4c/alloc.h>
-#include <aio4c/jni.h>
 #include <aio4c/buffer.h>
+#include <aio4c/jni.h>
+#include <aio4c/log.h>
 
 #define _ThrowBufferUnderflow(jvm,buffer) \
     RaiseException(jvm,"com/aio4c/buffer/BufferUnderflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)

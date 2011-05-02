@@ -60,7 +60,13 @@ public class TestBuffer {
                             bo.printStackTrace();
                             b.flip();
                             if (b.position() == 0 && b.limit() == BUFSZ) {
-                                System.out.println("OK");
+                                b.putString("€");
+                                b.flip();
+                                if (b.getString().equals("€")) {
+                                    System.out.println("OK");
+                                } else {
+                                    System.out.println("KO (6)");
+                                }
                             } else {
                                 System.out.println("KO (5)");
                             }
@@ -70,7 +76,7 @@ public class TestBuffer {
             }
         } catch (Throwable t) {
             t.printStackTrace();
-            System.out.println("KO");
+            System.out.println("KO (exception)");
         }
         Aio4c.end();
     }
