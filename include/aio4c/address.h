@@ -29,6 +29,12 @@
  *
  * @author blakawk
  */
+/**
+ * @def __AIO4C_ADDRESS_H__
+ * @brief Defined if aio4c/address.h has been included.
+ *
+ * @see aio4c/address.h
+ */
 #ifndef __AIO4C_ADDRESS_H__
 #define __AIO4C_ADDRESS_H__
 
@@ -55,6 +61,12 @@ typedef enum e_AddressType {
  *
  * Type used to enclose informations needed to handle different addresses
  * kind in POSIX.
+ */
+/**
+ * @def __AIO4C_ADDRESS_DEFINED__
+ * @brief Defined if Address type has been defined.
+ *
+ * @see Address
  */
 #ifndef __AIO4C_ADDRESS_DEFINED__
 #define __AIO4C_ADDRESS_DEFINED__
@@ -145,4 +157,4 @@ extern AIO4C_API AddressType AddressGetType(Address* address);
  */
 extern AIO4C_API void FreeAddress(Address** address);
 
-#endif
+#endif /* __AIO4C_ADDRESS_H__ */

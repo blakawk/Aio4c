@@ -54,6 +54,19 @@
 #include <string.h>
 #include <sys/types.h>
 
+struct s_Acceptor {
+    char*          name;
+    Thread*        thread;
+    Address*       address;
+    aio4c_socket_t socket;
+    Reader**       readers;
+    int            nbReaders;
+    Selector*      selector;
+    SelectionKey*  key;
+    Connection*    factory;
+    Queue*         queue;
+};
+
 static aio4c_bool_t _AcceptorInit(Acceptor* acceptor) {
     int i = 0;
     aio4c_addr_t* addr = NULL;
