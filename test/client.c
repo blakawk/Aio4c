@@ -35,11 +35,12 @@ void onRead(Connection* source) {
     Buffer* buffer = source->dataBuffer;
     struct timeval ping, pong, now;
     int mySeq = 0;
+    aio4c_byte_t* data = BufferGetBytes(buffer);
 
     LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
 
-    if (memcmp(&buffer->data[buffer->position], "PONG ", 6) == 0) {
-        buffer->position += 6;
+    if (memcmp(&data[BufferGetPosition(buffer)], "PONG ", 6) == 0) {
+        BufferPosition(buffer, BufferGetPosition(buffer) + 6);
         BufferGet(buffer, &ping, sizeof(struct timeval));
         BufferGet(buffer, &pong, sizeof(struct timeval));
         BufferGetInt(buffer, &mySeq);
@@ -50,7 +51,7 @@ void onRead(Connection* source) {
             ConnectionClose(source, false);
         }
     } else {
-        Log(AIO4C_LOG_LEVEL_DEBUG, "unexpected answer %.*s from server on connection %s", 6, &buffer->data[buffer->position], source->string);
+        Log(AIO4C_LOG_LEVEL_DEBUG, "unexpected answer %.*s from server on connection %s", 6, &data[BufferGetPosition(buffer)], source->string);
     }
 
     EnableWriteInterest(source);
@@ -69,8 +70,8 @@ void onWrite(Connection* source, int* seq) {
 
     BufferFlip(buffer);
     LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
-    buffer->position = buffer->limit;
-    buffer->limit = buffer->size;
+    BufferPosition(buffer, BufferGetLimit(buffer));
+    BufferLimit(buffer, BufferGetCapacity(buffer));
 }
 
 void handler(Event event, Connection* source, int* seq) {

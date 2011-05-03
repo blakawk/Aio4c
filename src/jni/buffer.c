@@ -70,19 +70,22 @@ JNIEXPORT jobject JNICALL Java_com_aio4c_buffer_Buffer_allocate(JNIEnv* jvm, jcl
 JNIEXPORT jbyteArray JNICALL Java_com_aio4c_buffer_Buffer_array__(JNIEnv* jvm, jobject buffer) {
     Buffer* _buffer = NULL;
     jbyteArray array = NULL;
+    aio4c_byte_t* data = NULL;
 
     _buffer = _GetBuffer(jvm, buffer);
+    data = BufferGetBytes(_buffer);
 
-    array = (*jvm)->NewByteArray(jvm, _buffer->limit - _buffer->position);
-    (*jvm)->SetByteArrayRegion(jvm, array, 0, _buffer->limit - _buffer->position, (jbyte*)&_buffer->data[_buffer->position]);
+    array = (*jvm)->NewByteArray(jvm, BufferRemaining(_buffer));
+    (*jvm)->SetByteArrayRegion(jvm, array, 0, BufferRemaining(_buffer), (jbyte*)&data[BufferGetPosition(_buffer)]);
 
     return array;
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_array___3B(JNIEnv* jvm, jobject buffer, jbyteArray array) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
+    aio4c_byte_t* data = BufferGetBytes(_buffer);
 
-    (*jvm)->GetByteArrayRegion(jvm, array, 0, _buffer->limit - _buffer->position, (jbyte*)&_buffer->data[_buffer->position]);
+    (*jvm)->GetByteArrayRegion(jvm, array, 0, BufferRemaining(_buffer), (jbyte*)&data[BufferGetPosition(_buffer)]);
 }
 
 JNIEXPORT jbyte JNICALL Java_com_aio4c_buffer_Buffer_get(JNIEnv* jvm, jobject buffer) {
@@ -231,7 +234,7 @@ JNIEXPORT jboolean JNICALL Java_com_aio4c_buffer_Buffer_hasRemaining(JNIEnv* jvm
 JNIEXPORT jint JNICALL Java_com_aio4c_buffer_Buffer_position__(JNIEnv* jvm, jobject buffer) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    return _buffer->position;
+    return BufferGetPosition(_buffer);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_position__I(JNIEnv* jvm, jobject buffer, jint position) {
@@ -246,7 +249,7 @@ JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_position__I(JNIEnv* jvm, job
 JNIEXPORT jint JNICALL Java_com_aio4c_buffer_Buffer_limit__(JNIEnv* jvm, jobject buffer) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    return _buffer->limit;
+    return BufferGetLimit(_buffer);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_limit__I(JNIEnv* jvm, jobject buffer, jint limit) {
@@ -261,7 +264,7 @@ JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_limit__I(JNIEnv* jvm, jobjec
 JNIEXPORT jint JNICALL Java_com_aio4c_buffer_Buffer_capacity(JNIEnv* jvm, jobject buffer) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 
-    return _buffer->size;
+    return BufferGetCapacity(_buffer);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_flip(JNIEnv* jvm, jobject buffer) {
@@ -279,13 +282,16 @@ JNIEXPORT void JNICALL Java_com_aio4c_buffer_Buffer_reset(JNIEnv* jvm, jobject b
 JNIEXPORT jstring JNICALL Java_com_aio4c_buffer_Buffer_toString(JNIEnv* jvm, jobject buffer) {
     Buffer* _buffer = _GetBuffer(jvm, buffer);
 #ifndef AIO4C_WIN32
-    int len = snprintf(NULL, 0, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer, _buffer->size, _buffer->limit, _buffer->position);
+    int len = snprintf(NULL, 0, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer,
+            BufferGetCapacity(_buffer), BufferGetLimit(_buffer), BufferGetPosition(_buffer));
     char* _s = aio4c_malloc(len + 1);
-    snprintf(_s, len + 1, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer, _buffer->size, _buffer->limit, _buffer->position);
+    snprintf(_s, len + 1, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer,
+            BufferGetCapacity(_buffer), BufferGetLimit(_buffer), BufferGetPosition(_buffer));
 #else /* AIO4C_WIN32 */
     int len = strlen("buffer %p [cap: %d, lim: %d, pos: %d]") + 1;
     char* _s = aio4c_malloc(len);
-    while (_s != NULL && snprintf(_s, len, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer, _buffer->size, _buffer->limit, _buffer->position) < 0) {
+    while (_s != NULL && snprintf(_s, len, "buffer %p [cap: %d, lim: %d, pos: %d]", (void*)_buffer,
+                BufferGetCapacity(_buffer), BufferGetLimit(_buffer), BufferGetPosition(_buffer)) < 0) {
         len++;
         _s = aio4c_realloc(_s, len);
     }

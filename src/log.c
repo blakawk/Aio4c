@@ -283,6 +283,9 @@ void LogBuffer(LogLevel level, Buffer* buffer) {
     int j = 0;
     int len = 0;
     int pos = 0;
+    int bpos = BufferGetPosition(buffer);
+    int blim = BufferGetLimit(buffer);
+    aio4c_byte_t* bdata = BufferGetBytes(buffer);
     char* text = NULL;
     Logger* logger = &_logger;
 
@@ -290,9 +293,9 @@ void LogBuffer(LogLevel level, Buffer* buffer) {
         return;
     }
 
-    len = AIO4C_LOG_BUFFER_SIZE * (buffer->limit - buffer->position) / 16;
+    len = AIO4C_LOG_BUFFER_SIZE * (blim - bpos) / 16;
 
-    if ((buffer->limit - buffer->position) % 16) {
+    if ((blim - bpos) % 16) {
         len += AIO4C_LOG_BUFFER_SIZE;
     }
 
@@ -307,22 +310,22 @@ void LogBuffer(LogLevel level, Buffer* buffer) {
 
     _logsnprintf(text, &pos, len,
             "dumping buffer %p [pos: %u, lim: %u, cap: %u]\n",
-            (void*)buffer, buffer->position, buffer->limit, buffer->size);
+            (void*)buffer, bpos, blim, BufferGetCapacity(buffer));
 
-    for (i = buffer->position; i < buffer->limit; i += 16) {
+    for (i = bpos; i < blim; i += 16) {
         _logsnprintf(text, &pos, len, "0x%08x: ", i);
 
         for (j = 0; j < 16; j ++) {
-            if (i + j < buffer->limit) {
+            if (i + j < blim) {
                 _logsnprintf(text, &pos, len, "%02x ",
-                        (buffer->data[i + j] & 0xff));
+                        (bdata[i + j] & 0xff));
             } else {
                 _logsnprintf(text, &pos, len, "%s", "   ");
             }
         }
 
-        for (j = 0; j < 16 && (i + j < buffer->limit); j ++) {
-            c = (char)(buffer->data[i + j] & 0xff);
+        for (j = 0; j < 16 && (i + j < blim); j ++) {
+            c = (char)(bdata[i + j] & 0xff);
             if (!isprint((int)c)) {
                 c = '.';
             }

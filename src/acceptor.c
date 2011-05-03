@@ -86,7 +86,7 @@ static aio4c_bool_t _AcceptorInit(Acceptor* acceptor) {
             snprintf(pipeName, 8, "pipe%03d", i);
         }
 
-        if ((acceptor->readers[i] = NewReader(pipeName, acceptor->factory->pool->bufferSize)) == NULL) {
+        if ((acceptor->readers[i] = NewReader(pipeName, GetBufferPoolBufferSize(acceptor->factory->pool))) == NULL) {
             break;
         }
     }

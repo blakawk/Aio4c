@@ -83,7 +83,7 @@ static aio4c_bool_t _WorkerRun(Worker* worker) {
                 connection->dataBuffer = item.content.task.buffer;
                 ConnectionProcessData(connection);
                 connection->dataBuffer = NULL;
-                ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,item.content.task.buffer->position);
+                ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,BufferGetPosition(item.content.task.buffer));
                 ReleaseBuffer(&item.content.task.buffer);
                 ProbeTimeEnd(AIO4C_TIME_PROBE_DATA_PROCESS);
                 break;

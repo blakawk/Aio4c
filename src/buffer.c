@@ -32,6 +32,20 @@
 
 #include <string.h>
 
+struct s_Buffer {
+    BufferPool*   pool;
+    int           size;
+    aio4c_byte_t* data;
+    int           position;
+    int           limit;
+};
+
+struct s_BufferPool {
+    Queue*   buffers;
+    int      batch;
+    int      bufferSize;
+};
+
 Buffer* NewBuffer(int size) {
     Buffer* buffer = NULL;
 
@@ -92,6 +106,10 @@ BufferPool* NewBufferPool(aio4c_size_t bufferSize) {
     pool->bufferSize = bufferSize;
 
     return pool;
+}
+
+int GetBufferPoolBufferSize(BufferPool* pool) {
+    return pool->bufferSize;
 }
 
 Buffer* AllocateBuffer(BufferPool* pool) {
@@ -271,6 +289,10 @@ int BufferGetPosition(Buffer* buffer) {
 
 int BufferGetLimit(Buffer* buffer) {
     return buffer->limit;
+}
+
+int BufferGetCapacity(Buffer* buffer) {
+    return buffer->size;
 }
 
 int BufferRemaining(Buffer* buffer) {

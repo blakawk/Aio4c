@@ -107,7 +107,7 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
     switch (type) {
         case AIO4C_BUFFER_ERROR_TYPE:
             Log(level, "[E:%02d,T:%02d] %s:%d: %s on buffer %p[cap:%d,lim:%d,pos:%d]", error, type, file, line, ErrorStrings[error],
-                    (void*)code->buffer->data, code->buffer->size, code->buffer->limit, code->buffer->position);
+                    (void*)BufferGetBytes(code->buffer), BufferGetCapacity(code->buffer), BufferGetLimit(code->buffer), BufferGetPosition(code->buffer));
             break;
         case AIO4C_CONNECTION_ERROR_TYPE:
             if (error == AIO4C_CONNECTION_DISCONNECTED) {

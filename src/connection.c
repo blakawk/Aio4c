@@ -383,6 +383,7 @@ Connection* ConnectionRead(Connection* connection) {
     Buffer* buffer = NULL;
     ssize_t nbRead = 0;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    aio4c_byte_t* data = NULL;
 
     buffer = connection->readBuffer;
 
@@ -391,7 +392,8 @@ Connection* ConnectionRead(Connection* connection) {
         return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_BUFFER_OVERFLOW_ERROR, &code);
     }
 
-    if ((nbRead = recv(connection->socket, (void*)&buffer->data[buffer->position], buffer->limit - buffer->position, 0)) < 0) {
+    data = BufferGetBytes(buffer);
+    if ((nbRead = recv(connection->socket, (void*)&data[BufferGetPosition(buffer)], BufferRemaining(buffer), 0)) < 0) {
 #ifndef AIO4C_WIN32
         code.error = errno;
 #else /* AIO4C_WIN32 */
@@ -416,7 +418,7 @@ Connection* ConnectionRead(Connection* connection) {
         return connection;
     }
 
-    buffer->position += nbRead;
+    BufferPosition(buffer, BufferGetPosition(buffer) + nbRead);
 
     _ConnectionEventHandle(connection, AIO4C_INBOUND_DATA_EVENT);
 
@@ -443,6 +445,7 @@ aio4c_bool_t ConnectionWrite(Connection* connection) {
     Buffer* buffer = connection->writeBuffer;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     aio4c_bool_t pendingCloseMemorized = false;
+    aio4c_byte_t* data = NULL;
 
     if (!connection->canWrite) {
         code.expected = AIO4C_CONNECTION_STATE_CONNECTED;
@@ -460,13 +463,14 @@ aio4c_bool_t ConnectionWrite(Connection* connection) {
         BufferFlip(buffer);
     }
 
-    if (buffer->limit - buffer->position < 0) {
+    if (BufferGetLimit(buffer) - BufferGetPosition(buffer) < 0) {
         code.buffer = buffer;
         _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_BUFFER_UNDERFLOW_ERROR, &code);
         return false;
     }
 
-    if ((nbWrite = send(connection->socket, (void*)&buffer->data[buffer->position], buffer->limit - buffer->position, 0)) < 0) {
+    data = BufferGetBytes(buffer);
+    if ((nbWrite = send(connection->socket, (void*)&data[BufferGetPosition(buffer)], BufferRemaining(buffer), 0)) < 0) {
 #ifndef AIO4C_WIN32
         code.error = errno;
 #else /* AIO4C_WIN32 */
@@ -478,7 +482,7 @@ aio4c_bool_t ConnectionWrite(Connection* connection) {
 
     ProbeSize(AIO4C_PROBE_NETWORK_WRITE_SIZE, nbWrite);
 
-    buffer->position += nbWrite;
+    BufferPosition(buffer, BufferGetPosition(buffer) + nbWrite);
 
     if (BufferHasRemaining(connection->writeBuffer)) {
         return true;

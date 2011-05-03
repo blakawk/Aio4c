@@ -38,13 +38,15 @@ static void serverHandler(Event event, Connection* source, Data* data) {
     Buffer* buffer = NULL;
     int curSeq = 0;
     struct timeval pong;
+    aio4c_byte_t* bdata = NULL;
 
     switch (event) {
         case AIO4C_READ_EVENT:
             buffer = source->dataBuffer;
+            bdata = BufferGetBytes(buffer);
             LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
-            if (memcmp(&buffer->data[buffer->position], "PING ", 6) == 0) {
-                buffer->position += 6;
+            if (memcmp(&bdata[BufferGetPosition(buffer)], "PING ", 6) == 0) {
+                BufferPosition(buffer, BufferGetPosition(buffer) + 6);
                 BufferGet(buffer, &data->ping, sizeof(struct timeval));
                 BufferGetInt(buffer, &curSeq);
                 if (curSeq == data->lastSeq + 1) {
@@ -68,8 +70,8 @@ static void serverHandler(Event event, Connection* source, Data* data) {
             BufferPutInt(buffer, &data->lastSeq);
             BufferFlip(buffer);
             LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
-            buffer->position = buffer->limit;
-            buffer->limit = buffer->size;
+            BufferPosition(buffer, BufferGetLimit(buffer));
+            BufferLimit(buffer, BufferGetCapacity(buffer));
             break;
         case AIO4C_FREE_EVENT:
             free(data);
