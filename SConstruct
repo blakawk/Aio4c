@@ -364,8 +364,8 @@ for dir, _, file in os.walk('java'):
             javafiles.append(name)
 
 javafiles.sort()
-envj.Java('build/java', javafiles, JAVASOURCEPATH = 'java')
-envj.Jar('build/aio4c.jar', 'build/java', JARCHDIR = 'build/java')
+classfiles = envj.Java('build/java', javafiles, JAVASOURCEPATH = 'java')
+envj.Jar('build/aio4c.jar', classfiles, JARCHDIR = 'build/java')
 
 envj.JniInterface(target = File('include/aio4c/jni/aio4c.h'), source = 'build/java/com/aio4c/Aio4c.class')
 envj.JniInterface(target = File('include/aio4c/jni/buffer.h'), source = 'build/java/com/aio4c/buffer/Buffer.class')

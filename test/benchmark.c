@@ -21,7 +21,9 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
+
 #include <aio4c.h>
+#include <aio4c/stats.h>
 
 #include <assert.h>
 #include <fcntl.h>
@@ -29,6 +31,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 

@@ -23,9 +23,11 @@
  */
 #include <aio4c/jni/server.h>
 
-#include <aio4c.h>
+#include <aio4c/alloc.h>
 #include <aio4c/connection.h>
 #include <aio4c/jni.h>
+#include <aio4c/server.h>
+#include <aio4c/stats.h>
 
 typedef struct s_JavaServer {
     Server* server;
