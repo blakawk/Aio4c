@@ -195,7 +195,7 @@ Buffer* BufferFlip(Buffer* buffer) {
 }
 
 Buffer* BufferPosition(Buffer* buffer, int position) {
-    if (position >= buffer->limit) {
+    if (position > buffer->limit) {
         Log(AIO4C_LOG_LEVEL_ERROR, "invalid position %d for buffer %p [lim: %d]", position, (void*)buffer, buffer->limit);
         return NULL;
     } else {
