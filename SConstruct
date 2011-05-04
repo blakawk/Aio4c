@@ -391,8 +391,6 @@ if not GetOption('STATISTICS'):
 
 shlib = envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'))
 envlib.Clean(shlib, 'build')
-envlib.Clean(shlib, '.sconf_temp')
-envlib.Clean(shlib, 'config.log')
 
 envuser.Program('build/client', 'build/test/client.c', LIBPATH='build')
 envuser.Program('build/server', 'build/test/server.c', LIBPATH='build')
@@ -403,11 +401,20 @@ envuser.Program('build/benchmark', 'build/test/benchmark.c', LIBPATH='build')
 envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')
 
 def DoxygenBuilder(target, source, env):
-    return envuser.Execute('doxygen ' + str(source[0]))
+    return env.Execute('doxygen ' + str(source[0]))
+
+def JavadocBuilder(target, source, env):
+    command = 'javadoc -private -author -classpath java -d build/doc/java -doctitle "Aio4c Java Interface" -charset "UTF-8" -keywords -sourcepath java -use -version -docencoding "UTF-8" -source 1.6'
+    for s in source:
+        command = command + " " + str(s)
+    return env.Execute(command)
 
 if env.GetOption('GENERATE_DOC'):
     envuser.Append(BUILDERS = {'Doxygen': Builder(action = DoxygenBuilder)})
-    doxygen = envuser.Doxygen('build/doc/html/index.html', 'doc/core/Doxyfile')
     incfiles = Glob('include/*.h') + Glob('include/aio4c/*.h')
-    envuser.Depends(doxygen, incfiles)
+    doxygen = envuser.Doxygen('build/doc/core/html/index.html', ['doc/core/Doxyfile'] + incfiles)
     envuser.Clean(doxygen, 'build/doc/core/html')
+
+    envj.Append(BUILDERS = {'Javadoc': Builder(action = JavadocBuilder)})
+    javadoc = envj.Javadoc('build/doc/java/index.html', javafiles)
+    envj.Clean(javadoc, 'build/doc/java')
