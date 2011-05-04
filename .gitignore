@@ -9,3 +9,5 @@ include/aio4c/jni
 .sconf_temp/
 *.class
 doc/core/html
+VERSION
+dist/

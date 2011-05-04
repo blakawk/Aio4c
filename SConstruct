@@ -98,6 +98,7 @@ AddOption('--disable-documentation-generation',
           default = True,
           help = 'Disable documentation generation')
 
+
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L',
                   ENV = {'PATH': os.environ['PATH']})
 
@@ -369,6 +370,7 @@ for dir, _, file in os.walk('java'):
         name = os.path.join(dir, f)
         if 'package-info.java' not in name and '.java' in name:
             javafiles.append(name)
+        if '.java' in name:
             eclipseclassfiles.append(name.replace('.java','.class'))
 
 javafiles.sort()
@@ -384,21 +386,24 @@ envj.JniInterface(target = File('include/aio4c/jni/client.h'), source = 'build/j
 envj.JniInterface(target = File('include/aio4c/jni/log.h'), source = 'build/java/com/aio4c/log/Log.class')
 envj.JniInterface(target = File('include/aio4c/jni/server.h'), source = 'build/java/com/aio4c/Server.class')
 
-libfiles = Glob('build/src/*.c')
+libfiles = Glob('build/src/*.c') + Glob('build/src/jni/*.c')
 
 if not GetOption('STATISTICS'):
     libfiles.remove(File('build/src/stats.c'))
 
-shlib = envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'))
+shlib = envlib.SharedLibrary('build/aio4c', libfiles)
 envlib.Clean(shlib, 'build')
 
-envuser.Program('build/client', 'build/test/client.c', LIBPATH='build')
-envuser.Program('build/server', 'build/test/server.c', LIBPATH='build')
-envuser.Program('build/queue', 'build/test/queue.c', LIBPATH='build')
-envuser.Program('build/selector', 'build/test/selector.c', LIBPATH='build')
-envuser.Program('build/benchmark', 'build/test/benchmark.c', LIBPATH='build')
+progs = []
+progs.append(envuser.Program('build/client', 'build/test/client.c', LIBPATH='build'))
+progs.append(envuser.Program('build/server', 'build/test/server.c', LIBPATH='build'))
+progs.append(envuser.Program('build/queue', 'build/test/queue.c', LIBPATH='build'))
+progs.append(envuser.Program('build/selector', 'build/test/selector.c', LIBPATH='build'))
+progs.append(envuser.Program('build/benchmark', 'build/test/benchmark.c', LIBPATH='build'))
 
 envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')
+
+Default(shlib, jar, progs)
 
 def DoxygenBuilder(target, source, env):
     return env.Execute('doxygen ' + str(source[0]))
@@ -414,7 +419,28 @@ if env.GetOption('GENERATE_DOC'):
     incfiles = Glob('include/*.h') + Glob('include/aio4c/*.h')
     doxygen = envuser.Doxygen('build/doc/core/html/index.html', ['doc/core/Doxyfile'] + incfiles)
     envuser.Clean(doxygen, 'build/doc/core/html')
+    Default(doxygen)
 
     envj.Append(BUILDERS = {'Javadoc': Builder(action = JavadocBuilder)})
     javadoc = envj.Javadoc('build/doc/java/index.html', javafiles)
     envj.Clean(javadoc, 'build/doc/java')
+    Default(javadoc)
+
+version = env.Command('VERSION', '.git/info/refs', 'git describe > $TARGET')
+
+def TarballBuilder(target, source, env):
+    env.Execute('rm -rf dist/aio4c && mkdir -p dist/aio4c && cp -f -a ' + ' '.join(map(str, source)) + ' dist/aio4c')
+    return env.Execute("tar cjpf " + str(target[0]) + " -C dist aio4c")
+
+env.Append(BUILDERS = {'Tarball': Builder(action = TarballBuilder)})
+
+sources = []
+sources.append(['AUTHORS','COPYING','INSTALL','README','NEWS','SConstruct'])
+sources.append([Dir('src'),Dir('include'),Dir('java'),Dir('doc'),Dir('test')])
+if "AIO4C_DEV" in os.environ:
+    sources.append([Dir('.git'),'.gitignore'])
+
+tarball = env.Tarball('dist/aio4c-src.tar.bz2', sources + version)
+sha256sum = env.Command('dist/aio4c-src.tar.bz2.sha256sum', tarball, 'sha256sum $SOURCE | sed "s/^\([^ ]* *\).*\/\([^/]*\)$/\\1\\2/" > $TARGET')
+env.Clean(sha256sum, 'dist')
+env.Alias('dist', sha256sum)
