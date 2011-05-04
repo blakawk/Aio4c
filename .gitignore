@@ -8,3 +8,4 @@ include/aio4c/jni
 *.csv
 .sconf_temp/
 *.class
+doc/core/html

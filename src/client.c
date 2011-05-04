@@ -42,6 +42,24 @@
 
 #include <string.h>
 
+struct s_Client {
+    char*        name;
+    Address*     address;
+    Connection*  connection;
+    Thread*      thread;
+    Reader*      reader;
+    Queue*       queue;
+    BufferPool*  pool;
+    void       (*handler)(Event,Connection*,void*);
+    void*        handlerArg;
+    int          retries;
+    int          interval;
+    int          retryCount;
+    int          bufferSize;
+    aio4c_bool_t connected;
+    aio4c_bool_t exiting;
+};
+
 static void _clientEventHandler(Event event, Connection* source, Client* client) {
     EnqueueEventItem(client->queue, event, source);
 }

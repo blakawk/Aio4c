@@ -27,12 +27,6 @@
  *
  * @author blakawk
  */
-/**
- * @def __AIO4C_BUFFER_H__
- * @brief Defined if aio4c/buffer.h has been included.
- *
- * @see aio4c/buffer.h
- */
 #ifndef __AIO4C_BUFFER_H__
 #define __AIO4C_BUFFER_H__
 
@@ -162,6 +156,8 @@ extern AIO4C_API int GetBufferPoolBufferSize(BufferPool* pool);
  * Buffer's allocated using this function MUST be released using the function
  * ReleaseBuffer(Buffer).
  *
+ * @param pool
+ *   A pointer to a BufferPool.
  * @return
  *   A pointer to a free Buffer.
  */

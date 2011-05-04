@@ -30,12 +30,6 @@
  *
  * @author blakawk
  */
-/**
- * @def __AIO4C_ACCEPTOR_H__
- * @brief Defined if aio4c/acceptor.h has been included.
- *
- * @see aio4c/acceptor.h
- */
 #ifndef __AIO4C_ACCEPTOR_H__
 #define __AIO4C_ACCEPTOR_H__
 
@@ -87,6 +81,8 @@ typedef struct s_Acceptor Acceptor;
  *   is accepted by the Acceptor.
  * @param nbPipes
  *   The number of pipes to use to manage connections.
+ * @return
+ *   A pointer to the Acceptor structure.
  *
  * @see Address
  * @see NewConnectionFactory(BufferPool,void*(*)(Connection*,void*),void*)

@@ -34,12 +34,6 @@
  * @see aio4c/server.h
  * @see aio4c/stats.h
  */
-/**
- * @def __AIO4C_H__
- * @brief Defined when aio4c.h has been included.
- *
- * @see aio4c.h
- */
 #ifndef __AIO4C_H__
 #define __AIO4C_H__
 
@@ -80,6 +74,8 @@ extern AIO4C_API void Aio4cInit(int argc, char* argv[], void (*loghandler)(void*
 /**
  * @fn void Aio4cEnd()
  * @brief Frees all resources used by the library.
+ *
+ * This function ends logging and statistics recordings if enabled.
  */
 extern AIO4C_API void Aio4cEnd(void);
 

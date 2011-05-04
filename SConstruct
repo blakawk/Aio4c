@@ -92,6 +92,12 @@ AddOption('--use-java-home',
           default = True,
           help = 'Try to build JNI using JDK indicated in JAVA_HOME environment variable')
 
+AddOption('--disable-documentation-generation',
+          dest = 'GENERATE_DOC',
+          action = 'store_false',
+          default = True,
+          help = 'Disable documentation generation')
+
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L',
                   ENV = {'PATH': os.environ['PATH']})
 
@@ -357,15 +363,19 @@ envj.Append(BUILDERS = {"JniInterface": Builder(action = JniInterfaceBuilder)})
 envj.Append(JAVAVERSION = '1.6')
 
 javafiles = []
+eclipseclassfiles = []
 for dir, _, file in os.walk('java'):
     for f in file:
         name = os.path.join(dir, f)
         if 'package-info.java' not in name and '.java' in name:
             javafiles.append(name)
+            eclipseclassfiles.append(name.replace('.java','.class'))
 
 javafiles.sort()
 classfiles = envj.Java('build/java', javafiles, JAVASOURCEPATH = 'java')
-envj.Jar('build/aio4c.jar', classfiles, JARCHDIR = 'build/java')
+jar = envj.Jar('build/aio4c.jar', classfiles, JARCHDIR = 'build/java')
+
+envj.Clean(jar, eclipseclassfiles)
 
 envj.JniInterface(target = File('include/aio4c/jni/aio4c.h'), source = 'build/java/com/aio4c/Aio4c.class')
 envj.JniInterface(target = File('include/aio4c/jni/buffer.h'), source = 'build/java/com/aio4c/buffer/Buffer.class')
@@ -379,7 +389,10 @@ libfiles = Glob('build/src/*.c')
 if not GetOption('STATISTICS'):
     libfiles.remove(File('build/src/stats.c'))
 
-envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'))
+shlib = envlib.SharedLibrary('build/aio4c', libfiles + Glob('build/src/jni/*.c'))
+envlib.Clean(shlib, 'build')
+envlib.Clean(shlib, '.sconf_temp')
+envlib.Clean(shlib, 'config.log')
 
 envuser.Program('build/client', 'build/test/client.c', LIBPATH='build')
 envuser.Program('build/server', 'build/test/server.c', LIBPATH='build')
@@ -388,3 +401,13 @@ envuser.Program('build/selector', 'build/test/selector.c', LIBPATH='build')
 envuser.Program('build/benchmark', 'build/test/benchmark.c', LIBPATH='build')
 
 envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')
+
+def DoxygenBuilder(target, source, env):
+    return envuser.Execute('doxygen ' + str(source[0]))
+
+if env.GetOption('GENERATE_DOC'):
+    envuser.Append(BUILDERS = {'Doxygen': Builder(action = DoxygenBuilder)})
+    doxygen = envuser.Doxygen('build/doc/html/index.html', 'doc/core/Doxyfile')
+    incfiles = Glob('include/*.h') + Glob('include/aio4c/*.h')
+    envuser.Depends(doxygen, incfiles)
+    envuser.Clean(doxygen, 'build/doc/core/html')

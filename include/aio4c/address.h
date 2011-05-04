@@ -29,12 +29,6 @@
  *
  * @author blakawk
  */
-/**
- * @def __AIO4C_ADDRESS_H__
- * @brief Defined if aio4c/address.h has been included.
- *
- * @see aio4c/address.h
- */
 #ifndef __AIO4C_ADDRESS_H__
 #define __AIO4C_ADDRESS_H__
 
@@ -86,6 +80,8 @@ typedef struct s_Address Address;
  *   The address's host name or numeric notation according to the AddressType.
  * @param port
  *   The port number.
+ * @return
+ *   A pointer to the created Address.
  *
  * @see AddressType
  */
@@ -100,6 +96,8 @@ extern AIO4C_API Address* NewAddress(AddressType type, char* address, aio4c_port
  *   - a pointer to a sockaddr_in6 structure if AIO4C_ADDRESS_IPV6,
  *   - on Unix platforms, a pointer to a sockaddr_un structure if AIO4C_ADDRESS_UNIX.
  *
+ * @param address
+ *   A pointer to the address to retrieve the member from.
  * @return
  *   A pointer to this address POSIX structure.
  *
@@ -116,6 +114,8 @@ extern AIO4C_API aio4c_addr_t* AddressGetAddr(Address* address);
  *   - sizeof(struct sockaddr_in6) if AIO4C_ADDRESS_IPV6,
  *   - on Unix platforms, sizeof(struct sockaddr_un) if AIO4C_ADDRESS_UNIX.
  *
+ * @param address
+ *   A pointer to the address to retrieve the member from.
  * @return
  *   The size of this address POSIX structure.
  */
@@ -128,6 +128,8 @@ extern AIO4C_API int AddressGetAddrSize(Address* address);
  * According to this AddressType, returns the numeric representation of the IP,
  * followed by a colon, and the port number.
  *
+ * @param address
+ *   A pointer to the address to retrieve the member from.
  * @return
  *   The string representation of this address.
  */
@@ -137,6 +139,8 @@ extern AIO4C_API char* AddressGetString(Address* address);
  * @fn AddressType AddressGetType(Address*)
  * @brief Gets this address AddressType.
  *
+ * @param address
+ *   A pointer to the address to retrieve the member from.
  * @return
  *   The AddressType of this address.
  *

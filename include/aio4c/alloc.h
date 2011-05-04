@@ -25,16 +25,10 @@
  * @file aio4c/alloc.h
  * @brief Provides memory allocation functions.
  *
- * @author blakawk
- */
-/**
- * @def __AIO4C_ALLOC_H__
- * @brief Defined if aio4c/alloc.h has been included.
- *
  * This modules is provided to collect statistics about memory allocation in
  * the library.
  *
- * @see aio4c/alloc.h
+ * @author blakawk
  */
 #ifndef __AIO4C_ALLOC_H__
 #define __AIO4C_ALLOC_H__
@@ -60,7 +54,7 @@
 extern AIO4C_API void* aio4c_malloc(int size);
 
 /**
- * @fn void* aio4c_realloc(void*,size)
+ * @fn void* aio4c_realloc(void*,int)
  * @brief Extend or shrink allocated memory.
  *
  * As in aio4c_malloc(int), this function collects statistics about memory

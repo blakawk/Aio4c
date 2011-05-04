@@ -139,13 +139,14 @@ typedef struct s_ClientData {
     unsigned char finished;
 } ClientData;
 
-static void clientHandler(Event event, Connection* connection, ClientData* cd) {
+static void clientHandler(Event event, Connection* connection, void* _cd) {
     Buffer* buf = NULL;
     unsigned int crc = 0, ck = 0;
     unsigned char* data = NULL;
     struct timeval now, req;
     double percent = 0.0;
     int i = 0;
+    ClientData* cd = (ClientData*)_cd;
     data = malloc(blockSize + sizeof(struct timeval));
     memset(data, 0, blockSize + sizeof(struct timeval));
 
@@ -401,7 +402,14 @@ int main(int argc, char* argv[]) {
             for (i = 0; i < nbClients; i++) {
                 cds[i].exchanged = clientDataSize;
                 cds[i].finished = 0;
-                clients[i] = NewClient(i, AIO4C_ADDRESS_IPV4, clientHost, clientPort, 3, 3, BUFSZ, aio4c_client_handler(clientHandler), aio4c_client_handler_arg(&cds[i]));
+                clients[i] = NewClient(
+                        i,
+                        AIO4C_ADDRESS_IPV4,
+                        clientHost,
+                        clientPort,
+                        3, 3, BUFSZ,
+                        clientHandler,
+                        &cds[i]);
                 if (clients[i] != NULL && !ClientStart(clients[i])) {
                     ClientEnd(clients[i]);
                     clients[i] = NULL;

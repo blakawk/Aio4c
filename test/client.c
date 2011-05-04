@@ -74,7 +74,8 @@ void onWrite(Connection* source, int* seq) {
     BufferLimit(buffer, BufferGetCapacity(buffer));
 }
 
-void handler(Event event, Connection* source, int* seq) {
+void handler(Event event, Connection* source, void* _seq) {
+    int* seq = (int*)_seq;
     switch (event) {
         case AIO4C_READ_EVENT:
             onRead(source);
@@ -165,7 +166,12 @@ int main (int argc, char* argv[]) {
     memset(seq, 0, nbClients * sizeof(int));
 
     for (i = 0; i < nbClients; i++) {
-        clients[i] = NewClient(i, AIO4C_ADDRESS_IPV4, "localhost", 11111, 3, 3, 8192, aio4c_client_handler(handler), aio4c_client_handler_arg(&seq[i]));
+        clients[i] = NewClient(
+                i,
+                AIO4C_ADDRESS_IPV4,
+                "localhost", 11111,
+                3, 3, 8192,
+                handler, &seq[i]);
         if (clients[i] == NULL) {
             printf("only %d clients were started !\n", i);
             break;
