@@ -56,12 +56,6 @@
  *
  * @see Buffer
  */
-/**
- * @def __AIO4C_BUFFER_POOL_DEFINED__
- * @brief Defined when BufferPool type has been defined.
- *
- * @see BufferPool
- */
 #ifndef __AIO4C_BUFFER_POOL_DEFINED__
 #define __AIO4C_BUFFER_POOL_DEFINED__
 typedef struct s_BufferPool BufferPool;
@@ -81,12 +75,6 @@ typedef struct s_BufferPool BufferPool;
  * @see ConnectionRead(Connection*)
  * @see ConnectionProcessData(Connection*)
  * @see ConnectionWrite(Connection*)
- */
-/**
- * @def __AIO4C_BUFFER_DEFINED__
- * @brief Defined if Buffer type has been defined.
- *
- * @see Buffer
  */
 #ifndef __AIO4C_BUFFER_DEFINED__
 #define __AIO4C_BUFFER_DEFINED__
@@ -527,9 +515,9 @@ extern AIO4C_API aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size);
  *
  * Tries to retrieve a null-terminated string from the Buffer.
  * The returned string will start at the Buffer's current position, and:
- *   - if a null character (\0) is found in the Buffer, the Buffer's current
+ *   - if a null character (\\0) is found in the Buffer, the Buffer's current
  *   position will be increased by the length of the returned string plus one,
- *   - if no null character (\0) is found between the current Buffer's position
+ *   - if no null character (\\0) is found between the current Buffer's position
  *   and its limit, then it is added at the Buffer's limit, and its position is
  *   set to its limit. In that case, the returned string length will be equals
  *   to the amount of remaining data in the Buffer.

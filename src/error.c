@@ -139,13 +139,13 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
             }
             break;
         case AIO4C_THREAD_CONDITION_ERROR_TYPE:
-            if (code->condition->owner != NULL) {
+            if (ConditionGetOwner(code->condition) != NULL) {
                 Log(level, "[E:%02d,T:%02d] %s:%d: %s condition %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                        (void*)code->condition, ConditionStateString[code->condition->state], code->condition->owner->name,
-                        (unsigned long)code->condition->owner->id, ThreadStateString[code->condition->owner->state], errorCode, errorMessage);
+                        (void*)code->condition, ConditionStateString[ConditionGetState(code->condition)], ConditionGetOwner(code->condition)->name,
+                        (unsigned long)ConditionGetOwner(code->condition)->id, ThreadStateString[ConditionGetOwner(code->condition)->state], errorCode, errorMessage);
             } else {
                 Log(level, "[E:%02d,T:%02d] %s:%d: %s condition %p[s:%s,o:none]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                        (void*)code->condition, ConditionStateString[code->condition->state], errorCode, errorMessage);
+                        (void*)code->condition, ConditionStateString[ConditionGetState(code->condition)], errorCode, errorMessage);
             }
             break;
         case AIO4C_THREAD_SELECTOR_ERROR_TYPE:

@@ -43,6 +43,21 @@ char* ConditionStateString[AIO4C_COND_STATE_MAX] = {
     "WAITED"
 };
 
+struct s_Condition {
+    ConditionState state;
+    Thread*        owner;
+#ifndef AIO4C_WIN32
+    pthread_cond_t     condition;
+#else /* AIO4C_WIN32 */
+#ifdef AIO4C_HAVE_CONDITION
+    CONDITION_VARIABLE condition;
+#else /* AIO4C_HAVE_CONDITION */
+    HANDLE             mutex;
+    HANDLE             event;
+#endif /* AIO4C_HAVE_CONDITION */
+#endif /* AIO4C_WIN32 */
+};
+
 Condition* NewCondition(void) {
     Condition* condition = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
@@ -277,6 +292,14 @@ void _NotifyCondition(char* file, int line, Condition* condition) {
     dthread("[NOTIFY CONDITION %p] %s released mutex\n", (void*)condition, name);
 #endif /* AIO4C_HAVE_CONDITION */
 #endif /* AIO4C_WIN32 */
+}
+
+Thread* ConditionGetOwner(Condition* condition) {
+    return condition->owner;
+}
+
+ConditionState ConditionGetState(Condition* condition) {
+    return condition->state;
 }
 
 void FreeCondition(Condition** condition) {

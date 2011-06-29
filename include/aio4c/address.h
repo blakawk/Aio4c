@@ -56,12 +56,6 @@ typedef enum e_AddressType {
  * Type used to enclose informations needed to handle different addresses
  * kind in POSIX.
  */
-/**
- * @def __AIO4C_ADDRESS_DEFINED__
- * @brief Defined if Address type has been defined.
- *
- * @see Address
- */
 #ifndef __AIO4C_ADDRESS_DEFINED__
 #define __AIO4C_ADDRESS_DEFINED__
 typedef struct s_Address Address;
