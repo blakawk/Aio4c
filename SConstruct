@@ -273,7 +273,7 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
             dest = 'WINVER',
             metavar = 'WINVER',
             choices = ['XP', 'VISTA'],
-            default = 'VISTA',
+            default = 'XP',
             help = 'Compile for windows version XP or VISTA (default: %default)')
 
     if GetOption('WINVER') == 'XP':
