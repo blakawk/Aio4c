@@ -48,21 +48,7 @@
 #endif /* AIO4C_BUFFER_POOL_BATCH_SIZE */
 
 /**
- * @typedef BufferPool
- * @brief Represents a pool of Buffers.
- *
- * Buffer pools allows to manage dynamic Buffers allocation in order to reduce
- * overhead due to memory allocation.
- *
- * @see Buffer
- */
-#ifndef __AIO4C_BUFFER_POOL_DEFINED__
-#define __AIO4C_BUFFER_POOL_DEFINED__
-typedef struct s_BufferPool BufferPool;
-#endif /* __AIO4C_BUFFER_POOL_DEFINED__ */
-
-/**
- * @typedef Buffer
+ * @struct s_Buffer
  * @brief Represents a byte Buffer.
  *
  * A byte Buffer holds a fixed cound of bytes (his capacity), as well as a
@@ -76,10 +62,36 @@ typedef struct s_BufferPool BufferPool;
  * @see ConnectionProcessData(Connection*)
  * @see ConnectionWrite(Connection*)
  */
+/**
+ * @def __AIO4C_BUFFER_DEFINED__
+ * @brief Defined if Buffer type has been defined.
+ *
+ * @see Buffer
+ */
 #ifndef __AIO4C_BUFFER_DEFINED__
 #define __AIO4C_BUFFER_DEFINED__
 typedef struct s_Buffer Buffer;
 #endif /* __AIO4C_BUFFER_DEFINED__ */
+
+/**
+ * @struct s_BufferPool
+ * @brief Represents a pool of Buffers.
+ *
+ * Buffer pools allows to manage dynamic Buffers allocation in order to reduce
+ * overhead due to memory allocation.
+ *
+ * @see Buffer
+ */
+/**
+ * @def __AIO4C_BUFFER_POOL_DEFINED__
+ * @brief Defined when BufferPool type has been defined.
+ *
+ * @see BufferPool
+ */
+#ifndef __AIO4C_BUFFER_POOL_DEFINED__
+#define __AIO4C_BUFFER_POOL_DEFINED__
+typedef struct s_BufferPool BufferPool;
+#endif /* __AIO4C_BUFFER_POOL_DEFINED__ */
 
 /**
  * @fn Buffer* NewBuffer(int)

@@ -38,7 +38,7 @@
 #include <aio4c/types.h>
 
 /**
- * @typedef Client
+ * @struct s_Client
  * @brief Represents a Thread that will manage TCP client connections.
  *
  * A Client will try to establish a TCP connection to a TCP server using the
@@ -59,6 +59,12 @@
  * @see Worker
  * @see Writer
  */
+/**
+ * @def __AIO4C_CLIENT_DEFINED__
+ * @brief Defined if Client type has been defined.
+ *
+ * @see Client
+ */
 #ifndef __AIO4C_CLIENT_DEFINED__
 #define __AIO4C_CLIENT_DEFINED__
 typedef struct s_Client Client;
@@ -72,6 +78,12 @@ typedef struct s_Client Client;
  * ClientHandler when handling a Connection event.
  *
  * @see ClientHandler
+ */
+/**
+ * @def __AIO4C_CLIENT_HANDLER_ARG_DEFINED__
+ * @brief Defined if ClientHandlerArg type has been defined.
+ *
+ * @see ClientHandlerArg
  */
 #ifndef __AIO4C_CLIENT_HANDLER_ARG_DEFINED__
 #define __AIO4C_CLIENT_HANDLER_ARG_DEFINED__
@@ -94,6 +106,12 @@ typedef void* ClientHandlerArg;
  * @see Connection
  * @see Event
  * @see NewClient()
+ */
+/**
+ * @def __AIO4C_CLIENT_HANDLER_DEFINED__
+ * @brief Defined if ClientHandler type has been defined.
+ *
+ * @see ClientHandler
  */
 #ifndef __AIO4C_CLIENT_HANDLER_DEFINED__
 #define __AIO4C_CLIENT_HANDLER_DEFINED__

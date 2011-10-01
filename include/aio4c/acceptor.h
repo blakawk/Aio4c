@@ -37,7 +37,7 @@
 #include <aio4c/connection.h>
 
 /**
- * @typedef Acceptor
+ * @struct s_Acceptor
  * @brief Represents a thread that accept connections from a Server.
  *
  * The Acceptor will wait for new connection of a Server's master socket, and
@@ -52,6 +52,12 @@
  * @see Reader
  * @see Worker
  * @see Writer
+ */
+/**
+ * @def __AIO4C_ACCEPTOR_DEFINED__
+ * @brief Defined if Acceptor type has been defined.
+ *
+ * @see s_Acceptor
  */
 #ifndef __AIO4C_ACCEPTOR_DEFINED__
 #define __AIO4C_ACCEPTOR_DEFINED__

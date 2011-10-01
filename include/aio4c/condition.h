@@ -36,32 +36,32 @@
 #include <aio4c/types.h>
 
 /**
- * @typedef ConditionState
+ * @enum ConditionState
  * @brief The state of a Condition.
  *
  * @see Condition
  * @see Thread
  */
 /**
- * @var AIO4C_COND_STATE_DESTROYED
+ * @var ConditionState AIO4C_COND_STATE_DESTROYED
  * @brief The Condition has been destroyed and should not be used anymore.
  *
  * @see ConditionState
  */
 /**
- * @var AIO4C_COND_STATE_FREE
+ * @var ConditionState AIO4C_COND_STATE_FREE
  * @brief No Thread is waiting on the Condition.
  *
  * @see ConditionState
  */
 /**
- * @var AIO4C_COND_STATE_WAITED
+ * @var ConditionState AIO4C_COND_STATE_WAITED
  * @brief One Thread is waiting on the Condition.
  *
  * @see ConditionState
  */
 /**
- * @var AIO4C_COND_STATE_MAX
+ * @var ConditionState AIO4C_COND_STATE_MAX
  * @brief The maximum of ConditionStates.
  *
  * @see ConditionState
@@ -92,13 +92,17 @@ typedef struct s_Thread Thread;
 #endif /* __AIO4C_THREAD_DEFINED__ */
 
 /**
- * @typedef Condition
+ * @struct s_Condition
  * @brief Represents a condition for threads to wait on.
  *
  * A Condition is an holder for implementations of POSIX condition
  * variables in different architectures.
  *
  * @see NewCondition
+ */
+/**
+ * @def __AIO4C_CONDITION_DEFINED__
+ * @brief Defined when Condition type is defined.
  */
 #ifndef __AIO4C_CONDITION_DEFINED__
 #define __AIO4C_CONDITION_DEFINED__
