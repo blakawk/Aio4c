@@ -696,13 +696,8 @@ extern AIO4C_API aio4c_bool_t BufferGetString(Buffer* buffer, char** out);
     BufferPut(buffer, in, sizeof(double))
 
 /**
- * @def BufferPutString(buffer,in)
+ * @fn BufferPutString(Buffer*,char*)
  * @brief Stores a string in a Buffer.
- *
- * This macro is equivalent to the following:
- * @code
- *   BufferPut(buffer, in, strlen(in) + 1)
- * @endcode
  *
  * The buffer should have at least strlen(in) plus one bytes of remaining
  * space.
@@ -710,16 +705,13 @@ extern AIO4C_API aio4c_bool_t BufferGetString(Buffer* buffer, char** out);
  * @param buffer
  *   A pointer to the Buffer where to store the string.
  * @param in
- *   A pointer to a string variable.
+ *   The string to put in the Buffer.
  * @return
  *   true if the string as been stored into the Buffer, false if an overflow has
  *   been detected (meaning that there was not enough remaining space in the
  *   Buffer).
- *
- * @see BufferPut(Buffer*,void*,int)
  */
-#define BufferPutString(buffer,in) \
-    BufferPut(buffer, in, strlen(in) + 1)
+extern AIO4C_API aio4c_bool_t BufferPutString(Buffer* buffer, char* in);
 
 /**
  * @fn aio4c_bool_t BufferPut(Buffer*,void*,int)

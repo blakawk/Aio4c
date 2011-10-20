@@ -283,6 +283,25 @@ aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size) {
     return true;
 }
 
+aio4c_bool_t BufferPutString(Buffer* buffer, char* in) {
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+    size_t inLen = 0;
+
+    if(memchr(in, '\0', buffer->limit - buffer->position) == NULL) {
+        code.buffer = buffer;
+        Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_BUFFER_ERROR_TYPE, AIO4C_BUFFER_OVERFLOW_ERROR, &code);
+        return false;
+    }
+
+    inLen = strlen(in) + 1;
+
+    memcpy(&buffer->data[buffer->position], in, inLen);
+
+    buffer->position += inLen;
+
+    return true;
+}
+
 int BufferGetPosition(Buffer* buffer) {
     return buffer->position;
 }

@@ -400,6 +400,7 @@ progs.append(envuser.Program('build/server', 'build/test/server.c', LIBPATH='bui
 progs.append(envuser.Program('build/queue', 'build/test/queue.c', LIBPATH='build'))
 progs.append(envuser.Program('build/selector', 'build/test/selector.c', LIBPATH='build'))
 progs.append(envuser.Program('build/benchmark', 'build/test/benchmark.c', LIBPATH='build'))
+progs.append(envuser.Program('build/buffer', 'build/test/buffer.c', LIBPATH='build'))
 
 envj.Java('build/test', 'test', JAVACLASSPATH = 'build/aio4c.jar')
 
