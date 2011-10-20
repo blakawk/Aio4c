@@ -43,21 +43,21 @@
 #include <string.h>
 
 struct s_Client {
-    char*        name;
-    Address*     address;
-    Connection*  connection;
-    Thread*      thread;
-    Reader*      reader;
-    Queue*       queue;
-    BufferPool*  pool;
-    void       (*handler)(Event,Connection*,void*);
-    void*        handlerArg;
-    int          retries;
-    int          interval;
-    int          retryCount;
-    int          bufferSize;
-    aio4c_bool_t connected;
-    aio4c_bool_t exiting;
+    char*             name;
+    Address*          address;
+    Connection*       connection;
+    Thread*           thread;
+    Reader*           reader;
+    Queue*            queue;
+    BufferPool*       pool;
+    ClientHandler     handler;
+    ClientHandlerData handlerData;
+    int               retries;
+    int               interval;
+    int               retryCount;
+    int               bufferSize;
+    aio4c_bool_t      connected;
+    aio4c_bool_t      exiting;
 };
 
 static void _clientEventHandler(Event event, Connection* source, Client* client) {
@@ -73,12 +73,12 @@ static void _connection(Client* client) {
     ConnectionAddSystemHandler(client->connection, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
     ConnectionAddSystemHandler(client->connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
     ConnectionAddSystemHandler(client->connection, AIO4C_FREE_EVENT, aio4c_connection_handler(_clientEventHandler), aio4c_connection_handler_arg(client), true);
-    ConnectionAddHandler(client->connection, AIO4C_INIT_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
-    ConnectionAddHandler(client->connection, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
-    ConnectionAddHandler(client->connection, AIO4C_READ_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), false);
-    ConnectionAddHandler(client->connection, AIO4C_WRITE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), false);
-    ConnectionAddHandler(client->connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
-    ConnectionAddHandler(client->connection, AIO4C_FREE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerArg), true);
+    ConnectionAddHandler(client->connection, AIO4C_INIT_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerData), true);
+    ConnectionAddHandler(client->connection, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerData), true);
+    ConnectionAddHandler(client->connection, AIO4C_READ_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerData), false);
+    ConnectionAddHandler(client->connection, AIO4C_WRITE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerData), false);
+    ConnectionAddHandler(client->connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerData), true);
+    ConnectionAddHandler(client->connection, AIO4C_FREE_EVENT, aio4c_connection_handler(client->handler), aio4c_connection_handler_arg(client->handlerData), true);
     ConnectionInit(client->connection);
 }
 
@@ -190,7 +190,7 @@ static void _clientExit(Client* client) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
 }
 
-Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, void (*handler)(Event,Connection*,void*), void* handlerArg) {
+Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t port, int retries, int retryInterval, int bufferSize, ClientHandler handler, ClientHandlerData handlerData) {
     Client* client = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -210,20 +210,20 @@ Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t
     if (client->name != NULL) {
         snprintf(client->name, 10, "client%03d", clientIndex);
     }
-    client->address    = NewAddress(type, address, port);
-    client->retries    = retries;
-    client->interval   = retryInterval;
-    client->handler    = handler;
-    client->handlerArg = handlerArg;
-    client->retryCount = 0;
-    client->connection = NULL;
-    client->pool       = NULL;
-    client->reader     = NULL;
-    client->queue      = NewQueue();
-    client->thread     = NULL;
-    client->bufferSize = bufferSize;
-    client->connected  = false;
-    client->exiting    = false;
+    client->address     = NewAddress(type, address, port);
+    client->retries     = retries;
+    client->interval    = retryInterval;
+    client->handler     = handler;
+    client->handlerData = handlerData;
+    client->retryCount  = 0;
+    client->connection  = NULL;
+    client->pool        = NULL;
+    client->reader      = NULL;
+    client->queue       = NewQueue();
+    client->thread      = NULL;
+    client->bufferSize  = bufferSize;
+    client->connected   = false;
+    client->exiting     = false;
 
     client->thread = NewThread(
             client->name,

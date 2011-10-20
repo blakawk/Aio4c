@@ -71,8 +71,8 @@ typedef struct s_Client Client;
 #endif /* __AIO4C_CLIENT_DEFINED__ */
 
 /**
- * @typedef ClientHandlerArg
- * @brief Argument passed to ClientHandler.
+ * @typedef ClientHandlerData
+ * @brief Data passed to ClientHandler.
  *
  * This should be used to point out additionnal data that will be needed by the
  * ClientHandler when handling a Connection event.
@@ -80,28 +80,28 @@ typedef struct s_Client Client;
  * @see ClientHandler
  */
 /**
- * @def __AIO4C_CLIENT_HANDLER_ARG_DEFINED__
- * @brief Defined if ClientHandlerArg type has been defined.
+ * @def __AIO4C_CLIENT_HANDLER_DATA_DEFINED__
+ * @brief Defined if ClientHandlerData type has been defined.
  *
- * @see ClientHandlerArg
+ * @see ClientHandlerData
  */
-#ifndef __AIO4C_CLIENT_HANDLER_ARG_DEFINED__
-#define __AIO4C_CLIENT_HANDLER_ARG_DEFINED__
-typedef void* ClientHandlerArg;
-#endif /* __AIO4C_CLIENT_HANDLER_ARG_DEFINED__ */
+#ifndef __AIO4C_CLIENT_HANDLER_DATA_DEFINED__
+#define __AIO4C_CLIENT_HANDLER_DATA_DEFINED__
+typedef struct s_ClientHandlerData* ClientHandlerData;
+#endif /* __AIO4C_CLIENT_HANDLER_DATA_DEFINED__ */
 
 /**
  * @typedef ClientHandler
  * @brief Handler used by Client to handle Connection events.
  *
  * This handler will be called for each event that will occurs en the
- * Client's Connection, with as a parameter the ClientHandlerArg indicated
+ * Client's Connection, with as a parameter the ClientHandlerData indicated
  * on Client creation.
  *
  * It takes three parameters:
  *   - Event: the event to handle,
  *   - Connection*: pointer to the Connection on which the Event occured,
- *   - ClientHandlerArg: the handler data.
+ *   - ClientHandlerData: the handler data.
  *
  * @see Connection
  * @see Event
@@ -115,11 +115,11 @@ typedef void* ClientHandlerArg;
  */
 #ifndef __AIO4C_CLIENT_HANDLER_DEFINED__
 #define __AIO4C_CLIENT_HANDLER_DEFINED__
-typedef void (*ClientHandler)(Event,Connection*,ClientHandlerArg);
+typedef void (*ClientHandler)(Event,Connection*,ClientHandlerData);
 #endif /* __AIO4C_CLIENT_HANDLER_DEFINED__ */
 
 /**
- * @fn Client* NewClient(int,AddressType,char*,aio4c_port_t,int,int,int,ClientHandler,ClientHandlerArg)
+ * @fn Client* NewClient(int,AddressType,char*,aio4c_port_t,int,int,int,ClientHandler,ClientHandlerData)
  * @brief Creates a Client.
  *
  * Allocates and initializes Client data structures, but does not start it.
@@ -161,7 +161,7 @@ extern AIO4C_API Client* NewClient(
         int retryInterval,
         int bufferSize,
         ClientHandler handler,
-        ClientHandlerArg arg);
+        ClientHandlerData arg);
 
 /**
  * @fn aio4c_bool_t ClientStart(Client*)

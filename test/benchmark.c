@@ -139,7 +139,7 @@ typedef struct s_ClientData {
     unsigned char finished;
 } ClientData;
 
-static void clientHandler(Event event, Connection* connection, void* _cd) {
+static void clientHandler(Event event, Connection* connection, ClientHandlerData _cd) {
     Buffer* buf = NULL;
     unsigned int crc = 0, ck = 0;
     unsigned char* data = NULL;
@@ -409,7 +409,7 @@ int main(int argc, char* argv[]) {
                         clientPort,
                         3, 3, BUFSZ,
                         clientHandler,
-                        &cds[i]);
+                        (ClientHandlerData)&cds[i]);
                 if (clients[i] != NULL && !ClientStart(clients[i])) {
                     ClientEnd(clients[i]);
                     clients[i] = NULL;

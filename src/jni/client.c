@@ -37,7 +37,7 @@ typedef struct s_JavaClient {
     jobject jConnection;
 } JavaClient;
 
-static void _jniClientEventHandler(Event event, Connection* connection, void* _client) {
+static void _jniClientEventHandler(Event event, Connection* connection, ClientHandlerData _client) {
     ProbeTimeStart(AIO4C_TIME_PROBE_JNI_OVERHEAD);
 
     JavaClient* client = (JavaClient*)_client;
@@ -156,7 +156,7 @@ JNIEXPORT void JNICALL Java_com_aio4c_Client_initialize(JNIEnv* jvm, jobject cli
             retryInterval,
             bufferSize,
             _jniClientEventHandler,
-            myJClient);
+            (ClientHandlerData)myJClient);
 
     (*jvm)->ReleaseStringUTFChars(jvm, oAddress, address);
 

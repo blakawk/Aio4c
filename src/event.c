@@ -24,7 +24,6 @@
 #include <aio4c/event.h>
 
 #include <aio4c/alloc.h>
-#include <aio4c/connection.h>
 #include <aio4c/error.h>
 #include <aio4c/list.h>
 #include <aio4c/log.h>
@@ -35,6 +34,17 @@
 
 #include <stdlib.h>
 #include <string.h>
+
+struct s_EventHandler {
+    Event           event;
+    aio4c_bool_t    once;
+    EventCallback   callback;
+    EventData       data;
+};
+
+struct s_EventQueue {
+    List handlers[AIO4C_EVENTS_COUNT];
+};
 
 EventQueue* NewEventQueue(void) {
     EventQueue* eventQueue = NULL;
@@ -55,7 +65,7 @@ EventQueue* NewEventQueue(void) {
     return eventQueue;
 }
 
-EventHandler* NewEventHandler(Event event, void (*handler)(Event,void*,void*), void* arg, aio4c_bool_t once) {
+EventHandler* NewEventHandler(Event event, EventCallback callback, EventData data, aio4c_bool_t once) {
     EventHandler* eventHandler = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -72,8 +82,8 @@ EventHandler* NewEventHandler(Event event, void (*handler)(Event,void*,void*), v
     }
 
     eventHandler->event = event;
-    eventHandler->handler = handler;
-    eventHandler->arg = arg;
+    eventHandler->callback = callback;
+    eventHandler->data = data;
     eventHandler->once = once;
 
     return eventHandler;
@@ -84,14 +94,14 @@ EventQueue* EventHandlerAdd(EventQueue* queue, EventHandler* handler) {
     return queue;
 }
 
-void EventHandle(EventQueue* queue, Event event, void* source) {
+void EventHandle(EventQueue* queue, Event event, EventSource source) {
     Node* i = NULL;
     Node* j = NULL;
     EventHandler* handler = NULL;
 
     for (i = queue->handlers[event].first; i != NULL;) {
         handler = (EventHandler*)i->data;
-        handler->handler(event, source, handler->arg);
+        handler->callback(event, source, handler->data);
         if (handler->once) {
             j = i->next;
             ListRemove(&queue->handlers[event], i);
@@ -104,14 +114,14 @@ void EventHandle(EventQueue* queue, Event event, void* source) {
     }
 }
 
-void EventHandlerRemove(EventQueue* queue, Event event, void (*handler)(Event,void*,void*)) {
+void EventHandlerRemove(EventQueue* queue, Event event, EventCallback callback) {
     Node* i = NULL;
     Node* j = NULL;
     EventHandler* _handler = NULL;
 
     for (i = queue->handlers[event].first; i != NULL;) {
         _handler = (EventHandler*)i->data;
-        if (_handler->handler == handler) {
+        if (_handler->callback == callback) {
             j = i->next;
             ListRemove(&queue->handlers[event], i);
             FreeEventHandler(&_handler);
@@ -123,7 +133,7 @@ void EventHandlerRemove(EventQueue* queue, Event event, void (*handler)(Event,vo
     }
 }
 
-void CopyEventQueue(EventQueue* dst, EventQueue* src, void* arg) {
+void CopyEventQueue(EventQueue* dst, EventQueue* src, EventData data) {
     int i = 0;
     Node* j = NULL;
     EventHandler* handler = NULL;
@@ -131,10 +141,10 @@ void CopyEventQueue(EventQueue* dst, EventQueue* src, void* arg) {
     for (i = 0; i < AIO4C_EVENTS_COUNT; i++) {
         for (j = src->handlers[i].first; j != NULL; j = j->next) {
             handler = (EventHandler*)j->data;
-            if (arg != NULL) {
-                ListAddLast(&dst->handlers[i], NewNode(NewEventHandler(handler->event, handler->handler, arg, handler->once)));
+            if (data != NULL) {
+                ListAddLast(&dst->handlers[i], NewNode(NewEventHandler(handler->event, handler->callback, data, handler->once)));
             } else {
-                ListAddLast(&dst->handlers[i], NewNode(NewEventHandler(handler->event, handler->handler, handler->arg, handler->once)));
+                ListAddLast(&dst->handlers[i], NewNode(NewEventHandler(handler->event, handler->callback, handler->data, handler->once)));
             }
         }
     }

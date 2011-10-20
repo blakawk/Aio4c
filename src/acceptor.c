@@ -303,7 +303,7 @@ static void _AcceptorExit(Acceptor* acceptor) {
 
     while (acceptor->queue != NULL && Dequeue(acceptor->queue, &item, false)) {
         connection = (Connection*)item.content.data;
-        EventHandlerRemove(connection->systemHandlers, AIO4C_CLOSE_EVENT, aio4c_event_handler(_AcceptorCloseHandler));
+        EventHandlerRemove(connection->systemHandlers, AIO4C_CLOSE_EVENT, (EventCallback)_AcceptorCloseHandler);
         ConnectionClose(connection, true);
         if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_ACCEPTOR)) {
             FreeConnection(&connection);

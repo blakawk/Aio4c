@@ -177,8 +177,8 @@ Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c
 }
 
 static void _ConnectionEventHandle(Connection* connection, Event event) {
-    EventHandle(connection->systemHandlers, event, connection);
-    EventHandle(connection->userHandlers, event, connection);
+    EventHandle(connection->systemHandlers, event, (EventSource)connection);
+    EventHandle(connection->userHandlers, event, (EventSource)connection);
 }
 
 void _ConnectionState(char* file, int line, Connection* connection, ConnectionState state) {
@@ -566,7 +566,7 @@ Connection* ConnectionAddHandler(Connection* connection, Event event, void (*han
     EventHandler* eventHandler = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
-    eventHandler = NewEventHandler(event, aio4c_event_handler(handler), aio4c_event_handler_arg(arg), once);
+    eventHandler = NewEventHandler(event, (EventCallback)handler, (EventData)arg, once);
 
     if (eventHandler != NULL) {
         if (EventHandlerAdd(connection->userHandlers, eventHandler) != NULL) {
@@ -581,7 +581,7 @@ Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void
     EventHandler* eventHandler = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
-    eventHandler = NewEventHandler(event, aio4c_event_handler(handler), aio4c_event_handler_arg(arg), once);
+    eventHandler = NewEventHandler(event, (EventCallback)handler, (EventData)arg, once);
 
     if (eventHandler != NULL) {
         if (EventHandlerAdd(connection->systemHandlers, eventHandler) != NULL) {

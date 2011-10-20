@@ -56,8 +56,6 @@
 /**
  * @def __AIO4C_ACCEPTOR_DEFINED__
  * @brief Defined if Acceptor type has been defined.
- *
- * @see s_Acceptor
  */
 #ifndef __AIO4C_ACCEPTOR_DEFINED__
 #define __AIO4C_ACCEPTOR_DEFINED__
