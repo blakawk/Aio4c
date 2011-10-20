@@ -21,6 +21,12 @@
 #define __AIO4C_TYPES_H__
 
 #ifndef AIO4C_WIN32
+# if defined(_WIN32) || defined(_WIN64)
+#  define AIO4C_WIN32
+# endif /* _WIN32 || _WIN64 */
+#endif /* AIO4C_WIN32 */
+
+#ifndef AIO4C_WIN32
 
 #include <netdb.h>
 #include <netinet/in.h>
@@ -40,8 +46,34 @@
 #define AIO4C_PIPE_WRITE (short)1
 
 #ifndef AIO4C_API
-#define AIO4C_API
+# ifdef AIO4C_WIN32
+#  define AIO4C_API __declspec(dllexport)
+# else /* AIO4C_WIN32 */
+#  define AIO4C_API
+# endif /* AIO4C_WIN32 */
 #endif /* AIO4C_API */
+
+#ifndef AIO4C_MAX_THREADS
+#define AIO4C_MAX_THREADS 4096
+#endif /* AIO4C_MAX_THREADS */
+
+#ifndef AIO4C_P_SIZE
+# ifdef AIO4C_WIN32
+#  if defined(_WIN32)
+#   define AIO4C_P_SIZE 4
+#  elif defined(_WIN64)
+#   define AIO4C_P_SIZE 8
+#  else
+#   error "cannot determine size of void*, please define AIO4C_P_SIZE for me"
+#  endif
+# else /* AIO4C_WIN32 */
+#   if defined(__amd64)
+#     define AIO4C_P_SIZE 8
+#   else
+#     define AIO4C_P_SIZE 4
+#   endif
+# endif /* AIO4C_WIN32 */
+#endif
 
 #ifndef NI_MAXHOST
 #define NI_MAXHOST 1025
