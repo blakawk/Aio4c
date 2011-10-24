@@ -114,7 +114,7 @@ static void consumer(void) {
         assert(mykey->fd == fds[0][2]);
         assert(mykey->result == AIO4C_OP_READ);
         assert(mykey->curCount == 1);
-        assert(recv(fds[0][2], (char*)dummy, BUFSZ, 0) == BUFSZ);
+        assert(recv(fds[0][2], (char*)dummy, BUFSZ, MSG_WAITALL) == BUFSZ);
         assert(memcmp(dummy, token[0], BUFSZ) == 0);
         assert(SelectionKeyReady(selector[0], &mykey) == false);
         assert(readkey->curCount == 0);
