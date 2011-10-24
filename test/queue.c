@@ -164,7 +164,7 @@ __attribute__((noreturn)) static void usage(char* argv0) {
 }
 
 int main(int argc, char* argv[]) {
-    QueueItem* item = NewQueueItem();
+    QueueItem* item = NULL;
     int count = 0, j = 0, action = 0;
     void (*actions[4])(Queue*,int*) = {
         action1,
@@ -209,6 +209,8 @@ int main(int argc, char* argv[]) {
     }
 
     Aio4cInit(argc, argv, NULL, NULL);
+
+    item = NewQueueItem();
 
     srand(getpid());
 
