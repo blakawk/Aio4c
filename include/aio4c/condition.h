@@ -42,35 +42,11 @@
  * @see Condition
  * @see Thread
  */
-/**
- * @var ConditionState AIO4C_COND_STATE_DESTROYED
- * @brief The Condition has been destroyed and should not be used anymore.
- *
- * @see ConditionState
- */
-/**
- * @var ConditionState AIO4C_COND_STATE_FREE
- * @brief No Thread is waiting on the Condition.
- *
- * @see ConditionState
- */
-/**
- * @var ConditionState AIO4C_COND_STATE_WAITED
- * @brief One Thread is waiting on the Condition.
- *
- * @see ConditionState
- */
-/**
- * @var ConditionState AIO4C_COND_STATE_MAX
- * @brief The maximum of ConditionStates.
- *
- * @see ConditionState
- */
 typedef enum e_ConditionState {
-    AIO4C_COND_STATE_DESTROYED = 0,
-    AIO4C_COND_STATE_FREE = 1,
-    AIO4C_COND_STATE_WAITED = 2,
-    AIO4C_COND_STATE_MAX = 3
+    AIO4C_COND_STATE_DESTROYED = 0, /**< The Condition has been destroyed and should not be used anymore. */
+    AIO4C_COND_STATE_FREE = 1,      /**< No Thread is waiting on the Condition. */
+    AIO4C_COND_STATE_WAITED = 2,    /**< One Thread is waiting on the Condition. */
+    AIO4C_COND_STATE_MAX = 3        /**< The maximum of ConditionStates. */
 } ConditionState;
 
 /**
@@ -81,11 +57,19 @@ typedef enum e_ConditionState {
  */
 extern char* ConditionStateString[AIO4C_COND_STATE_MAX];
 
+/**
+ * @def __AIO4C_LOCK_DEFINED__
+ * @brief Defined when Lock type has been defined.
+ */
 #ifndef __AIO4C_LOCK_DEFINED__
 #define __AIO4C_LOCK_DEFINED__
 typedef struct s_Lock Lock;
 #endif /* __AIO4C_LOCK_DEFINED__ */
 
+/**
+ * @def __AIO4C_THREAD_DEFINED__
+ * @brief Defined when Thread type has been defined.
+ */
 #ifndef __AIO4C_THREAD_DEFINED__
 #define __AIO4C_THREAD_DEFINED__
 typedef struct s_Thread Thread;

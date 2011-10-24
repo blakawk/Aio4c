@@ -61,7 +61,7 @@ struct s_Client {
 };
 
 static void _clientEventHandler(Event event, Connection* source, Client* client) {
-    EnqueueEventItem(client->queue, event, source);
+    EnqueueEventItem(client->queue, event, (EventSource)source);
 }
 
 static void _connection(Client* client) {
@@ -104,19 +104,18 @@ static aio4c_bool_t _clientInit(Client* client) {
 }
 
 static aio4c_bool_t _clientRun(Client* client) {
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
     aio4c_bool_t closedForError = false;
     Connection* connection;
 
-    memset(&item, 0, sizeof(QueueItem));
-
-    while (Dequeue(client->queue, &item, true)) {
-        switch (item.type) {
+    while (Dequeue(client->queue, item, true)) {
+        switch (QueueItemGetType(item)) {
             case AIO4C_QUEUE_ITEM_EXIT:
+                FreeQueueItem(&item);
                 return false;
             case AIO4C_QUEUE_ITEM_EVENT:
-                connection = (Connection*)item.content.event.source;
-                switch (item.content.event.type) {
+                connection = (Connection*)QueueEventItemGetSource(item);
+                switch (QueueEventItemGetEvent(item)) {
                     case AIO4C_INIT_EVENT:
                         Log(AIO4C_LOG_LEVEL_DEBUG, "connection %s initialized", AddressGetString(client->address));
                         ConnectionConnect(connection);
@@ -164,6 +163,7 @@ static aio4c_bool_t _clientRun(Client* client) {
                         break;
                     case AIO4C_FREE_EVENT:
                         if (client->exiting) {
+                            FreeQueueItem(&item);
                             return false;
                         }
                         break;
@@ -176,6 +176,7 @@ static aio4c_bool_t _clientRun(Client* client) {
         }
     }
 
+    FreeQueueItem(&item);
     return true;
 }
 

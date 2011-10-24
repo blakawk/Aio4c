@@ -60,25 +60,26 @@ static aio4c_bool_t _ReaderInit(Reader* reader) {
 }
 
 static aio4c_bool_t _ReaderRun(Reader* reader) {
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
     SelectionKey* key = NULL;
     int numConnectionsReady = 0;
 
-    while(Dequeue(reader->queue, &item, false)) {
-        switch(item.type) {
+    while(Dequeue(reader->queue, item, false)) {
+        switch(QueueItemGetType(item)) {
             case AIO4C_QUEUE_ITEM_EXIT:
+                FreeQueueItem(&item);
                 return false;
             case AIO4C_QUEUE_ITEM_DATA:
-                connection = (Connection*)item.content.data;
+                connection = (Connection*)QueueDataItemGet(item);
                 connection->readKey = Register(reader->selector, AIO4C_OP_READ, connection->socket, (void*)connection);
                 Log(AIO4C_LOG_LEVEL_DEBUG, "managing connection %s", connection->string);
                 ConnectionManagedBy(connection, AIO4C_CONNECTION_OWNER_READER);
                 reader->load++;
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
-                connection = (Connection*)item.content.event.source;
-                if (item.content.event.type == AIO4C_CLOSE_EVENT) {
+                connection = (Connection*)QueueEventItemGetSource(item);
+                if (QueueEventItemGetEvent(item) == AIO4C_CLOSE_EVENT) {
                     if (connection->readKey != NULL) {
                         Unregister(reader->selector, connection->readKey, true, NULL);
                         connection->readKey = NULL;
@@ -89,7 +90,7 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
                         Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                         FreeConnection(&connection);
                     }
-                } else if (item.content.event.type == AIO4C_PENDING_CLOSE_EVENT) {
+                } else if (QueueEventItemGetEvent(item) == AIO4C_PENDING_CLOSE_EVENT) {
                     Log(AIO4C_LOG_LEVEL_DEBUG, "pending close received for connection %s", connection->string);
                 }
                 break;
@@ -111,6 +112,8 @@ static aio4c_bool_t _ReaderRun(Reader* reader) {
         }
         ProbeTimeEnd(AIO4C_TIME_PROBE_NETWORK_READ);
     }
+
+    FreeQueueItem(&item);
 
     return true;
 }
@@ -193,7 +196,7 @@ Reader* NewReader(char* pipeName, aio4c_size_t bufferSize) {
 }
 
 static void _ReaderEventHandler(Event event, Connection* connection, Reader* reader) {
-    if (reader->queue == NULL || !EnqueueEventItem(reader->queue, event, connection)) {
+    if (reader->queue == NULL || !EnqueueEventItem(reader->queue, event, (EventSource)connection)) {
         if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_READER)) {
             FreeConnection(&connection);
         }

@@ -77,6 +77,10 @@ extern char* LockStateString[AIO4C_LOCK_STATE_MAX];
 typedef struct s_Lock Lock;
 #endif /* __AIO4C_LOCK_DEFINED__ */
 
+/**
+ * @def __AIO4C_THREAD_DEFINED__
+ * @brief Defined if Thread type has been defined.
+ */
 #ifndef __AIO4C_THREAD_DEFINED__
 #define __AIO4C_THREAD_DEFINED__
 typedef struct s_Thread Thread;

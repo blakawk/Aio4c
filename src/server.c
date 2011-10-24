@@ -57,15 +57,16 @@ static aio4c_bool_t _serverInit(Server* server) {
 }
 
 static aio4c_bool_t _serverRun(Server* server) {
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
 
-    memset(&item, 0, sizeof(QueueItem));
-
-    while (Dequeue(server->queue, &item, true)) {
-        if (item.type == AIO4C_QUEUE_ITEM_EXIT) {
+    while (Dequeue(server->queue, item, true)) {
+        if (QueueItemGetType(item) == AIO4C_QUEUE_ITEM_EXIT) {
+            FreeQueueItem(&item);
             return false;
         }
     }
+
+    FreeQueueItem(&item);
 
     return true;
 }

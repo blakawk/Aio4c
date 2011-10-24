@@ -58,10 +58,12 @@ static aio4c_bool_t _WorkerInit(Worker* worker) {
     return true;
 }
 
-static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
-    if (item->type == AIO4C_QUEUE_ITEM_TASK) {
-        if (item->content.task.connection == discriminant) {
-            ReleaseBuffer(&item->content.task.buffer);
+static aio4c_bool_t _removeCallback(QueueItem* item, QueueDiscriminant discriminant) {
+    Buffer* buffer = NULL;
+    if (QueueItemGetType(item) == AIO4C_QUEUE_ITEM_TASK) {
+        if (QueueTaskItemGetConnection(item) == (Connection*)discriminant) {
+            buffer = QueueTaskItemGetBuffer(item);
+            ReleaseBuffer(&buffer);
             return true;
         }
     }
@@ -70,27 +72,30 @@ static aio4c_bool_t _removeCallback(QueueItem* item, Connection* discriminant) {
 }
 
 static aio4c_bool_t _WorkerRun(Worker* worker) {
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
+    Buffer* buffer = NULL;
 
-    while (Dequeue(worker->queue, &item, true)) {
-        switch (item.type) {
+    while (Dequeue(worker->queue, item, true)) {
+        switch (QueueItemGetType(item)) {
             case AIO4C_QUEUE_ITEM_EXIT:
+                FreeQueueItem(&item);
                 return false;
             case AIO4C_QUEUE_ITEM_TASK:
-                connection = item.content.task.connection;
+                connection = QueueTaskItemGetConnection(item);
                 ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
-                connection->dataBuffer = item.content.task.buffer;
+                buffer = QueueTaskItemGetBuffer(item);
+                connection->dataBuffer = buffer;
                 ConnectionProcessData(connection);
                 connection->dataBuffer = NULL;
-                ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,BufferGetPosition(item.content.task.buffer));
-                ReleaseBuffer(&item.content.task.buffer);
+                ProbeSize(AIO4C_PROBE_PROCESSED_DATA_SIZE,BufferGetPosition(buffer));
+                ReleaseBuffer(&buffer);
                 ProbeTimeEnd(AIO4C_TIME_PROBE_DATA_PROCESS);
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
-                connection = (Connection*)item.content.event.source;
+                connection = (Connection*)QueueEventItemGetSource(item);
                 Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
-                RemoveAll(worker->queue, aio4c_remove_callback(_removeCallback), aio4c_remove_discriminant(connection));
+                RemoveAll(worker->queue, _removeCallback, (QueueDiscriminant)connection);
                 if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WORKER)) {
                     Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                     FreeConnection(&connection);
@@ -174,7 +179,7 @@ Worker* NewWorker(char* pipeName, aio4c_size_t bufferSize) {
 }
 
 static void _WorkerCloseHandler(Event event, Connection* source, Worker* worker) {
-    if (worker->queue == NULL || !EnqueueEventItem(worker->queue, event, source)) {
+    if (worker->queue == NULL || !EnqueueEventItem(worker->queue, event, (EventSource)source)) {
         if (ConnectionNoMoreUsed(source, AIO4C_CONNECTION_OWNER_WORKER)) {
             FreeConnection(&source);
         }

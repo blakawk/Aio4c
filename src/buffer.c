@@ -114,12 +114,12 @@ int GetBufferPoolBufferSize(BufferPool* pool) {
 
 Buffer* AllocateBuffer(BufferPool* pool) {
     Buffer* buffer = NULL;
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
     int i = 0;
 
     ProbeTimeStart(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
 
-    if (!Dequeue(pool->buffers, &item, false)) {
+    if (!Dequeue(pool->buffers, item, false)) {
         for (i = 0; i < pool->batch; i++) {
             buffer = NewBuffer(pool->bufferSize);
 
@@ -132,16 +132,18 @@ Buffer* AllocateBuffer(BufferPool* pool) {
             EnqueueDataItem(pool->buffers, buffer);
         }
 
-        if (!Dequeue(pool->buffers, &item, false)) {
+        if (!Dequeue(pool->buffers, item, false)) {
             return NULL;
         }
     }
 
-    buffer = (Buffer*)item.content.data;
+    buffer = (Buffer*)QueueDataItemGet(item);
 
     ProbeSize(AIO4C_PROBE_BUFFER_ALLOCATED_SIZE, buffer->size);
 
     ProbeTimeEnd(AIO4C_TIME_PROBE_BUFFER_ALLOCATION);
+
+    FreeQueueItem(&item);
 
     return buffer;
 }
@@ -172,11 +174,13 @@ void ReleaseBuffer(Buffer** pBuffer) {
 
 void FreeBufferPool(BufferPool** pPool) {
     BufferPool* pool = NULL;
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
+    Buffer* buffer = NULL;
 
     if (pPool != NULL && (pool = *pPool) != NULL) {
-        while (Dequeue(pool->buffers, &item, false)) {
-            FreeBuffer((Buffer**)&item.content.data);
+        while (Dequeue(pool->buffers, item, false)) {
+            buffer = QueueDataItemGet(item);
+            FreeBuffer(&buffer);
         }
 
         FreeQueue(&pool->buffers);
@@ -185,6 +189,8 @@ void FreeBufferPool(BufferPool** pPool) {
 
         *pPool = NULL;
     }
+
+    FreeQueueItem(&item);
 }
 
 Buffer* BufferFlip(Buffer* buffer) {

@@ -46,8 +46,9 @@ static int removed = 0;
 static int COUNT = 1000;
 static int debug = 0;
 
-aio4c_bool_t aio4c_remove(QueueItem* item, Data* data) {
-    Data* d = item->content.data;
+aio4c_bool_t aio4c_remove(QueueItem* item, QueueDiscriminant _data) {
+    Data* d = QueueDataItemGet(item);
+    Data* data = (Data*)_data;
 
     dprintf("\t\ttesting %d\n", d->a);
     if (d->a > data->a && d->a <= data->b) {
@@ -81,7 +82,7 @@ void action1(Queue* queue, int* pCount) {
 
     removed = 0;
 
-    RemoveAll(queue, aio4c_remove_callback(aio4c_remove), aio4c_remove_discriminant(c));
+    RemoveAll(queue, aio4c_remove, (QueueDiscriminant)c);
 
     dprintf("\tremoved %d items\n", removed);
 
@@ -120,33 +121,36 @@ void action3(Queue* queue, int* pCount) {
         return;
     }
     int a = rand() % count;
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
 
     dprintf("\tremoving %d items\n", a);
 
     for (i = 0; i < a; i++) {
-        if (Dequeue(queue, &item, false)) {
-            dprintf("\t\tremoved %d\n", ((Data*)item.content.data)->a);
-            aio4c_free(item.content.data);
+        if (Dequeue(queue, item, false)) {
+            dprintf("\t\tremoved %d\n", ((Data*)QueueDataItemGet(item))->a);
+            aio4c_free(QueueDataItemGet(item));
             count--;
         }
     }
+
+    FreeQueueItem(&item);
 
     *pCount = count;
 }
 
 void action4(Queue* queue, int* pCount) {
     int count = *pCount;
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
 
     dprintf("\tremoving all %d items\n", count);
 
-    while (Dequeue(queue, &item, false)) {
-        dprintf("\t\tremoved %d\n", ((Data*)item.content.data)->a);
-        aio4c_free(item.content.data);
+    while (Dequeue(queue, item, false)) {
+        dprintf("\t\tremoved %d\n", ((Data*)QueueDataItemGet(item))->a);
+        aio4c_free(QueueDataItemGet(item));
         count--;
     }
 
+    FreeQueueItem(&item);
     *pCount = count;
 }
 
@@ -160,7 +164,7 @@ __attribute__((noreturn)) static void usage(char* argv0) {
 }
 
 int main(int argc, char* argv[]) {
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
     int count = 0, j = 0, action = 0;
     void (*actions[4])(Queue*,int*) = {
         action1,
@@ -232,9 +236,9 @@ int main(int argc, char* argv[]) {
         fflush(stdout);
     }
 
-    while (Dequeue(queue, &item, false)) {
-        dprintf("\tremoved %d\n", ((Data*)item.content.data)->a);
-        aio4c_free(item.content.data);
+    while (Dequeue(queue, item, false)) {
+        dprintf("\tremoved %d\n", ((Data*)QueueDataItemGet(item))->a);
+        aio4c_free(QueueDataItemGet(item));
         count--;
     }
 
@@ -244,6 +248,7 @@ int main(int argc, char* argv[]) {
         printf(" KO %d\n", count);
     }
 
+    FreeQueueItem(&item);
     FreeQueue(&queue);
 
     Aio4cEnd();

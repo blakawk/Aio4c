@@ -253,12 +253,13 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
     return true;
 }
 
-static aio4c_bool_t _AcceptorRemoveCallback(QueueItem* item, Connection* discriminant) {
-    Connection* c = NULL;
+static aio4c_bool_t _AcceptorRemoveCallback(QueueItem* item, QueueDiscriminant discriminant) {
+    Connection* c1 = NULL;
+    Connection* c2 = (Connection*)discriminant;
 
-    if (item->type == AIO4C_QUEUE_ITEM_DATA) {
-        c = (Connection*)item->content.data;
-        if (c == discriminant) {
+    if (QueueItemGetType(item) == AIO4C_QUEUE_ITEM_DATA) {
+        c1 = (Connection*)QueueDataItemGet(item);
+        if (c1 == c2) {
             return true;
         }
     }
@@ -273,7 +274,7 @@ static void _AcceptorCloseHandler(Event event, Connection* source, Acceptor* acc
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "received close for connection %s", source->string);
 
-    RemoveAll(acceptor->queue, aio4c_remove_callback(_AcceptorRemoveCallback), aio4c_remove_discriminant(source));
+    RemoveAll(acceptor->queue, _AcceptorRemoveCallback, (QueueDiscriminant)source);
 
     if (ConnectionNoMoreUsed(source, AIO4C_CONNECTION_OWNER_ACCEPTOR)) {
         FreeConnection(&source);
@@ -283,11 +284,9 @@ static void _AcceptorCloseHandler(Event event, Connection* source, Acceptor* acc
 }
 
 static void _AcceptorExit(Acceptor* acceptor) {
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
     int i = 0;
-
-    memset(&item, 0, sizeof(QueueItem));
 
     if (acceptor->key != NULL) {
         Unregister(acceptor->selector, acceptor->key, true, NULL);
@@ -301,8 +300,8 @@ static void _AcceptorExit(Acceptor* acceptor) {
 #endif /* AIO4C_WIN32 */
     }
 
-    while (acceptor->queue != NULL && Dequeue(acceptor->queue, &item, false)) {
-        connection = (Connection*)item.content.data;
+    while (acceptor->queue != NULL && Dequeue(acceptor->queue, item, false)) {
+        connection = (Connection*)QueueDataItemGet(item);
         EventHandlerRemove(connection->systemHandlers, AIO4C_CLOSE_EVENT, (EventCallback)_AcceptorCloseHandler);
         ConnectionClose(connection, true);
         if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_ACCEPTOR)) {
@@ -310,6 +309,7 @@ static void _AcceptorExit(Acceptor* acceptor) {
         }
     }
 
+    FreeQueueItem(&item);
     FreeQueue(&acceptor->queue);
 
     if (acceptor->readers != NULL) {

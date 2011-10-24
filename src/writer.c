@@ -51,10 +51,10 @@ static aio4c_bool_t _WriterInit(Writer* writer) {
     return true;
 }
 
-static aio4c_bool_t _WriterRemove(QueueItem* item, Connection* discriminant) {
-    switch (item->type) {
+static aio4c_bool_t _WriterRemove(QueueItem* item, QueueDiscriminant discriminant) {
+    switch (QueueItemGetType(item)) {
         case AIO4C_QUEUE_ITEM_EVENT:
-            if (item->content.event.source == discriminant) {
+            if ((Connection*)QueueEventItemGetSource(item) == (Connection*)discriminant) {
                 return true;
             }
             break;
@@ -66,37 +66,36 @@ static aio4c_bool_t _WriterRemove(QueueItem* item, Connection* discriminant) {
 }
 
 static aio4c_bool_t _WriterRun(Writer* writer) {
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
 
-    memset(&item, 0, sizeof(QueueItem));
-
-    while (Dequeue(writer->queue, &item, true)) {
-        switch(item.type) {
+    while (Dequeue(writer->queue, item, true)) {
+        switch(QueueItemGetType(item)) {
             case AIO4C_QUEUE_ITEM_EXIT:
+                FreeQueueItem(&item);
                 return false;
             case AIO4C_QUEUE_ITEM_DATA:
-                connection = (Connection*)item.content.data;
+                connection = (Connection*)QueueDataItemGet(item);
                 if (connection->state == AIO4C_CONNECTION_STATE_CLOSED) {
-                    RemoveAll(writer->queue, aio4c_remove_callback(_WriterRemove), aio4c_remove_discriminant(connection));
+                    RemoveAll(writer->queue, _WriterRemove, (QueueDiscriminant)connection);
                     Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
                     if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WRITER)) {
                         Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
                         FreeConnection(&connection);
                     }
                 } else if (connection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
-                    if (!RemoveAll(writer->queue, aio4c_remove_callback(_WriterRemove), aio4c_remove_discriminant(connection))) {
+                    if (!RemoveAll(writer->queue, _WriterRemove, (QueueDiscriminant)connection)) {
                         ConnectionShutdown(connection);
                     } else {
-                        EnqueueEventItem(writer->queue, AIO4C_OUTBOUND_DATA_EVENT, connection);
+                        EnqueueEventItem(writer->queue, AIO4C_OUTBOUND_DATA_EVENT, (EventSource)connection);
                     }
                 }
                 break;
             case AIO4C_QUEUE_ITEM_EVENT:
-                connection = (Connection*)item.content.event.source;
+                connection = (Connection*)QueueEventItemGetSource(item);
                 Log(AIO4C_LOG_LEVEL_DEBUG, "processing write interest for connection %s", connection->string);
                 if (ConnectionWrite(connection)) {
-                    EnqueueEventItem(writer->queue, item.content.event.type, item.content.event.source);
+                    EnqueueEventItem(writer->queue, QueueEventItemGetEvent(item), QueueEventItemGetSource(item));
                 }
                 break;
             default:
@@ -192,7 +191,7 @@ static void _WriterCloseHandler(Event event __attribute__((unused)), Connection*
 
 static void _WriterEventHandler(Event event, Connection* source, Writer* writer) {
     if (source->state != AIO4C_CONNECTION_STATE_CLOSED) {
-        if (!EnqueueEventItem(writer->queue, event, source)) {
+        if (!EnqueueEventItem(writer->queue, event, (EventSource)source)) {
             Log(AIO4C_LOG_LEVEL_WARN, "event %d for connection %s lost", event, source->string);
             return;
         }

@@ -104,22 +104,22 @@ static aio4c_bool_t _LogInit(Logger* logger) {
 }
 
 static aio4c_bool_t _LogRun(Logger* logger) {
-    QueueItem item;
+    QueueItem* item = NewQueueItem();
 
-    memset(&item, 0, sizeof(QueueItem));
-
-    while (Dequeue(logger->queue, &item, true)) {
-        switch (item.type) {
+    while (Dequeue(logger->queue, item, true)) {
+        switch (QueueItemGetType(item)) {
             case AIO4C_QUEUE_ITEM_EXIT:
+                FreeQueueItem(&item);
                 return false;
             case AIO4C_QUEUE_ITEM_DATA:
-                _LogPrintMessage(logger, item.content.data);
+                _LogPrintMessage(logger, QueueDataItemGet(item));
                 break;
             default:
                 break;
         }
     }
 
+    FreeQueueItem(&item);
     return true;
 }
 

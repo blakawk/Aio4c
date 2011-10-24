@@ -39,6 +39,37 @@
 
 #include <string.h>
 
+struct s_QueueEventItem {
+    Event       type;
+    EventSource source;
+};
+
+struct s_QueueTaskItem {
+    Event       event;
+    Connection* connection;
+    Buffer*     buffer;
+};
+
+union u_QueueItemData {
+    QueueTaskItem  task;
+    QueueEventItem event;
+    void*          data;
+};
+
+struct s_QueueItem {
+    QueueItemType type;
+    QueueItemData content;
+};
+
+struct s_Queue {
+    List         busy;
+    List         free;
+    Condition*   condition;
+    Lock*        lock;
+    aio4c_bool_t exit;
+    aio4c_bool_t emptied;
+};
+
 Queue* NewQueue(void) {
     Queue* queue = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
@@ -63,6 +94,32 @@ Queue* NewQueue(void) {
     queue->exit      = false;
 
     return queue;
+}
+
+QueueItem* NewQueueItem(void) {
+    QueueItem* item = NULL;
+    ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
+
+    if ((item = aio4c_malloc(sizeof(QueueItem))) == NULL) {
+#ifndef AIO4C_WIN32
+        code.error = errno;
+#else /* AIO4C_WIN32 */
+        code.source = AIO4C_ERRNO_SOURCE_SYS;
+#endif /* AIO4C_WIN32 */
+        code.size = sizeof(QueueItem);
+        code.type = "QueueItem";
+        Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_ALLOC_ERROR_TYPE, AIO4C_ALLOC_ERROR, &code);
+        return NULL;
+    }
+
+    item->type = AIO4C_QUEUE_ITEM_UNDEFINED;
+    memset(&item->content, 0, sizeof(QueueItemData));
+
+    return item;
+}
+
+QueueItemType QueueItemGetType(QueueItem* item) {
+    return item->type;
 }
 
 aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait) {
@@ -169,6 +226,10 @@ aio4c_bool_t EnqueueDataItem(Queue* queue, void* data) {
     return _Enqueue(queue, &item);
 }
 
+void* QueueDataItemGet(QueueItem* item) {
+    return item->content.data;
+}
+
 aio4c_bool_t EnqueueExitItem(Queue* queue) {
     QueueItem item;
 
@@ -179,7 +240,7 @@ aio4c_bool_t EnqueueExitItem(Queue* queue) {
     return _Enqueue(queue, &item);
 }
 
-aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, void* source) {
+aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, EventSource source) {
     QueueItem item;
 
     memset(&item, 0, sizeof(QueueItem));
@@ -189,6 +250,14 @@ aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, void* source) {
     item.content.event.source = source;
 
     return _Enqueue(queue, &item);
+}
+
+Event QueueEventItemGetEvent(QueueItem* item) {
+    return item->content.event.type;
+}
+
+EventSource QueueEventItemGetSource(QueueItem* item) {
+    return item->content.event.source;
 }
 
 aio4c_bool_t EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer) {
@@ -204,7 +273,19 @@ aio4c_bool_t EnqueueTaskItem(Queue* queue, Event event, Connection* connection, 
     return _Enqueue(queue, &item);
 }
 
-aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,void*), void* discriminant) {
+Event QueueTaskItemGetEvent(QueueItem* item) {
+    return item->content.task.event;
+}
+
+Connection* QueueTaskItemGetConnection(QueueItem* item) {
+    return item->content.task.connection;
+}
+
+Buffer* QueueTaskItemGetBuffer(QueueItem* item) {
+    return item->content.task.buffer;
+}
+
+aio4c_bool_t RemoveAll(Queue* queue, QueueRemoveCallback removeCallback, QueueDiscriminant discriminant) {
     aio4c_bool_t removed = false;
     Node* i = NULL;
     Node* toRemove = NULL;
@@ -230,6 +311,15 @@ aio4c_bool_t RemoveAll(Queue* queue, aio4c_bool_t (*removeCallback)(QueueItem*,v
     return removed;
 }
 
+void FreeQueueItem(QueueItem** item) {
+    QueueItem* pItem = NULL;
+
+    if (item != NULL && (pItem = *item) != NULL) {
+        aio4c_free(pItem);
+        *item = NULL;
+    }
+}
+
 void FreeQueue(Queue** queue) {
     Queue* pQueue = NULL;
     Node* i = NULL;
@@ -241,13 +331,13 @@ void FreeQueue(Queue** queue) {
 
         while (!ListEmpty(&pQueue->free)) {
             i = ListPop(&pQueue->free);
-            aio4c_free(i->data);
+            FreeQueueItem((QueueItem**)&i->data);
             FreeNode(&i);
         }
 
         while (!ListEmpty(&pQueue->busy)) {
             i = ListPop(&pQueue->busy);
-            aio4c_free(i->data);
+            FreeQueueItem((QueueItem**)&i->data);
             FreeNode(&i);
         }
 
