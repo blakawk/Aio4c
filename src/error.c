@@ -129,13 +129,13 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
                     errorCode, errorMessage);
             break;
         case AIO4C_THREAD_LOCK_ERROR_TYPE:
-            if (code->lock->owner != NULL) {
+            if (LockGetOwner(code->lock) != NULL) {
                 Log(level, "[E:%02d,T:%02d] %s:%d: %s lock %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                        (void*)code->lock, LockStateString[code->lock->state], code->lock->owner->name,
-                        (unsigned long)code->lock->owner->id, ThreadStateString[code->lock->owner->state], errorCode, errorMessage);
+                        (void*)code->lock, LockStateString[LockGetState(code->lock)], LockGetOwner(code->lock)->name,
+                        (unsigned long)LockGetOwner(code->lock)->id, ThreadStateString[LockGetOwner(code->lock)->state], errorCode, errorMessage);
             } else {
                 Log(level, "[E:%02d,T:%02d] %s:%d: %s lock %p[s:%s,o:none]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                        (void*)code->lock, LockStateString[code->lock->state], errorCode, errorMessage);
+                        (void*)code->lock, LockStateString[LockGetState(code->lock)], errorCode, errorMessage);
             }
             break;
         case AIO4C_THREAD_CONDITION_ERROR_TYPE:

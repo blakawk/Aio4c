@@ -36,6 +36,16 @@
 #include <winbase.h>
 #endif /* AIO4C_WIN32 */
 
+struct s_Lock {
+    LockState        state;
+    Thread*          owner;
+#ifndef AIO4C_WIN32
+    pthread_mutex_t  mutex;
+#else /* AIO4C_WIN32 */
+    CRITICAL_SECTION mutex;
+#endif /* AIO4C_WIN32 */
+};
+
 char* LockStateString[AIO4C_LOCK_STATE_MAX] = {
     "DESTROYED",
     "FREE",
@@ -140,6 +150,28 @@ Lock* _ReleaseLock(char* file, int line, Lock* lock) {
 #endif /* AIO4C_WIN32 */
 
     return lock;
+}
+
+Lock* LockSetOwner(Lock* lock, Thread* owner) {
+    lock->owner = owner;
+    return lock;
+}
+
+Thread* LockGetOwner(Lock* lock) {
+    return lock->owner;
+}
+
+Lock* LockSetState(Lock* lock, LockState state) {
+    lock->state = state;
+    return lock;
+}
+
+LockState LockGetState(Lock* lock) {
+    return lock->state;
+}
+
+void* LockGetMutex(Lock* lock) {
+    return &lock->mutex;
 }
 
 void FreeLock(Lock** lock) {

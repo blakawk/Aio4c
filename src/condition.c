@@ -120,8 +120,7 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
     condition->owner = current;
     condition->state = AIO4C_COND_STATE_WAITED;
 
-    lock->owner = NULL;
-    lock->state = AIO4C_COND_STATE_FREE;
+    LockSetState(LockSetOwner(lock, NULL), AIO4C_COND_STATE_FREE);
 
     if (current != NULL) {
         current->state = AIO4C_THREAD_STATE_IDLE;
@@ -130,7 +129,7 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
     dthread("%s:%d: %s WAIT CONDITION %p\n", file, line, name, (void*)condition);
 
 #ifndef AIO4C_WIN32
-    if ((code.error = pthread_cond_wait(&condition->condition, &lock->mutex)) != 0) {
+    if ((code.error = pthread_cond_wait(&condition->condition, LockGetMutex(lock))) != 0) {
         code.condition = condition;
         Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_WAIT_ERROR, &code);
         condition->owner = NULL;
@@ -142,7 +141,7 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
     }
 #else /* AIO4C_WIN32 */
 #ifdef AIO4C_HAVE_CONDITION
-    if (SleepConditionVariableCS(&condition->condition, &lock->mutex, INFINITE) == 0) {
+    if (SleepConditionVariableCS(&condition->condition, LockGetMutex(lock), INFINITE) == 0) {
         code.source = AIO4C_ERRNO_SOURCE_SYS;
         code.condition = condition;
         Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_WAIT_ERROR, &code);
@@ -183,7 +182,7 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
             break;
     }
 
-    LeaveCriticalSection(&lock->mutex);
+    LeaveCriticalSection(LockGetMutex(lock));
 
     dthread("[WAIT CONDITION %p] %s about to wait for event\n", (void*)condition, name);
     switch (SignalObjectAndWait(condition->mutex, condition->event, INFINITE, FALSE)) {
@@ -220,12 +219,11 @@ aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lo
         Raise(AIO4C_LOG_LEVEL_WARN, AIO4C_THREAD_CONDITION_ERROR_TYPE, AIO4C_THREAD_CONDITION_WAIT_ERROR, &code);
     }
 
-    EnterCriticalSection(&lock->mutex);
+    EnterCriticalSection(LockGetMutex(lock));
 #endif /* AIO4C_HAVE_CONDITION */
 #endif /* AIO4C_WIN32 */
 
-    lock->owner = current;
-    lock->state = AIO4C_LOCK_STATE_LOCKED;
+    LockSetState(LockSetOwner(lock, current), AIO4C_LOCK_STATE_LOCKED);
 
     condition->owner = NULL;
     condition->state = AIO4C_COND_STATE_FREE;
