@@ -239,8 +239,8 @@ env.Append(LINKFLAGS = '-g')
 env.Append(LINKFLAGS = '-Wl,-no-undefined')
 
 if not GetOption('DEBUG'):
-    env.Append(CCFLAGS = '-march=native -mtune=native -O2')
-    env.Append(LINKFLAGS = '-march=native -mtune=native -O2')
+    env.Append(CCFLAGS = '-O2')
+    env.Append(LINKFLAGS = '-O2')
 else:
     env.Append(CPPDEFINES = {'AIO4C_DEBUG': 1})
 
@@ -387,9 +387,6 @@ envj.JniInterface(target = File('include/aio4c/jni/log.h'), source = 'build/java
 envj.JniInterface(target = File('include/aio4c/jni/server.h'), source = 'build/java/com/aio4c/Server.class')
 
 libfiles = Glob('build/src/*.c') + Glob('build/src/jni/*.c')
-
-if not GetOption('STATISTICS'):
-    libfiles.remove(File('build/src/stats.c'))
 
 shlib = envlib.SharedLibrary('build/aio4c', libfiles)
 envlib.Clean(shlib, 'build')

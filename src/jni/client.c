@@ -43,12 +43,14 @@ static void _jniClientEventHandler(Event event, Connection* connection, ClientHa
     JavaClient* client = (JavaClient*)_client;
     jclass cConnection = NULL;
     jclass cFactory = NULL;
+    void* pJvm = NULL;
     JNIEnv* jvm = NULL;
     jobject jFactory = client->jFactory;
     jobject jBuffer = NULL;
     jmethodID jMethod = NULL;
 
-    (*client->jvm)->AttachCurrentThreadAsDaemon(client->jvm, (void**)&jvm, NULL);
+    (*client->jvm)->AttachCurrentThreadAsDaemon(client->jvm, pJvm, NULL);
+    jvm = (JNIEnv*)pJvm;
 
     CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, jFactory), cFactory);
 
@@ -166,17 +168,21 @@ JNIEXPORT void JNICALL Java_com_aio4c_Client_initialize(JNIEnv* jvm, jobject cli
 }
 
 JNIEXPORT jboolean JNICALL Java_com_aio4c_Client_start(JNIEnv* jvm, jobject client) {
+    void* pClient = NULL;
     JavaClient* cClient = NULL;
 
-    GetPointer(jvm, client, (void**)&cClient);
+    GetPointer(jvm, client, &pClient);
+    cClient = (JavaClient*)pClient;
 
     return (jboolean)ClientStart(cClient->client);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_Client_join(JNIEnv* jvm, jobject client) {
     JavaClient* cClient = NULL;
+    void* pClient = NULL;
 
-    GetPointer(jvm, client, (void**)&cClient);
+    GetPointer(jvm, client, &pClient);
+    cClient = (JavaClient*)pClient;
 
     ClientEnd(cClient->client);
 

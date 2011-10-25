@@ -51,13 +51,15 @@ static char* _logLevelMethodNames[AIO4C_LOG_LEVEL_MAX] = {
 };
 
 static void _JniLog(JavaLogger* logger, LogLevel level, char* message) {
+    void* pJvm = NULL;
     JNIEnv* jvm = NULL;
     jclass clazz = NULL;
     jstring jstr = NULL;
     jmethodID method = NULL;
 
     if (logger != NULL) {
-        (*logger->jvm)->AttachCurrentThreadAsDaemon(logger->jvm, (void**)&jvm, NULL);
+        (*logger->jvm)->AttachCurrentThreadAsDaemon(logger->jvm, &pJvm, NULL);
+        jvm = (JNIEnv*)pJvm;
         CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, logger->ref), clazz);
         CheckJNICall(jvm, (*jvm)->NewStringUTF(jvm, message), jstr);
         CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, clazz, _logLevelMethodNames[level], "(Ljava/lang/String;)V"), method);

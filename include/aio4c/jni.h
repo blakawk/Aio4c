@@ -30,8 +30,8 @@
 #include <stdarg.h>
 
 #define CheckJNICall(jvm,call,result) \
-    _CheckJNICall(__FILE__, __LINE__, jvm, (void*)call, #call, (void**)&result)
-extern AIO4C_API void _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call, void** stock);
+    result = _CheckJNICall(__FILE__, __LINE__, jvm, (void*)call, #call)
+extern AIO4C_API void* _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call);
 
 extern AIO4C_API void RaiseJavaException(JNIEnv* jvm, char* name, char* signature, ...);
 

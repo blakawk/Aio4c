@@ -23,6 +23,8 @@
  */
 #include <aio4c/stats.h>
 
+#if AIO4C_ENABLE_STATS
+
 #include <aio4c/log.h>
 #include <aio4c/thread.h>
 #include <aio4c/types.h>
@@ -389,3 +391,4 @@ void StatsEnd(void) {
     }
 }
 
+#endif /* AIO4C_ENABLE_STATS */

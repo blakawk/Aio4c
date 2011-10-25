@@ -154,11 +154,13 @@ void FreeEventQueue(EventQueue** queue) {
     EventQueue* pQueue = NULL;
     int i = 0;
     Node* j = NULL;
+    EventHandler* handler = NULL;
 
     if (queue != NULL && ((pQueue = *queue) != NULL)) {
         for (i=0; i<AIO4C_EVENTS_COUNT; i++) {
             while ((j = ListPop(&pQueue->handlers[i])) != NULL) {
-                FreeEventHandler((EventHandler**)&j->data);
+                handler = (EventHandler*)j->data;
+                FreeEventHandler(&handler);
                 FreeNode(&j);
             }
         }

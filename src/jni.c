@@ -29,7 +29,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-void _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call, void** stock) {
+void* _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call) {
     if(result == NULL) {
         Log(AIO4C_LOG_LEVEL_FATAL, "%s:%d: JNI call %s returned NULL", file, line, call);
         if ((*jvm)->ExceptionCheck(jvm)) {
@@ -37,11 +37,9 @@ void _CheckJNICall(char* file, int line, JNIEnv* jvm, void* result, char* call, 
             (*jvm)->ExceptionClear(jvm);
         }
         (*jvm)->FatalError(jvm, "exception occured on JNI call, check logs for more information");
-    } else {
-        if (stock != NULL) {
-            *stock = result;
-        }
     }
+
+    return result;
 }
 
 void RaiseJavaException(JNIEnv* jvm, char* name, char* signature, ...) {

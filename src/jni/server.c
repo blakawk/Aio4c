@@ -42,10 +42,12 @@ static void _jniServerEventHandler(Event event, Connection* connection, JavaServ
 
     jclass cConnection = NULL;
     JNIEnv* jvm = NULL;
+    void* pJvm = NULL;
     jobject jBuffer = NULL;
     jmethodID jMethod = NULL;
 
-    (*server->jvm)->AttachCurrentThreadAsDaemon(server->jvm, (void**)&jvm, NULL);
+    (*server->jvm)->AttachCurrentThreadAsDaemon(server->jvm, &pJvm, NULL);
+    jvm = (JNIEnv*)pJvm;
 
     CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, server->jConnection), cConnection);
 
@@ -90,6 +92,7 @@ static JavaServer* _jniServerFactory(Connection* connection, JavaServer* server)
     ProbeTimeStart(AIO4C_TIME_PROBE_JNI_OVERHEAD);
 
     JNIEnv* jvm = NULL;
+    void* pJvm = NULL;
     jmethodID jMethod = NULL;
     jobject jFactory = server->jFactory;
     jclass cFactory = NULL;
@@ -100,7 +103,8 @@ static JavaServer* _jniServerFactory(Connection* connection, JavaServer* server)
 
     memcpy(_server, server, sizeof(JavaServer));
 
-    (*_server->jvm)->AttachCurrentThreadAsDaemon(server->jvm, (void**)&jvm, NULL);
+    (*_server->jvm)->AttachCurrentThreadAsDaemon(server->jvm, &pJvm, NULL);
+    jvm = (JNIEnv*)pJvm;
 
     CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, jFactory), cFactory);
 
@@ -175,24 +179,30 @@ JNIEXPORT void JNICALL Java_com_aio4c_Server_initialize(JNIEnv* jvm, jobject ser
 
 JNIEXPORT jboolean JNICALL Java_com_aio4c_Server_start(JNIEnv* jvm, jobject server) {
     JavaServer* cServer = NULL;
+    void* pServer = NULL;
 
-    GetPointer(jvm, server, (void**)&cServer);
+    GetPointer(jvm, server, &pServer);
+    cServer = (JavaServer*)pServer;
 
     return (jboolean)ServerStart(cServer->server);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_Server_stop(JNIEnv* jvm, jobject server) {
     JavaServer* cServer = NULL;
+    void* pServer = NULL;
 
-    GetPointer(jvm, server, (void**)&cServer);
+    GetPointer(jvm, server, &pServer);
+    cServer = (JavaServer*)pServer;
 
     ServerStop(cServer->server);
 }
 
 JNIEXPORT void JNICALL Java_com_aio4c_Server_join(JNIEnv* jvm, jobject server) {
     JavaServer* cServer = NULL;
+    void* pServer = NULL;
 
-    GetPointer(jvm, server, (void**)&cServer);
+    GetPointer(jvm, server, &pServer);
+    cServer = (JavaServer*)pServer;
 
     ServerJoin(cServer->server);
 

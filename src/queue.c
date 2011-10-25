@@ -323,6 +323,7 @@ void FreeQueueItem(QueueItem** item) {
 void FreeQueue(Queue** queue) {
     Queue* pQueue = NULL;
     Node* i = NULL;
+    QueueItem* item = NULL;
 
     if (queue != NULL && (pQueue = *queue) != NULL) {
         TakeLock(pQueue->lock);
@@ -331,13 +332,15 @@ void FreeQueue(Queue** queue) {
 
         while (!ListEmpty(&pQueue->free)) {
             i = ListPop(&pQueue->free);
-            FreeQueueItem((QueueItem**)&i->data);
+            item = (QueueItem*)i->data;
+            FreeQueueItem(&item);
             FreeNode(&i);
         }
 
         while (!ListEmpty(&pQueue->busy)) {
             i = ListPop(&pQueue->busy);
-            FreeQueueItem((QueueItem**)&i->data);
+            item = (QueueItem*)i->data;
+            FreeQueueItem(&item);
             FreeNode(&i);
         }
 

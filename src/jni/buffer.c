@@ -35,11 +35,11 @@
     RaiseJavaException(jvm,"com/aio4c/buffer/BufferOverflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)
 
 static Buffer* _GetBuffer(JNIEnv* jvm, jobject buffer) {
-    Buffer* _buffer = NULL;
+    void* _buffer = NULL;
 
-    GetPointer(jvm, buffer, (void**)&_buffer);
+    GetPointer(jvm, buffer, &_buffer);
 
-    return _buffer;
+    return (Buffer*)_buffer;
 }
 
 JNIEXPORT jobject JNICALL Java_com_aio4c_buffer_Buffer_allocate(JNIEnv* jvm, jclass clazz, jint capacity) {
