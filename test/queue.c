@@ -159,13 +159,14 @@ __attribute__((noreturn)) static void usage(char* argv0) {
     fprintf(stderr, "where:\n");
     fprintf(stderr, "\t-Qn count: the number of loops to run (default: 1000)\n");
     fprintf(stderr, "\t-Qd      : enable debug printing on stderr (default: disabled)\n");
+    fprintf(stderr, "\t-Qp      : enable test progress display (default: disabled)\n");
     Aio4cUsage();
     exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char* argv[]) {
     QueueItem* item = NULL;
-    int count = 0, j = 0, action = 0;
+    int count = 0, j = 0, action = 0, progress = 0;
     void (*actions[4])(Queue*,int*) = {
         action1,
         action2,
@@ -189,6 +190,9 @@ int main(int argc, char* argv[]) {
                                         COUNT = 1000;
                                     }
                                 }
+                                break;
+                            case 'p':
+                                progress = 1;
                                 break;
                             case 'v':
                                 debug = 1;
@@ -222,20 +226,22 @@ int main(int argc, char* argv[]) {
         actions[action](queue,&count);
         dprintf("after action %d: %d\n", action + 1, count);
 
-        percent = (double)(j * 100.0) / ((double)(COUNT));
+        if (progress) {
+            percent = (double)(j * 100.0) / ((double)(COUNT));
 
-        printf("\r[");
-        for (i = 1; i <= 100; i++) {
-            if (percent >= i) {
-                printf("=");
-            } else if (percent >= i - 1 && percent <= i) {
-                printf(">");
-            } else {
-                printf(".");
+            printf("\r[");
+            for (i = 1; i <= 100; i++) {
+                if (percent >= i) {
+                    printf("=");
+                } else if (percent >= i - 1 && percent <= i) {
+                    printf(">");
+                } else {
+                    printf(".");
+                }
             }
+            printf("] %06.2lf %%", percent);
+            fflush(stdout);
         }
-        printf("] %06.2lf %%", percent);
-        fflush(stdout);
     }
 
     while (Dequeue(queue, item, false)) {
@@ -244,10 +250,12 @@ int main(int argc, char* argv[]) {
         count--;
     }
 
-    if (count == 0) {
-        printf(" OK\n");
-    } else {
-        printf(" KO %d\n", count);
+    if (progress) {
+        if (count == 0) {
+            printf(" OK\n");
+        } else {
+            printf(" KO %d\n", count);
+        }
     }
 
     FreeQueueItem(&item);

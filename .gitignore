@@ -20,3 +20,4 @@ libtool
 *.tar.gz
 config.status
 include/config.h
+test/test-*

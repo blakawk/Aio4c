@@ -110,4 +110,5 @@ int main(int argc, char* argv[]) {
     }
     assert(BufferHasRemaining(a) == false);
     Aio4cEnd();
+    return 0;
 }

@@ -47,7 +47,7 @@
 
 #define BUFSZ 4096
 
-static int COUNT = 1000;
+static int COUNT = 100;
 static Lock* lock = NULL;
 static Selector* selector[2] = {NULL,NULL};
 static int fds[2][3] = {{-1,-1,-1},{-1,-1,-1}};
@@ -320,12 +320,6 @@ int main(int argc, char* argv[]) {
 #endif
 
     Aio4cEnd();
-
-    if (!ko) {
-        printf("OK\n");
-    } else {
-        printf("FAIL\n");
-    }
 
     return ko;
 }
