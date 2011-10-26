@@ -19590,8 +19590,8 @@ done
 
 ac_config_headers="$ac_config_headers include/config.h"
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for -lws2_32" >&5
-$as_echo_n "checking for -lws2_32... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for ws2_32" >&5
+$as_echo_n "checking for ws2_32... " >&6; }
 old_LIBS="$LIBS"
 LIBS="-lws2_32 $LIBS"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -19617,16 +19617,45 @@ $as_echo "no" >&6; }
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for kernel32" >&5
+$as_echo_n "checking for kernel32... " >&6; }
+old_LIBS="$LIBS"
+LIBS="-lkernel32 $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+$as_echo "#define HAVE_LIBKERNEL32 1" >>confdefs.h
+
+else
+  LIBS="$old_LIBS"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for WSAPoll in ws2_32" >&5
 $as_echo_n "checking for WSAPoll in ws2_32... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
-#ifdef HAVE_WINSOCK2_H
-                #include <winsock2.h>
-                #endif
-                #ifdef HAVE_WINDOWS_H
-                #include <windows.h>
-                #endif
+
+        #ifdef HAVE_WINSOCK2_H
+        # include <winsock2.h>
+        #endif
+        #ifdef HAVE_WINDOWS_H
+        # include <windows.h>
+        #endif
+
 int
 main ()
 {
@@ -19639,6 +19668,34 @@ if ac_fn_c_try_link "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 $as_echo "#define HAVE_WSAPOLL 1" >>confdefs.h
+
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for InitializeConditionVariable in kernel32" >&5
+$as_echo_n "checking for InitializeConditionVariable in kernel32... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #ifdef HAVE_WINDOWS_H
+        # include <windows.h>
+        #endif
+
+int
+main ()
+{
+InitializeConditionVariable(0);
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+$as_echo "#define HAVE_INITIALIZECONDITIONVARIABLE 1" >>confdefs.h
 
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
