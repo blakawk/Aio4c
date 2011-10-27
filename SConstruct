@@ -98,6 +98,11 @@ AddOption('--disable-documentation-generation',
           default = True,
           help = 'Disable documentation generation')
 
+AddOption('--no-cpp-define',
+          dest = 'NO_CPP_DEFINE',
+          action = 'store_true',
+          default = False,
+          help = 'Disable CPP defines from command line')
 
 env = Environment(CPPFLAGS = '-Werror -Wextra -Wall -pedantic -std=c99 -D_POSIX_C_SOURCE=199506L',
                   ENV = {'PATH': os.environ['PATH']})
@@ -302,9 +307,6 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
     elif not GetOption('clean') and not GetOption('help') and not GetOption('IGNORE_JAVA_HOME'):
         env.Append(ENV = {'PATH': "%s/bin:%s" % (os.path.normpath(os.environ['JAVA_HOME']), os.environ['PATH'])})
 
-    if int(winver, 16) < 0x0600:
-        w32env.Append(CPPDEFINES = {"FD_SETSIZE": 4096})
-
     w32env.Append(CPPDEFINES = {"AIO4C_WIN32": 1, "WINVER": winver, "_WIN32_WINNT": winver})
     w32env.Append(LIBS = ['ws2_32'])
 
@@ -313,6 +315,10 @@ if sys.platform == 'win32' or (GetOption('TARGET') and 'mingw' in GetOption('TAR
     envj = w32env.Clone()
     envlib = w32env.Clone()
     envuser = w32env.Clone()
+
+    if GetOption('NO_CPP_DEFINE'):
+        del envlib['CPPDEFINES']
+        del envuser['CPPDEFINES']
 
     envlib.Append(CPPDEFINES = {"AIO4C_API": "'__declspec(dllexport)'"})
     envuser.Append(CPPDEFINES = {"AIO4C_API": "'__declspec(dllimport)'"})
@@ -332,6 +338,10 @@ else:
     envj = env.Clone()
     envlib = env.Clone()
     envuser = env.Clone()
+
+    if GetOption('NO_CPP_DEFINE'):
+        del envlib['CPPDEFINES']
+        del envuser['CPPDEFINES']
 
 def JniInterfaceBuilder(target, source, env):
     cls = os.path.splitext(str(source[0]))[0].replace('build/java/','').replace('/','.')

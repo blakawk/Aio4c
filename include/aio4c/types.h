@@ -38,6 +38,12 @@
 
 #else /* AIO4C_WIN32 */
 
+#ifdef _WINSOCK2API_
+# error "have to redefine FD_SETSIZE before winsock2 inclusion"
+#else /* _WINSOCK2API_ */
+# define FD_SETSIZE 4096
+#endif /* _WINSOCK2API_ */
+
 #include <winsock2.h>
 #include <windows.h>
 
