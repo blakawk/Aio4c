@@ -37,29 +37,28 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-subdir = include
-DIST_COMMON = $(nobase_include_HEADERS) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/config.h.in
+subdir = java
+DIST_COMMON = $(dist_noinst_JAVA) $(srcdir)/Makefile.am \
+	$(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
-CONFIG_HEADER = config.h
+CONFIG_HEADER = $(top_builddir)/include/config.h
 CONFIG_CLEAN_FILES =
 SOURCES =
 DIST_SOURCES =
+CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):$(srcdir)/$(JAVAROOT):$$CLASSPATH
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-am__installdirs = "$(DESTDIR)$(includedir)"
-nobase_includeHEADERS_INSTALL = $(install_sh_DATA)
-HEADERS = $(nobase_include_HEADERS)
-ETAGS = etags
-CTAGS = ctags
+am__installdirs = "$(DESTDIR)$(jardir)"
+jarDATA_INSTALL = $(INSTALL_DATA)
+DATA = $(jar_DATA)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMDEP_FALSE = @AMDEP_FALSE@
@@ -174,33 +173,28 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-nobase_include_HEADERS = \
-	aio4c.h \
-	aio4c/error.h \
-	aio4c/client.h \
-	aio4c/reader.h \
-	aio4c/buffer.h \
-	aio4c/writer.h \
-	aio4c/thread.h \
-	aio4c/worker.h \
-	aio4c/types.h \
-	aio4c/stats.h \
-	aio4c/connection.h \
-	aio4c/server.h \
-	aio4c/acceptor.h \
-	aio4c/lock.h \
-	aio4c/queue.h \
-	aio4c/alloc.h \
-	aio4c/list.h \
-	aio4c/event.h \
-	aio4c/condition.h \
-	aio4c/address.h \
-	aio4c/log.h \
-	aio4c/jni.h \
-	aio4c/selector.h
+JAVAROOT = @builddir@
+dist_noinst_JAVA = \
+	com/aio4c/Connection.java \
+	com/aio4c/Server.java \
+	com/aio4c/ConnectionFactory.java \
+	com/aio4c/ServerConfig.java \
+	com/aio4c/log/DefaultLogger.java \
+	com/aio4c/log/Log.java \
+	com/aio4c/log/Logger.java \
+	com/aio4c/Client.java \
+	com/aio4c/AddressType.java \
+	com/aio4c/Aio4c.java \
+	com/aio4c/ClientConfig.java \
+	com/aio4c/buffer/Buffer.java \
+	com/aio4c/buffer/BufferUnderflowException.java \
+	com/aio4c/buffer/BufferException.java \
+	com/aio4c/buffer/BufferOverflowException.java
 
-all: config.h
-	$(MAKE) $(AM_MAKEFLAGS) all-am
+jardir = $(datadir)/java
+jar_DATA = aio4c.jar
+CLEANFILES = aio4c.jar @builddir@/com_aio4c_*.h jni.stamp
+all: all-am
 
 .SUFFIXES:
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
@@ -212,9 +206,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  include/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  java/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign  include/Makefile
+	  $(AUTOMAKE) --foreign  java/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -233,23 +227,6 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 
-config.h: stamp-h1
-	@if test ! -f $@; then \
-	  rm -f stamp-h1; \
-	  $(MAKE) stamp-h1; \
-	else :; fi
-
-stamp-h1: $(srcdir)/config.h.in $(top_builddir)/config.status
-	@rm -f stamp-h1
-	cd $(top_builddir) && $(SHELL) ./config.status include/config.h
-$(srcdir)/config.h.in:  $(am__configure_deps) 
-	cd $(top_srcdir) && $(AUTOHEADER)
-	rm -f stamp-h1
-	touch $@
-
-distclean-hdr:
-	-rm -f config.h stamp-h1
-
 mostlyclean-libtool:
 	-rm -f *.lo
 
@@ -259,76 +236,43 @@ clean-libtool:
 distclean-libtool:
 	-rm -f libtool
 uninstall-info-am:
-install-nobase_includeHEADERS: $(nobase_include_HEADERS)
+
+classdist_noinst.stamp: $(dist_noinst_JAVA)
+	@if test -n "$?"; then \
+	  echo '$(CLASSPATH_ENV) $(JAVAC) -d $(JAVAROOT) $(AM_JAVACFLAGS) $(JAVACFLAGS) $?' ; \
+	  $(CLASSPATH_ENV) $(JAVAC) -d $(JAVAROOT) \
+	    $(AM_JAVACFLAGS) $(JAVACFLAGS) $?; \
+	else :; fi
+	echo timestamp > classdist_noinst.stamp
+
+clean-dist_noinstJAVA:
+	-rm -f *.class classdist_noinst.stamp
+install-jarDATA: $(jar_DATA)
 	@$(NORMAL_INSTALL)
-	test -z "$(includedir)" || $(mkdir_p) "$(DESTDIR)$(includedir)"
-	@$(am__vpath_adj_setup) \
-	list='$(nobase_include_HEADERS)'; for p in $$list; do \
+	test -z "$(jardir)" || $(mkdir_p) "$(DESTDIR)$(jardir)"
+	@list='$(jar_DATA)'; for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  $(am__vpath_adj) \
-	  echo " $(nobase_includeHEADERS_INSTALL) '$$d$$p' '$(DESTDIR)$(includedir)/$$f'"; \
-	  $(nobase_includeHEADERS_INSTALL) "$$d$$p" "$(DESTDIR)$(includedir)/$$f"; \
+	  f=$(am__strip_dir) \
+	  echo " $(jarDATA_INSTALL) '$$d$$p' '$(DESTDIR)$(jardir)/$$f'"; \
+	  $(jarDATA_INSTALL) "$$d$$p" "$(DESTDIR)$(jardir)/$$f"; \
 	done
 
-uninstall-nobase_includeHEADERS:
+uninstall-jarDATA:
 	@$(NORMAL_UNINSTALL)
-	@$(am__vpath_adj_setup) \
-	list='$(nobase_include_HEADERS)'; for p in $$list; do \
-	  $(am__vpath_adj) \
-	  echo " rm -f '$(DESTDIR)$(includedir)/$$f'"; \
-	  rm -f "$(DESTDIR)$(includedir)/$$f"; \
+	@list='$(jar_DATA)'; for p in $$list; do \
+	  f=$(am__strip_dir) \
+	  echo " rm -f '$(DESTDIR)$(jardir)/$$f'"; \
+	  rm -f "$(DESTDIR)$(jardir)/$$f"; \
 	done
-
-ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
-	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
-	unique=`for i in $$list; do \
-	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
-	  done | \
-	  $(AWK) '    { files[$$0] = 1; } \
-	       END { for (i in files) print i; }'`; \
-	mkid -fID $$unique
 tags: TAGS
+TAGS:
 
-TAGS:  $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) \
-		$(TAGS_FILES) $(LISP)
-	tags=; \
-	here=`pwd`; \
-	list='$(SOURCES) $(HEADERS) config.h.in $(LISP) $(TAGS_FILES)'; \
-	unique=`for i in $$list; do \
-	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
-	  done | \
-	  $(AWK) '    { files[$$0] = 1; } \
-	       END { for (i in files) print i; }'`; \
-	if test -z "$(ETAGS_ARGS)$$tags$$unique"; then :; else \
-	  test -n "$$unique" || unique=$$empty_fix; \
-	  $(ETAGS) $(ETAGSFLAGS) $(AM_ETAGSFLAGS) $(ETAGS_ARGS) \
-	    $$tags $$unique; \
-	fi
 ctags: CTAGS
-CTAGS:  $(HEADERS) $(SOURCES) config.h.in $(TAGS_DEPENDENCIES) \
-		$(TAGS_FILES) $(LISP)
-	tags=; \
-	here=`pwd`; \
-	list='$(SOURCES) $(HEADERS) config.h.in $(LISP) $(TAGS_FILES)'; \
-	unique=`for i in $$list; do \
-	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
-	  done | \
-	  $(AWK) '    { files[$$0] = 1; } \
-	       END { for (i in files) print i; }'`; \
-	test -z "$(CTAGS_ARGS)$$tags$$unique" \
-	  || $(CTAGS) $(CTAGSFLAGS) $(AM_CTAGSFLAGS) $(CTAGS_ARGS) \
-	     $$tags $$unique
+CTAGS:
 
-GTAGS:
-	here=`$(am__cd) $(top_builddir) && pwd` \
-	  && cd $(top_srcdir) \
-	  && gtags -i $(GTAGS_ARGS) $$here
-
-distclean-tags:
-	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
 
 distdir: $(DISTFILES)
-	$(mkdir_p) $(distdir)/aio4c
+	$(mkdir_p) $(distdir)/com/aio4c $(distdir)/com/aio4c/buffer $(distdir)/com/aio4c/log
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \
@@ -357,9 +301,9 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(HEADERS) config.h
+all-am: Makefile classdist_noinst.stamp $(DATA) all-local
 installdirs:
-	for dir in "$(DESTDIR)$(includedir)"; do \
+	for dir in "$(DESTDIR)$(jardir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
 install: install-am
@@ -379,6 +323,7 @@ install-strip:
 mostlyclean-generic:
 
 clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
@@ -388,12 +333,12 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libtool mostlyclean-am
+clean-am: clean-dist_noinstJAVA clean-generic clean-libtool \
+	clean-local mostlyclean-am
 
 distclean: distclean-am
 	-rm -f Makefile
-distclean-am: clean-am distclean-generic distclean-hdr \
-	distclean-libtool distclean-tags
+distclean-am: clean-am distclean-generic distclean-libtool
 
 dvi: dvi-am
 
@@ -405,7 +350,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-nobase_includeHEADERS
+install-data-am: install-jarDATA
 
 install-exec-am:
 
@@ -431,20 +376,40 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-info-am uninstall-nobase_includeHEADERS
+uninstall-am: uninstall-info-am uninstall-jarDATA
 
-.PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libtool ctags distclean distclean-generic distclean-hdr \
-	distclean-libtool distclean-tags distdir dvi dvi-am html \
-	html-am info info-am install install-am install-data \
-	install-data-am install-exec install-exec-am install-info \
-	install-info-am install-man install-nobase_includeHEADERS \
+.PHONY: all all-am all-local check check-am clean \
+	clean-dist_noinstJAVA clean-generic clean-libtool clean-local \
+	distclean distclean-generic distclean-libtool distdir dvi \
+	dvi-am html html-am info info-am install install-am \
+	install-data install-data-am install-exec install-exec-am \
+	install-info install-info-am install-jarDATA install-man \
 	install-strip installcheck installcheck-am installdirs \
 	maintainer-clean maintainer-clean-generic mostlyclean \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags uninstall uninstall-am uninstall-info-am \
-	uninstall-nobase_includeHEADERS
+	uninstall uninstall-am uninstall-info-am uninstall-jarDATA
 
+
+all-local: aio4c.jar jni.stamp
+
+aio4c.jar: $(dist_noinst_JAVA) classdist_noinst.stamp
+	@list="$$(find @builddir@ -name '*.class' -type f)"; \
+	echo $(JAR) cf $(JARFLAGS) $@ $${list}; \
+	$(JAR) cf $(JARFLAGS) $@ $${list} || exit 1;
+
+jni.stamp: $(dist_noinst_JAVA)
+	@list="$$(echo $(dist_noinst_JAVA) | \
+		sed -e 's|\.java||g' -e 's|/|.|g')"; \
+	for class in $$list; do \
+		echo "$(JAVAH) -jni -d @builddir@ \
+			$(JAVAHFLAGS) $$class"; \
+		$(JAVAH) -jni -d @builddir@ \
+			$(JAVAHFLAGS) $$class || exit $$?; \
+	done
+	@echo timestamp > $@
+
+clean-local:
+	-find @builddir@ -name '*.class' -exec rm -f {} \;
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

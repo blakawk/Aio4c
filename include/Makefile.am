@@ -21,10 +21,4 @@ nobase_include_HEADERS = \
 	aio4c/address.h \
 	aio4c/log.h \
 	aio4c/jni.h \
-	aio4c/selector.h \
-	aio4c/jni/aio4c.h \
-	aio4c/jni/buffer.h \
-	aio4c/jni/client.h \
-	aio4c/jni/connection.h \
-	aio4c/jni/log.h \
-	aio4c/jni/server.h
+	aio4c/selector.h

@@ -21,7 +21,7 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include <aio4c/jni/buffer.h>
+#include "com_aio4c_buffer_Buffer.h"
 
 #include <aio4c/alloc.h>
 #include <aio4c/buffer.h>

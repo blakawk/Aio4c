@@ -17,7 +17,7 @@ AC_ARG_WITH([windows-vista],
     [AC_DEFINE([WINVER],[0x0600],[Defines which Windows version to target build]) AC_DEFINE([_WIN32_WINNT],[0x0600],[Defines which Windows to target build])],
     [AC_DEFINE([WINVER],[0x0501],[Defines which Windows version to target build]) AC_DEFINE([_WIN32_WINNT],[0x0501],[Defines which Windows to target build])])
 AC_HEADER_STDBOOL
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h jni.h])
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_CHECK_SIZEOF([void*], [0])
@@ -26,6 +26,16 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_LIB([pthread],[pthread_create])
 AC_CHECK_FUNCS([gettimeofday memchr memset select socket strcasecmp strerror strtol strtoul pipe poll])
+AC_CHECK_PROG([JAVAH], [javah], [javah], [no])
+AC_CHECK_PROG([JAVAC], [javac], [javac], [no])
+AC_CHECK_PROG([JAR], [jar], [jar], [no])
+have_java=no
+if test "x$JAVAH" = xjavah -a "x$JAVAC" = xjavac -o "x$JAR" = xjar; then have_java=yes; fi
+AM_CONDITIONAL([HAVE_JAVA], [test "x$have_java" = xyes])
+AC_ARG_VAR([JAVAH], [Path to the javah program to generate JNI interface header files])
+AC_ARG_VAR([JAVAC], [Path to the java compiler])
+AC_ARG_VAR([JAR], [Path to the java archiver])
+AC_ARG_VAR([JAVACFLAGS], [Flags to pass to the java compiler])
 AC_CONFIG_HEADERS([include/config.h])
 AC_MSG_CHECKING([for ws2_32])
 AS_VAR_SET([old_LIBS],["$LIBS"])
@@ -60,8 +70,10 @@ AC_LINK_IFELSE([AC_LANG_PROGRAM([[
     [AC_MSG_RESULT([no])])
 AC_CONFIG_FILES([
     Makefile
+    java/Makefile
     include/Makefile
     src/Makefile
+    src/jni/Makefile
     test/Makefile
 ])
 AC_OUTPUT

@@ -21,7 +21,7 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include <aio4c/jni/client.h>
+#include "com_aio4c_Client.h"
 
 #include <aio4c/alloc.h>
 #include <aio4c/connection.h>

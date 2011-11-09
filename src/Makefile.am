@@ -1,3 +1,4 @@
+SUBDIRS =
 lib_LTLIBRARIES = libaio4c.la
 AM_CPPFLAGS = \
 	-Werror \
@@ -5,7 +6,7 @@ AM_CPPFLAGS = \
 	-Wall \
 	-pedantic \
 	-std=c99 \
-	-Iinclude \
+	-I@top_srcdir@/include \
 	-D_POSIX_C_SOURCE=199506L
 AM_LDFLAGS = \
 	-no-undefined
@@ -33,10 +34,11 @@ libaio4c_la_SOURCES = \
 	thread.c \
 	aio4c.c \
 	event.c \
-	selector.c \
-	jni/buffer.c \
-	jni/connection.c \
-	jni/client.c \
-	jni/log.c \
-	jni/server.c \
-	jni/aio4c.c
+	selector.c
+
+if HAVE_JAVA
+SUBDIRS += jni
+libaio4c_la_LIBADD = jni/libaio4cjni.la
+endif
+
+SUBDIRS += .

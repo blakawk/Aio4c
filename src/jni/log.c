@@ -21,7 +21,7 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include <aio4c/jni/log.h>
+#include "com_aio4c_log_Log.h"
 
 #include <aio4c/jni.h>
 #include <aio4c/log.h>

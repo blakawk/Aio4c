@@ -21,7 +21,7 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include <aio4c/jni/connection.h>
+#include "com_aio4c_Connection.h"
 
 #include <aio4c/connection.h>
 #include <aio4c/jni.h>
