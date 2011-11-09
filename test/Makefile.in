@@ -50,15 +50,15 @@ CONFIG_CLEAN_FILES =
 am_test_buffer_OBJECTS = buffer.$(OBJEXT)
 test_buffer_OBJECTS = $(am_test_buffer_OBJECTS)
 test_buffer_LDADD = $(LDADD)
-test_buffer_DEPENDENCIES = ../src/libaio4c.la
+test_buffer_DEPENDENCIES = @top_builddir@/src/libaio4c.la
 am_test_queue_OBJECTS = queue.$(OBJEXT)
 test_queue_OBJECTS = $(am_test_queue_OBJECTS)
 test_queue_LDADD = $(LDADD)
-test_queue_DEPENDENCIES = ../src/libaio4c.la
+test_queue_DEPENDENCIES = @top_builddir@/src/libaio4c.la
 am_test_selector_OBJECTS = selector.$(OBJEXT)
 test_selector_OBJECTS = $(am_test_selector_OBJECTS)
 test_selector_LDADD = $(LDADD)
-test_selector_DEPENDENCIES = ../src/libaio4c.la
+test_selector_DEPENDENCIES = @top_builddir@/src/libaio4c.la
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -191,7 +191,16 @@ target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
 TESTS = $(check_PROGRAMS)
-LDADD = ../src/libaio4c.la
+AM_CPPFLAGS = \
+	-Werror \
+	-Wextra \
+	-Wall \
+	-pedantic \
+	-std=c99 \
+	-I@top_srcdir@/include \
+	-D_POSIX_C_SOURCE=199506L
+
+LDADD = @top_builddir@/src/libaio4c.la
 test_buffer_SOURCES = buffer.c
 test_queue_SOURCES = queue.c
 test_selector_SOURCES = selector.c
