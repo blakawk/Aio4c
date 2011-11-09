@@ -21,12 +21,13 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include "com_aio4c_Aio4c.h"
 
 #include <aio4c.h>
 #include <aio4c/alloc.h>
 #include <aio4c/jni.h>
 #include <aio4c/log.h>
+
+#include "com_aio4c_Aio4c.h"
 
 #include <string.h>
 

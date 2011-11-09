@@ -21,9 +21,6 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h str
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_CHECK_SIZEOF([void*], [0])
-AC_FUNC_FORK
-AC_FUNC_MALLOC
-AC_FUNC_REALLOC
 AC_CHECK_LIB([pthread],[pthread_create])
 AC_CHECK_FUNCS([gettimeofday memchr memset select socket strcasecmp strerror strtol strtoul pipe poll])
 AC_CHECK_PROG([JAVAH], [javah], [javah], [no])
@@ -73,7 +70,6 @@ AC_CONFIG_FILES([
     java/Makefile
     include/Makefile
     src/Makefile
-    src/jni/Makefile
     test/Makefile
 ])
 AC_OUTPUT

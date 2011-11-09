@@ -21,10 +21,10 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include "com_aio4c_log_Log.h"
-
 #include <aio4c/jni.h>
 #include <aio4c/log.h>
+
+#include "com_aio4c_log_Log.h"
 
 JNIEXPORT void JNICALL Java_com_aio4c_log_Log_log(JNIEnv* jvm, jclass log __attribute__((unused)), jobject level, jstring message) {
     int _level = 0;

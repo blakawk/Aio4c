@@ -37,8 +37,15 @@ libaio4c_la_SOURCES = \
 	selector.c
 
 if HAVE_JAVA
-SUBDIRS += jni
-libaio4c_la_LIBADD = jni/libaio4cjni.la
+libaio4c_la_SOURCES += \
+	jni/aio4c.c \
+	jni/buffer.c \
+	jni/client.c \
+	jni/connection.c \
+	jni/log.c \
+	jni/server.c
+AM_CPPFLAGS += \
+	-I@top_builddir@/java
 endif
 
 SUBDIRS += .

@@ -200,8 +200,7 @@ AM_CPPFLAGS = \
 	-D_POSIX_C_SOURCE=199506L
 
 AM_LDFLAGS = \
-	-no-undefined \
-	-static
+	-no-undefined
 
 libaio4cjni_la_SOURCES = \
 	aio4c.c \

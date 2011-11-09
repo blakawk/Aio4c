@@ -21,10 +21,10 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include "com_aio4c_Connection.h"
-
 #include <aio4c/connection.h>
 #include <aio4c/jni.h>
+
+#include "com_aio4c_Connection.h"
 
 JNIEXPORT void JNICALL Java_com_aio4c_Connection_enableWriteInterest(JNIEnv* jvm, jobject connection) {
     void* myConnection = NULL;

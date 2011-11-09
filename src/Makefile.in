@@ -37,7 +37,17 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@HAVE_JAVA_TRUE@am__append_1 = jni
+@HAVE_JAVA_TRUE@am__append_1 = \
+@HAVE_JAVA_TRUE@	jni/aio4c.c \
+@HAVE_JAVA_TRUE@	jni/buffer.c \
+@HAVE_JAVA_TRUE@	jni/client.c \
+@HAVE_JAVA_TRUE@	jni/connection.c \
+@HAVE_JAVA_TRUE@	jni/log.c \
+@HAVE_JAVA_TRUE@	jni/server.c
+
+@HAVE_JAVA_TRUE@am__append_2 = \
+@HAVE_JAVA_TRUE@	-I@top_builddir@/java
+
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -56,11 +66,21 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(libdir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
-@HAVE_JAVA_TRUE@libaio4c_la_DEPENDENCIES = jni/libaio4cjni.la
+libaio4c_la_LIBADD =
+am__libaio4c_la_SOURCES_DIST = worker.c alloc.c acceptor.c buffer.c \
+	condition.c reader.c queue.c error.c writer.c stats.c jni.c \
+	address.c list.c lock.c connection.c client.c log.c server.c \
+	thread.c aio4c.c event.c selector.c jni/aio4c.c jni/buffer.c \
+	jni/client.c jni/connection.c jni/log.c jni/server.c
+am__dirstamp = $(am__leading_dot)dirstamp
+@HAVE_JAVA_TRUE@am__objects_1 = jni/aio4c.lo jni/buffer.lo \
+@HAVE_JAVA_TRUE@	jni/client.lo jni/connection.lo jni/log.lo \
+@HAVE_JAVA_TRUE@	jni/server.lo
 am_libaio4c_la_OBJECTS = worker.lo alloc.lo acceptor.lo buffer.lo \
 	condition.lo reader.lo queue.lo error.lo writer.lo stats.lo \
 	jni.lo address.lo list.lo lock.lo connection.lo client.lo \
-	log.lo server.lo thread.lo aio4c.lo event.lo selector.lo
+	log.lo server.lo thread.lo aio4c.lo event.lo selector.lo \
+	$(am__objects_1)
 libaio4c_la_OBJECTS = $(am_libaio4c_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -74,7 +94,7 @@ CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
 SOURCES = $(libaio4c_la_SOURCES)
-DIST_SOURCES = $(libaio4c_la_SOURCES)
+DIST_SOURCES = $(am__libaio4c_la_SOURCES_DIST)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-exec-recursive install-info-recursive \
@@ -83,7 +103,7 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	uninstall-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = jni .
+DIST_SUBDIRS = $(SUBDIRS)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMDEP_FALSE = @AMDEP_FALSE@
@@ -198,48 +218,21 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-SUBDIRS = $(am__append_1) .
+SUBDIRS = .
 lib_LTLIBRARIES = libaio4c.la
-AM_CPPFLAGS = \
-	-Werror \
-	-Wextra \
-	-Wall \
-	-pedantic \
-	-std=c99 \
-	-I@top_srcdir@/include \
-	-D_POSIX_C_SOURCE=199506L
-
+AM_CPPFLAGS = -Werror -Wextra -Wall -pedantic -std=c99 \
+	-I@top_srcdir@/include -D_POSIX_C_SOURCE=199506L \
+	$(am__append_2)
 AM_LDFLAGS = \
 	-no-undefined
 
 libaio4c_la_LDFLAGS = \
 	-version-info 0:0:0
 
-libaio4c_la_SOURCES = \
-	worker.c \
-	alloc.c \
-	acceptor.c \
-	buffer.c \
-	condition.c \
-	reader.c \
-	queue.c \
-	error.c \
-	writer.c \
-	stats.c \
-	jni.c \
-	address.c \
-	list.c \
-	lock.c \
-	connection.c \
-	client.c \
-	log.c \
-	server.c \
-	thread.c \
-	aio4c.c \
-	event.c \
-	selector.c
-
-@HAVE_JAVA_TRUE@libaio4c_la_LIBADD = jni/libaio4cjni.la
+libaio4c_la_SOURCES = worker.c alloc.c acceptor.c buffer.c condition.c \
+	reader.c queue.c error.c writer.c stats.c jni.c address.c \
+	list.c lock.c connection.c client.c log.c server.c thread.c \
+	aio4c.c event.c selector.c $(am__append_1)
 all: all-recursive
 
 .SUFFIXES:
@@ -300,11 +293,35 @@ clean-libLTLIBRARIES:
 	  echo "rm -f \"$${dir}/so_locations\""; \
 	  rm -f "$${dir}/so_locations"; \
 	done
+jni/$(am__dirstamp):
+	@$(mkdir_p) jni
+	@: > jni/$(am__dirstamp)
+jni/$(DEPDIR)/$(am__dirstamp):
+	@$(mkdir_p) jni/$(DEPDIR)
+	@: > jni/$(DEPDIR)/$(am__dirstamp)
+jni/aio4c.lo: jni/$(am__dirstamp) jni/$(DEPDIR)/$(am__dirstamp)
+jni/buffer.lo: jni/$(am__dirstamp) jni/$(DEPDIR)/$(am__dirstamp)
+jni/client.lo: jni/$(am__dirstamp) jni/$(DEPDIR)/$(am__dirstamp)
+jni/connection.lo: jni/$(am__dirstamp) jni/$(DEPDIR)/$(am__dirstamp)
+jni/log.lo: jni/$(am__dirstamp) jni/$(DEPDIR)/$(am__dirstamp)
+jni/server.lo: jni/$(am__dirstamp) jni/$(DEPDIR)/$(am__dirstamp)
 libaio4c.la: $(libaio4c_la_OBJECTS) $(libaio4c_la_DEPENDENCIES) 
 	$(LINK) -rpath $(libdir) $(libaio4c_la_LDFLAGS) $(libaio4c_la_OBJECTS) $(libaio4c_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
+	-rm -f jni/aio4c.$(OBJEXT)
+	-rm -f jni/aio4c.lo
+	-rm -f jni/buffer.$(OBJEXT)
+	-rm -f jni/buffer.lo
+	-rm -f jni/client.$(OBJEXT)
+	-rm -f jni/client.lo
+	-rm -f jni/connection.$(OBJEXT)
+	-rm -f jni/connection.lo
+	-rm -f jni/log.$(OBJEXT)
+	-rm -f jni/log.lo
+	-rm -f jni/server.$(OBJEXT)
+	-rm -f jni/server.lo
 
 distclean-compile:
 	-rm -f *.tab.c
@@ -331,6 +348,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/thread.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/worker.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/writer.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@jni/$(DEPDIR)/aio4c.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@jni/$(DEPDIR)/buffer.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@jni/$(DEPDIR)/client.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@jni/$(DEPDIR)/connection.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@jni/$(DEPDIR)/log.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@jni/$(DEPDIR)/server.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`; \
@@ -361,6 +384,7 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
+	-rm -rf jni/.libs jni/_libs
 
 distclean-libtool:
 	-rm -f libtool
@@ -568,6 +592,8 @@ clean-generic:
 
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
+	-rm -f jni/$(DEPDIR)/$(am__dirstamp)
+	-rm -f jni/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -578,7 +604,7 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-recursive
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ./$(DEPDIR) jni/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-libtool distclean-tags
@@ -604,7 +630,7 @@ install-man:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-recursive
-	-rm -rf ./$(DEPDIR)
+	-rm -rf ./$(DEPDIR) jni/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
