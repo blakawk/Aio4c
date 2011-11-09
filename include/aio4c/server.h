@@ -54,7 +54,7 @@ typedef struct s_Server {
 
 extern AIO4C_API Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSize, int nbPipes, void (*handler)(Event,Connection*,void*), void* handlerArg, void* (*dataFactory)(Connection*,void*));
 
-extern AIO4C_API aio4c_bool_t ServerStart(Server* server);
+extern AIO4C_API bool ServerStart(Server* server);
 
 extern AIO4C_API void ServerJoin(Server* server);
 

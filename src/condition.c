@@ -112,7 +112,7 @@ Condition* NewCondition(void) {
     return condition;
 }
 
-aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
+bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     Thread* current = ThreadSelf();
     char* name = (current!=NULL)?current->name:NULL;

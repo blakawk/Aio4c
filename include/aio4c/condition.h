@@ -124,7 +124,7 @@ extern AIO4C_API Condition* NewCondition(void);
  *
  * @see NotifyCondition
  *
- * @fn aio4c_bool_t _WaitCondition(char*,int,Condition*,Lock*)
+ * @fn bool _WaitCondition(char*,int,Condition*,Lock*)
  * @copydoc WaitCondition(condition,lock)
  *
  * @param file
@@ -134,7 +134,7 @@ extern AIO4C_API Condition* NewCondition(void);
  */
 #define WaitCondition(condition,lock) \
     _WaitCondition(__FILE__, __LINE__, condition, lock)
-extern AIO4C_API aio4c_bool_t _WaitCondition(char* file, int line, Condition* condition, Lock* lock);
+extern AIO4C_API bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock);
 
 /**
  * @def NotifyCondition(condition)

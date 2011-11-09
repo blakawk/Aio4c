@@ -164,7 +164,7 @@ extern AIO4C_API Client* NewClient(
         ClientHandlerData arg);
 
 /**
- * @fn aio4c_bool_t ClientStart(Client*)
+ * @fn bool ClientStart(Client*)
  * @brief Starts a Client.
  *
  * Starts the Client thread and wait for it to initialize.
@@ -176,7 +176,7 @@ extern AIO4C_API Client* NewClient(
  *
  * @see ThreadStart(Thread)
  */
-extern AIO4C_API aio4c_bool_t ClientStart(Client* client);
+extern AIO4C_API bool ClientStart(Client* client);
 
 /**
  * @fn Connection* ClientGetConnection(Client*)

@@ -61,7 +61,7 @@ char* ConnectionStateString[AIO4C_CONNECTION_STATE_MAX] = {
     "CLOSED"
 };
 
-Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeAddress) {
+Connection* NewConnection(BufferPool* pool, Address* address, bool freeAddress) {
     Connection* connection = NULL;
 
     if ((connection = aio4c_malloc(sizeof(Connection))) == NULL) {
@@ -81,10 +81,10 @@ Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeA
     connection->address = address;
     connection->closedForError = false;
     connection->string = AddressGetString(address);
-    memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
+    memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(bool));
     connection->closedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR] = true;
     connection->closedByLock = NewLock();
-    memset(connection->managedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
+    memset(connection->managedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(bool));
     connection->managedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR] = true;
     connection->managedBy[AIO4C_CONNECTION_OWNER_CLIENT] = true;
     connection->managedByLock = NewLock();
@@ -120,9 +120,9 @@ Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connecti
     connection->address = NULL;
     connection->closedForError = false;
     connection->string = "factory";
-    memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
+    memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(bool));
     connection->closedByLock = NULL;
-    memset(connection->managedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
+    memset(connection->managedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(bool));
     connection->managedByLock = NULL;
     connection->readKey = NULL;
     connection->writeKey = NULL;
@@ -440,11 +440,11 @@ Connection* ConnectionShutdown(Connection* connection) {
     return connection;
 }
 
-aio4c_bool_t ConnectionWrite(Connection* connection) {
+bool ConnectionWrite(Connection* connection) {
     ssize_t nbWrite = 0;
     Buffer* buffer = connection->writeBuffer;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
-    aio4c_bool_t pendingCloseMemorized = false;
+    bool pendingCloseMemorized = false;
     aio4c_byte_t* data = NULL;
 
     if (!connection->canWrite) {
@@ -499,7 +499,7 @@ void EnableWriteInterest(Connection* connection) {
     _ConnectionEventHandle(connection, AIO4C_OUTBOUND_DATA_EVENT);
 }
 
-Connection* ConnectionClose(Connection* connection, aio4c_bool_t force) {
+Connection* ConnectionClose(Connection* connection, bool force) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "closing connection %s (force: %s)", connection->string, (force?"true":"false"));
 
     if (force) {
@@ -511,8 +511,8 @@ Connection* ConnectionClose(Connection* connection, aio4c_bool_t force) {
     return connection;
 }
 
-aio4c_bool_t ConnectionNoMoreUsed (Connection* connection, ConnectionOwner owner) {
-    aio4c_bool_t result = true;
+bool ConnectionNoMoreUsed (Connection* connection, ConnectionOwner owner) {
+    bool result = true;
     int i = 0;
 
     TakeLock(connection->closedByLock);
@@ -529,7 +529,7 @@ aio4c_bool_t ConnectionNoMoreUsed (Connection* connection, ConnectionOwner owner
     }
 
     if (result) {
-        memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(aio4c_bool_t));
+        memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(bool));
     }
 
     ReleaseLock(connection->closedByLock);
@@ -538,7 +538,7 @@ aio4c_bool_t ConnectionNoMoreUsed (Connection* connection, ConnectionOwner owner
 }
 
 void ConnectionManagedBy(Connection* connection, ConnectionOwner owner) {
-    aio4c_bool_t managedByAll = true;
+    bool managedByAll = true;
     int i = 0;
 
     TakeLock(connection->managedByLock);
@@ -562,7 +562,7 @@ void ConnectionManagedBy(Connection* connection, ConnectionOwner owner) {
 
 }
 
-Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once) {
+Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, bool once) {
     EventHandler* eventHandler = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -577,7 +577,7 @@ Connection* ConnectionAddHandler(Connection* connection, Event event, void (*han
     return _ConnectionHandleError(connection, AIO4C_LOG_LEVEL_ERROR, AIO4C_EVENT_HANDLER_ERROR, &code);
 }
 
-Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once) {
+Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, bool once) {
     EventHandler* eventHandler = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 

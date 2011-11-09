@@ -115,7 +115,7 @@ typedef struct s_EventQueue EventQueue;
 extern AIO4C_API EventQueue* NewEventQueue(void);
 
 /**
- * @fn EventHandler* NewEventHandler(Event,EventCallback,EventData,aio4c_bool_t)
+ * @fn EventHandler* NewEventHandler(Event,EventCallback,EventData,bool)
  * @brief Allocates an EventHandler.
  *
  * @param event
@@ -129,7 +129,7 @@ extern AIO4C_API EventQueue* NewEventQueue(void);
  * @return
  *   A pointer to the EventHandler.
  */
-extern AIO4C_API EventHandler* NewEventHandler(Event event, EventCallback callback, EventData data, aio4c_bool_t once);
+extern AIO4C_API EventHandler* NewEventHandler(Event event, EventCallback callback, EventData data, bool once);
 
 /**
  * @fn EventQueue* EventHandlerAdd(EventQueue*,EventHandler*)

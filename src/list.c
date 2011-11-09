@@ -147,7 +147,7 @@ Node* ListPop(List* list) {
     return node;
 }
 
-aio4c_bool_t ListEmpty(List* list) {
+bool ListEmpty(List* list) {
     return (list->first == NULL);
 }
 

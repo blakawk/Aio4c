@@ -67,21 +67,21 @@ struct s_Connection {
     Lock*                stateLock;
     EventQueue*          systemHandlers;
     EventQueue*          userHandlers;
-    aio4c_bool_t         closedForError;
+    bool         closedForError;
     char*                string;
-    aio4c_bool_t         closedBy[AIO4C_CONNECTION_OWNER_MAX];
+    bool         closedBy[AIO4C_CONNECTION_OWNER_MAX];
     Lock*                closedByLock;
-    aio4c_bool_t         managedBy[AIO4C_CONNECTION_OWNER_MAX];
+    bool         managedBy[AIO4C_CONNECTION_OWNER_MAX];
     Lock*                managedByLock;
     SelectionKey*        readKey;
     SelectionKey*        writeKey;
     BufferPool*          pool;
-    aio4c_bool_t         freeAddress;
-    aio4c_bool_t         canRead;
-    aio4c_bool_t         canWrite;
+    bool         freeAddress;
+    bool         canRead;
+    bool         canWrite;
     void*              (*dataFactory)(Connection*,void*);
     void*                dataFactoryArg;
-    aio4c_bool_t         isFactory;
+    bool         isFactory;
 };
 
 #define aio4c_connection_handler(handler) \
@@ -90,7 +90,7 @@ struct s_Connection {
 #define aio4c_connection_handler_arg(arg) \
     (void*)arg
 
-extern AIO4C_API Connection* NewConnection(BufferPool* pool, Address* address, aio4c_bool_t freeAddress);
+extern AIO4C_API Connection* NewConnection(BufferPool* pool, Address* address, bool freeAddress);
 
 extern AIO4C_API Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connection*,void*), void* dataFactoryArg);
 
@@ -112,19 +112,19 @@ extern AIO4C_API Connection* ConnectionProcessData(Connection* connection);
 
 extern AIO4C_API void EnableWriteInterest(Connection* connection);
 
-extern AIO4C_API aio4c_bool_t ConnectionWrite(Connection* connection);
+extern AIO4C_API bool ConnectionWrite(Connection* connection);
 
 extern AIO4C_API Connection* ConnectionShutdown(Connection* connection);
 
-extern AIO4C_API Connection* ConnectionClose(Connection* connection, aio4c_bool_t force);
+extern AIO4C_API Connection* ConnectionClose(Connection* connection, bool force);
 
-extern AIO4C_API aio4c_bool_t ConnectionNoMoreUsed(Connection* connection, ConnectionOwner owner);
+extern AIO4C_API bool ConnectionNoMoreUsed(Connection* connection, ConnectionOwner owner);
 
 extern AIO4C_API void ConnectionManagedBy(Connection* connection, ConnectionOwner owner);
 
-extern AIO4C_API Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
+extern AIO4C_API Connection* ConnectionAddHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, bool once);
 
-extern AIO4C_API Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, aio4c_bool_t once);
+extern AIO4C_API Connection* ConnectionAddSystemHandler(Connection* connection, Event event, void (*handler)(Event,Connection*,void*), void* arg, bool once);
 
 extern AIO4C_API Buffer* ConnectionGetWriteBuffer(Connection* connection);
 

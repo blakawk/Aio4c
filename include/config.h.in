@@ -15,13 +15,19 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
+/* Define if InitializeConditionVariable is available */
+#undef HAVE_INITIALIZECONDITIONVARIABLE
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
+
+/* Define if Kernel32 library is available */
+#undef HAVE_LIBKERNEL32
 
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #undef HAVE_LIBPTHREAD
 
-/* Define is Winsock2 library is available */
+/* Define if Winsock2 library is available */
 #undef HAVE_LIBWS2_32
 
 /* Define to 1 if you have the <limits.h> header file. */
@@ -61,6 +67,9 @@
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
+
+/* Define to 1 if stdbool.h conforms to C99. */
+#undef HAVE_STDBOOL_H
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -122,6 +131,9 @@
 /* Define if WSAPoll is available */
 #undef HAVE_WSAPOLL
 
+/* Define to 1 if the system has the type `_Bool'. */
+#undef HAVE__BOOL
+
 /* Define to 1 if your C compiler doesn't accept -c and -o together. */
 #undef NO_MINUS_C_MINUS_O
 
@@ -140,11 +152,11 @@
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
-/* Define to the home page for this package. */
-#undef PACKAGE_URL
-
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
+
+/* The size of a `void*', as computed by sizeof. */
+#undef SIZEOF_VOIDP
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
@@ -167,11 +179,8 @@
 /* Define to rpl_realloc if the replacement function should be used. */
 #undef realloc
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define to `unsigned' if <sys/types.h> does not define. */
 #undef size_t
-
-/* Define to `int' if <sys/types.h> does not define. */
-#undef ssize_t
 
 /* Define as `fork' if `vfork' does not work. */
 #undef vfork

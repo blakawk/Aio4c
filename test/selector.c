@@ -54,7 +54,7 @@ static int fds[2][3] = {{-1,-1,-1},{-1,-1,-1}};
 static struct sockaddr_in to[2];
 static unsigned char token[2][BUFSZ];
 
-static aio4c_bool_t init(int* type) {
+static bool init(int* type) {
     switch (*type) {
         case 1:
             assert((selector[1] = NewSelector()) != NULL);
@@ -98,7 +98,7 @@ static void consumer(void) {
     unsigned char dummy[BUFSZ];
     int i = 0;
     SelectionKey* mykey = NULL, *readkey = NULL, *writekey = NULL;
-    aio4c_bool_t isLastRegistration = false;
+    bool isLastRegistration = false;
 
     assert((readkey = Register(selector[0], AIO4C_OP_READ, fds[0][2], &token[0])) != NULL);
     assert(readkey->fd == fds[0][2]);
@@ -147,7 +147,7 @@ static void producer(void) {
     unsigned char dummy[BUFSZ];
     int i = 0;
     SelectionKey* mykey = NULL, *readkey = NULL, *writekey = NULL;
-    aio4c_bool_t isLastRegistration;
+    bool isLastRegistration;
 
 
     for (i = 0; i < 1000; i++) {
@@ -202,8 +202,8 @@ static void producer(void) {
     assert(isLastRegistration);
 }
 
-static aio4c_bool_t run(int* type) {
-    aio4c_bool_t cont = true;
+static bool run(int* type) {
+    bool cont = true;
     static int connected[2] = {0,0};
 
     TakeLock(lock);

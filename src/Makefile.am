@@ -9,6 +9,8 @@ AM_CPPFLAGS = \
 	-D_POSIX_C_SOURCE=199506L
 AM_LDFLAGS = \
 	-no-undefined
+libaio4c_la_LDFLAGS = \
+	-version-info 0:0:0
 libaio4c_la_SOURCES = \
 	worker.c \
 	alloc.c \

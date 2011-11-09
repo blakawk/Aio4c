@@ -24,6 +24,28 @@
 #ifndef __AIO4C_TYPES_H__
 #define __AIO4C_TYPES_H__
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif /* HAVE_CONFIG_H */
+
+#if defined(HAVE_POLL) || defined(HAVE_WSAPOLL)
+# ifndef AIO4C_HAVE_POLL
+#  define AIO4C_HAVE_POLL
+# endif /* AIO4C_HAVE_POLL */
+#endif /* HAVE_POLL || HAVE_WSAPOLL */
+
+#if defined(HAVE_PIPE)
+# ifndef AI4OC_HAVE_PIPE
+#  define AIO4C_HAVE_PIPE
+# endif /* AIO4C_HAVE_PIPE */
+#endif /* HAVE_PIPE */
+
+#if defined(HAVE_INITIALIZECONDITIONVARIABLE)
+# ifndef AIO4C_HAVE_CONDITION
+#  define AIO4C_HAVE_CONDITION
+# endif /* AIO4C_HAVE_CONDITION */
+#endif /* HAVE_INITIALIZECONDITIONVARIABLE */
+
 #ifndef AIO4C_WIN32
 # if defined(_WIN32) || defined(_WIN64)
 #  define AIO4C_WIN32
@@ -67,23 +89,29 @@
 #define AIO4C_MAX_THREADS 4096
 #endif /* AIO4C_MAX_THREADS */
 
-#ifndef AIO4C_P_SIZE
-# ifdef AIO4C_WIN32
-#  if defined(_WIN32)
-#   define AIO4C_P_SIZE 4
-#  elif defined(_WIN64)
-#   define AIO4C_P_SIZE 8
-#  else
-#   error "cannot determine size of void*, please define AIO4C_P_SIZE for me"
-#  endif
-# else /* AIO4C_WIN32 */
-#   if defined(__amd64)
-#     define AIO4C_P_SIZE 8
-#   else
-#     define AIO4C_P_SIZE 4
-#   endif
-# endif /* AIO4C_WIN32 */
-#endif
+#if !defined(SIZEOF_VOIDP) || (SIZEOF_VOIDP == 0)
+# ifndef AIO4C_P_SIZE
+#  ifdef AIO4C_WIN32
+#   if defined(_WIN32)
+#    define AIO4C_P_SIZE 4
+#   elif defined(_WIN64)
+#    define AIO4C_P_SIZE 8
+#   else /* _WIN64 */
+#    error "cannot determine size of void*, please define AIO4C_P_SIZE for me"
+#   endif /* _WIN64 */
+#  else /* AIO4C_WIN32 */
+#    if defined(__amd64)
+#      define AIO4C_P_SIZE 8
+#    else /* __amd64 */
+#      define AIO4C_P_SIZE 4
+#    endif /* __amd64 */
+#  endif /* AIO4C_WIN32 */
+# endif /* AIO4C_P_SIZE */
+#else /* defined(SIZEOF_VOIDP) && (SIZEOF_VOIDP != 0) */
+# ifndef AIO4C_P_SIZE
+#  define AIO4C_P_SIZE SIZEOF_VOIDP
+# endif /* AIO4C_P_SIZE */
+#endif /* !defined(SIZEOF_VOIDP) || (SIZEOF_VOIDP == 0) */
 
 #ifndef NI_MAXHOST
 #define NI_MAXHOST 1025
@@ -95,10 +123,21 @@
 
 typedef unsigned char aio4c_byte_t;
 
-typedef enum e_bool {
-    false = 0,
-    true = 1
-} aio4c_bool_t;
+#if HAVE_STDBOOL_H
+# include <stdbool.h>
+#else /* HAVE_STDBOOL_H */
+# if !defined(HAVE__BOOL)
+#  ifdef __cplusplus
+typedef bool _Bool;
+#  else /* __cplusplus */
+typedef unsigned char _Bool;
+#  endif /* __cplusplus */
+# endif /* !defined(HAVE__BOOL) */
+# define bool _Bool
+# define false 0
+# define true 1
+# define __bool_true_false_are_defined 1
+#endif /* HAVE_STDBOOL_H */
 
 typedef unsigned int aio4c_size_t;
 

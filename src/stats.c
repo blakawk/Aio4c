@@ -46,7 +46,7 @@
 #include <string.h>
 
 char* AIO4C_STATS_OUTPUT_FILE = NULL;
-aio4c_bool_t AIO4C_STATS_ENABLE_PERIODIC_OUTPUT = false;
+bool AIO4C_STATS_ENABLE_PERIODIC_OUTPUT = false;
 int AIO4C_STATS_INTERVAL = 0;
 
 static Thread*          _statsThread = NULL;
@@ -61,7 +61,7 @@ static CRITICAL_SECTION _timeProbesLock;
 static CRITICAL_SECTION _sizeProbesLock;
 #endif /* AIO4C_WIN32 */
 
-static aio4c_bool_t _statsInit(void* dummy __attribute__((unused))) {
+static bool _statsInit(void* dummy __attribute__((unused))) {
     dummy = NULL;
 #ifndef AIO4C_WIN32
     pid_t pid = getpid();
@@ -93,7 +93,7 @@ void _PrintStats(void);
 
 void _WriteStats(void);
 
-static aio4c_bool_t _statsRun(void* dummy __attribute__((unused))) {
+static bool _statsRun(void* dummy __attribute__((unused))) {
     dummy = NULL;
 
     if (AIO4C_STATS_ENABLE_PERIODIC_OUTPUT) {
@@ -180,7 +180,7 @@ void _ProbeSize(ProbeSizeType type, int size) {
 
 static double _elapsedTime(void) {
     static struct timeval _start;
-    static aio4c_bool_t _initialized = false;
+    static bool _initialized = false;
     struct timeval _stop;
     double result = 0.0;
 
@@ -325,7 +325,7 @@ void _PrintStats(void) {
 
 void _WriteStats(void) {
     static struct timeval _start;
-    static aio4c_bool_t _initialized = false;
+    static bool _initialized = false;
     struct timeval time;
     static double lastRead = 0.0, lastWrite = 0.0, lastProcess = 0.0, lastIdle = 0.0, lastLatency = 0.0, lastLatencyCount = 0.0, lastSelectOverhead = 0.0;
     double read = 0.0, write = 0.0, process = 0.0, idle = 0.0, allocated = 0.0, connections = 0.0, latency = 0.0, latencyCount = 0.0, selectOverhead = 0.0;

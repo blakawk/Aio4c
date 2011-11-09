@@ -43,8 +43,8 @@ typedef struct s_Logger {
     aio4c_file_t*     file;
     Queue*            queue;
     Thread*           thread;
-    aio4c_bool_t      exiting;
-    aio4c_bool_t      custom;
+    bool      exiting;
+    bool      custom;
     void            (*handler)(void*,LogLevel,char*);
     void*             arg;
 } Logger;
@@ -98,12 +98,12 @@ static void _LogPrintMessage(Logger* logger, LogMessage* message) {
     aio4c_free(message);
 }
 
-static aio4c_bool_t _LogInit(Logger* logger) {
+static bool _LogInit(Logger* logger) {
     Log(AIO4C_LOG_LEVEL_INFO, "logging is initialized, logger tid is 0x%08lx", logger->thread->id);
     return true;
 }
 
-static aio4c_bool_t _LogRun(Logger* logger) {
+static bool _LogRun(Logger* logger) {
     QueueItem* item = NewQueueItem();
 
     while (Dequeue(logger->queue, item, true)) {
@@ -223,7 +223,7 @@ void _logsnprintf(char* buffer, int* pos, int len, char* message, ...) {
     *pos = *pos + printed;
 }
 
-static void _logprefix(char** pMessage, int* pos, aio4c_bool_t allocate) {
+static void _logprefix(char** pMessage, int* pos, bool allocate) {
     Thread* from = NULL;
     char* message = NULL;
 

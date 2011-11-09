@@ -46,7 +46,7 @@ static int removed = 0;
 static int COUNT = 1000;
 static int debug = 0;
 
-aio4c_bool_t aio4c_remove(QueueItem* item, QueueDiscriminant _data) {
+bool aio4c_remove(QueueItem* item, QueueDiscriminant _data) {
     Data* d = QueueDataItemGet(item);
     Data* data = (Data*)_data;
 
