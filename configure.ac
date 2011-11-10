@@ -46,6 +46,17 @@ AC_ARG_VAR([JAVAH], [Path to the javah program to generate JNI interface header 
 AC_ARG_VAR([JAVAC], [Path to the java compiler])
 AC_ARG_VAR([JAR], [Path to the java archiver])
 AC_ARG_VAR([JAVACFLAGS], [Flags to pass to the java compiler])
+AC_CHECK_PROG([DOXYGEN], [doxygen], [doxygen], [no])
+have_doxygen=no
+if test "x$DOXYGEN" = xdoxygen; then have_doxygen=yes; fi
+AM_CONDITIONAL([HAVE_DOXYGEN], [test "x$have_doxygen" = xyes])
+AC_ARG_VAR([DOXYGEN], [Path to Doxygen])
+AC_CHECK_PROG([JAVADOC], [javadoc], [javadoc], [no])
+have_javadoc=no
+if test "x$JAVADOC" = xjavadoc; then have_javadoc=yes; fi
+AM_CONDITIONAL([HAVE_JAVADOC], [test "x$have_javadoc" = xyes])
+AC_ARG_VAR([JAVADOC], [Path to the java documentation generator])
+AC_ARG_VAR([JAVADOCFLAGS], [Additional flags to pass to the java documentation generator])
 AC_CONFIG_HEADERS([include/config.h])
 AC_MSG_CHECKING([for ws2_32])
 AS_VAR_SET([old_LIBS],["$LIBS"])
@@ -84,5 +95,7 @@ AC_CONFIG_FILES([
     include/Makefile
     src/Makefile
     test/Makefile
+    doc/Makefile
+    doc/Doxyfile
 ])
 AC_OUTPUT

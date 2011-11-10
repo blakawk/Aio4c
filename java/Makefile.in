@@ -83,6 +83,7 @@ CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
+DOXYGEN = @DOXYGEN@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
@@ -91,6 +92,10 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 F77 = @F77@
 FFLAGS = @FFLAGS@
+HAVE_DOXYGEN_FALSE = @HAVE_DOXYGEN_FALSE@
+HAVE_DOXYGEN_TRUE = @HAVE_DOXYGEN_TRUE@
+HAVE_JAVADOC_FALSE = @HAVE_JAVADOC_FALSE@
+HAVE_JAVADOC_TRUE = @HAVE_JAVADOC_TRUE@
 HAVE_JAVA_FALSE = @HAVE_JAVA_FALSE@
 HAVE_JAVA_TRUE = @HAVE_JAVA_TRUE@
 INSTALL_DATA = @INSTALL_DATA@
@@ -100,6 +105,8 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 JAR = @JAR@
 JAVAC = @JAVAC@
 JAVACFLAGS = @JAVACFLAGS@
+JAVADOC = @JAVADOC@
+JAVADOCFLAGS = @JAVADOCFLAGS@
 JAVAH = @JAVAH@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
@@ -189,11 +196,13 @@ dist_noinst_JAVA = \
 	com/aio4c/ServerConfig.java \
 	com/aio4c/log/DefaultLogger.java \
 	com/aio4c/log/Logger.java \
+	com/aio4c/log/package-info.java \
 	com/aio4c/AddressType.java \
 	com/aio4c/ClientConfig.java \
 	com/aio4c/buffer/BufferUnderflowException.java \
 	com/aio4c/buffer/BufferException.java \
 	com/aio4c/buffer/BufferOverflowException.java \
+	com/aio4c/buffer/package-info.java \
 	$(jni_interfaces)
 
 jardir = $(datadir)/java

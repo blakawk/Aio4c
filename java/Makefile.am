@@ -11,11 +11,13 @@ dist_noinst_JAVA = \
 	com/aio4c/ServerConfig.java \
 	com/aio4c/log/DefaultLogger.java \
 	com/aio4c/log/Logger.java \
+	com/aio4c/log/package-info.java \
 	com/aio4c/AddressType.java \
 	com/aio4c/ClientConfig.java \
 	com/aio4c/buffer/BufferUnderflowException.java \
 	com/aio4c/buffer/BufferException.java \
 	com/aio4c/buffer/BufferOverflowException.java \
+	com/aio4c/buffer/package-info.java \
 	$(jni_interfaces)
 
 all-local: aio4c.jar jni.stamp

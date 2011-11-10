@@ -61,7 +61,7 @@ RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	uninstall-recursive
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = java include src test
+DIST_SUBDIRS = java include src test doc
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -96,6 +96,7 @@ CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
 DLLTOOL = @DLLTOOL@
+DOXYGEN = @DOXYGEN@
 ECHO = @ECHO@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
@@ -104,6 +105,10 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 F77 = @F77@
 FFLAGS = @FFLAGS@
+HAVE_DOXYGEN_FALSE = @HAVE_DOXYGEN_FALSE@
+HAVE_DOXYGEN_TRUE = @HAVE_DOXYGEN_TRUE@
+HAVE_JAVADOC_FALSE = @HAVE_JAVADOC_FALSE@
+HAVE_JAVADOC_TRUE = @HAVE_JAVADOC_TRUE@
 HAVE_JAVA_FALSE = @HAVE_JAVA_FALSE@
 HAVE_JAVA_TRUE = @HAVE_JAVA_TRUE@
 INSTALL_DATA = @INSTALL_DATA@
@@ -113,6 +118,8 @@ INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 JAR = @JAR@
 JAVAC = @JAVAC@
 JAVACFLAGS = @JAVACFLAGS@
+JAVADOC = @JAVADOC@
+JAVADOCFLAGS = @JAVADOCFLAGS@
 JAVAH = @JAVAH@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
@@ -188,7 +195,7 @@ target_alias = @target_alias@
 target_cpu = @target_cpu@
 target_os = @target_os@
 target_vendor = @target_vendor@
-SUBDIRS = $(am__append_1) include src test
+SUBDIRS = $(am__append_1) include src test doc
 all: all-recursive
 
 .SUFFIXES:
@@ -371,6 +378,7 @@ distclean-tags:
 distdir: $(DISTFILES)
 	$(am__remove_distdir)
 	mkdir $(distdir)
+	$(mkdir_p) $(distdir)/doc
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \

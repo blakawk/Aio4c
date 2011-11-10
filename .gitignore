@@ -24,3 +24,6 @@ test/test-*
 java/*.jar
 *.stamp
 java/com_aio4c_*.h
+doc/Doxyfile
+doc/html
+doc/javadoc
