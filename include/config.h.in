@@ -1,5 +1,8 @@
 /* include/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Defines whether to debug thread module */
+#undef AIO4C_DEBUG_THREADS
+
 /* Defines whether to build statistics collection */
 #undef AIO4C_ENABLE_STATS
 

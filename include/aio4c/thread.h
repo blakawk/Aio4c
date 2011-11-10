@@ -126,13 +126,11 @@ extern AIO4C_API bool ThreadStart(Thread* thread);
 
 extern AIO4C_API bool ThreadRunning(Thread* thread);
 
-#ifdef AIO4C_DEBUG
-#define ThreadSelf() \
-    _ThreadSelf()
-#else /* AIO4C_DEBUG */
-#define ThreadSelf() \
-    NULL
-#endif /* AIO4C_DEBUG */
+#if AIO4C_DEBUG_THREADS
+#define ThreadSelf() _ThreadSelf()
+#else /* AIO4C_DEBUG_THREADS */
+#define ThreadSelf() NULL
+#endif /* AIO4C_DEBUG_THREADS */
 extern AIO4C_API Thread* _ThreadSelf(void);
 
 extern AIO4C_API void ThreadJoin(Thread* thread);

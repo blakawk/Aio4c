@@ -21,7 +21,14 @@ AC_ARG_ENABLE([statistics],
         [Enable statistics collection])],
     [AC_DEFINE([AIO4C_ENABLE_STATS],[1],[Defines whether to build statistics collection])],
     [AC_DEFINE([AIO4C_ENABLE_STATS],[0],[Defines whether to build statistics collection])])
-AM_CONDITIONAL([STATS_ENABLED], [test "x$AIO4C_ENABLE_STATS" = x1])
+stats_enabled=no
+if test "x${enable_statistics+set}" = xset; then stats_enabled=yes; fi
+AM_CONDITIONAL([STATS_ENABLED], [test "x$stats_enabled" = xyes])
+AC_ARG_ENABLE([debug-threading],
+    [AS_HELP_STRING([--enable-debug-threading],
+        [Enable thread module debugging])],
+    [AC_DEFINE([AIO4C_DEBUG_THREADS],[1],[Defines whether to debug thread module])],
+    [AC_DEFINE([AIO4C_DEBUG_THREADS],[0],[Defines whether to debug thread module])])
 AC_HEADER_STDBOOL
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h jni.h])
 AC_TYPE_PID_T
