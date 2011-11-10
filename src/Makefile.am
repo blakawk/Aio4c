@@ -22,7 +22,6 @@ libaio4c_la_SOURCES = \
 	queue.c \
 	error.c \
 	writer.c \
-	stats.c \
 	jni.c \
 	address.c \
 	list.c \
@@ -35,6 +34,11 @@ libaio4c_la_SOURCES = \
 	aio4c.c \
 	event.c \
 	selector.c
+
+if STATS_ENABLED
+libaio4c_la_SOURCES += \
+	stats.c
+endif
 
 if HAVE_JAVA
 libaio4c_la_SOURCES += \

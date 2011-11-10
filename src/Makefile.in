@@ -37,7 +37,10 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
-@HAVE_JAVA_TRUE@am__append_1 = \
+@STATS_ENABLED_TRUE@am__append_1 = \
+@STATS_ENABLED_TRUE@	stats.c
+
+@HAVE_JAVA_TRUE@am__append_2 = \
 @HAVE_JAVA_TRUE@	jni/aio4c.c \
 @HAVE_JAVA_TRUE@	jni/buffer.c \
 @HAVE_JAVA_TRUE@	jni/client.c \
@@ -45,7 +48,7 @@ target_triplet = @target@
 @HAVE_JAVA_TRUE@	jni/log.c \
 @HAVE_JAVA_TRUE@	jni/server.c
 
-@HAVE_JAVA_TRUE@am__append_2 = \
+@HAVE_JAVA_TRUE@am__append_3 = \
 @HAVE_JAVA_TRUE@	-I@top_builddir@/java
 
 subdir = src
@@ -68,19 +71,20 @@ libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libaio4c_la_LIBADD =
 am__libaio4c_la_SOURCES_DIST = worker.c alloc.c acceptor.c buffer.c \
-	condition.c reader.c queue.c error.c writer.c stats.c jni.c \
-	address.c list.c lock.c connection.c client.c log.c server.c \
-	thread.c aio4c.c event.c selector.c jni/aio4c.c jni/buffer.c \
+	condition.c reader.c queue.c error.c writer.c jni.c address.c \
+	list.c lock.c connection.c client.c log.c server.c thread.c \
+	aio4c.c event.c selector.c stats.c jni/aio4c.c jni/buffer.c \
 	jni/client.c jni/connection.c jni/log.c jni/server.c
+@STATS_ENABLED_TRUE@am__objects_1 = stats.lo
 am__dirstamp = $(am__leading_dot)dirstamp
-@HAVE_JAVA_TRUE@am__objects_1 = jni/aio4c.lo jni/buffer.lo \
+@HAVE_JAVA_TRUE@am__objects_2 = jni/aio4c.lo jni/buffer.lo \
 @HAVE_JAVA_TRUE@	jni/client.lo jni/connection.lo jni/log.lo \
 @HAVE_JAVA_TRUE@	jni/server.lo
 am_libaio4c_la_OBJECTS = worker.lo alloc.lo acceptor.lo buffer.lo \
-	condition.lo reader.lo queue.lo error.lo writer.lo stats.lo \
-	jni.lo address.lo list.lo lock.lo connection.lo client.lo \
-	log.lo server.lo thread.lo aio4c.lo event.lo selector.lo \
-	$(am__objects_1)
+	condition.lo reader.lo queue.lo error.lo writer.lo jni.lo \
+	address.lo list.lo lock.lo connection.lo client.lo log.lo \
+	server.lo thread.lo aio4c.lo event.lo selector.lo \
+	$(am__objects_1) $(am__objects_2)
 libaio4c_la_OBJECTS = $(am_libaio4c_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)/include
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -166,6 +170,8 @@ RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+STATS_ENABLED_FALSE = @STATS_ENABLED_FALSE@
+STATS_ENABLED_TRUE = @STATS_ENABLED_TRUE@
 STRIP = @STRIP@
 VERSION = @VERSION@
 ac_ct_AR = @ac_ct_AR@
@@ -222,7 +228,7 @@ SUBDIRS = .
 lib_LTLIBRARIES = libaio4c.la
 AM_CPPFLAGS = -Werror -Wextra -Wall -pedantic -std=c99 \
 	-I@top_srcdir@/include -D_POSIX_C_SOURCE=199506L \
-	$(am__append_2)
+	$(am__append_3)
 AM_LDFLAGS = \
 	-no-undefined
 
@@ -230,9 +236,9 @@ libaio4c_la_LDFLAGS = \
 	-version-info 0:0:0
 
 libaio4c_la_SOURCES = worker.c alloc.c acceptor.c buffer.c condition.c \
-	reader.c queue.c error.c writer.c stats.c jni.c address.c \
-	list.c lock.c connection.c client.c log.c server.c thread.c \
-	aio4c.c event.c selector.c $(am__append_1)
+	reader.c queue.c error.c writer.c jni.c address.c list.c \
+	lock.c connection.c client.c log.c server.c thread.c aio4c.c \
+	event.c selector.c $(am__append_1) $(am__append_2)
 all: all-recursive
 
 .SUFFIXES:

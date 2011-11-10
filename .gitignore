@@ -21,3 +21,6 @@ libtool
 config.status
 include/config.h
 test/test-*
+java/*.jar
+*.stamp
+java/com_aio4c_*.h

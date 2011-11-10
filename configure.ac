@@ -16,6 +16,12 @@ AC_ARG_WITH([windows-vista],
         [Enable build for Windows Vista version or higher])],
     [AC_DEFINE([WINVER],[0x0600],[Defines which Windows version to target build]) AC_DEFINE([_WIN32_WINNT],[0x0600],[Defines which Windows to target build])],
     [AC_DEFINE([WINVER],[0x0501],[Defines which Windows version to target build]) AC_DEFINE([_WIN32_WINNT],[0x0501],[Defines which Windows to target build])])
+AC_ARG_ENABLE([statistics],
+    [AS_HELP_STRING([--enable-statistics],
+        [Enable statistics collection])],
+    [AC_DEFINE([AIO4C_ENABLE_STATS],[1],[Defines whether to build statistics collection])],
+    [AC_DEFINE([AIO4C_ENABLE_STATS],[0],[Defines whether to build statistics collection])])
+AM_CONDITIONAL([STATS_ENABLED], [test "x$AIO4C_ENABLE_STATS" = x1])
 AC_HEADER_STDBOOL
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h jni.h])
 AC_TYPE_PID_T
