@@ -56,7 +56,11 @@ if test "x$JNI_BUILTIN" != x1; then
         AM_CPPFLAGS="$AM_CPPFLAGS $jni_CPPFLAGS"
         AC_SUBST([AM_CPPFLAGS])
         AC_DEFINE([HAVE_JNI_H], [1], [Defines if jni.h headers has been found])
+        HAVE_JNI_H=1
     fi
+else
+    AC_DEFINE([HAVE_JNI_H], [1], [Defines if jni.h headers has been found])
+    HAVE_JNI_H=1
 fi
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T

@@ -9,10 +9,9 @@ AM_CPPFLAGS = \
 	-std=c99 \
 	-I@top_srcdir@/include \
 	-D_POSIX_C_SOURCE=199506L
-AM_LDFLAGS = \
-	-no-undefined
 libaio4c_la_LDFLAGS = \
-	-version-info 0:0:0
+	-version-info 0:0:0 \
+	-no-undefined
 libaio4c_la_SOURCES = \
 	worker.c \
 	alloc.c \

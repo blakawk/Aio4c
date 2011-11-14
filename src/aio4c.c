@@ -52,7 +52,7 @@ static void _CleanUpWinSock(void) {
     if (WSACleanup() == SOCKET_ERROR) {
         dthread("WinSock2 cannot be cleaned up: 0x%08d\n", WSAGetLastError());
     } else {
-        dthread("WinSock2 cleaned up\n");
+        dthread("WinSock2 cleaned up%c", '\n');
     }
 }
 

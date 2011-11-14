@@ -12213,7 +12213,13 @@ if test "x$JNI_BUILTIN" != x1; then
 
 $as_echo "#define HAVE_JNI_H 1" >>confdefs.h
 
+        HAVE_JNI_H=1
     fi
+else
+
+$as_echo "#define HAVE_JNI_H 1" >>confdefs.h
+
+    HAVE_JNI_H=1
 fi
 ac_fn_c_check_type "$LINENO" "pid_t" "ac_cv_type_pid_t" "$ac_includes_default"
 if test "x$ac_cv_type_pid_t" = xyes; then :

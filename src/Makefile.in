@@ -292,11 +292,9 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 SUBDIRS = .
 lib_LTLIBRARIES = libaio4c.la
-AM_LDFLAGS = \
-	-no-undefined
-
 libaio4c_la_LDFLAGS = \
-	-version-info 0:0:0
+	-version-info 0:0:0 \
+	-no-undefined
 
 libaio4c_la_SOURCES = worker.c alloc.c acceptor.c buffer.c condition.c \
 	reader.c queue.c error.c writer.c jni.c address.c list.c \
