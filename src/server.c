@@ -39,7 +39,7 @@
 
 #endif /* AIO4C_WIN32 */
 
-static aio4c_bool_t _serverInit(Server* server) {
+static bool _serverInit(Server* server) {
     ConnectionAddHandler(server->factory, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(server->handler), NULL, true);
     ConnectionAddHandler(server->factory, AIO4C_READ_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), NULL, false);
@@ -56,7 +56,7 @@ static aio4c_bool_t _serverInit(Server* server) {
     return true;
 }
 
-static aio4c_bool_t _serverRun(Server* server) {
+static bool _serverRun(Server* server) {
     QueueItem* item = NewQueueItem();
 
     while (Dequeue(server->queue, item, true)) {
@@ -125,7 +125,7 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSiz
     return server;
 }
 
-aio4c_bool_t ServerStart(Server* server) {
+bool ServerStart(Server* server) {
     return ThreadStart(server->thread);
 }
 

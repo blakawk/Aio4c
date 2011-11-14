@@ -52,9 +52,7 @@ static void _CleanUpWinSock(void) {
     if (WSACleanup() == SOCKET_ERROR) {
         dthread("WinSock2 cannot be cleaned up: 0x%08d\n", WSAGetLastError());
     } else {
-        if (AIO4C_DEBUG_THREADS) {
-            fprintf(stderr, "WinSock2 cleaned up\n");
-        }
+        dthread("WinSock2 cleaned up\n");
     }
 }
 
@@ -64,7 +62,7 @@ static void _RetrieveWinVer(void) {
 
     version = GetVersion();
     majorMinor = MAKEWORD(HIBYTE(LOWORD(version)), LOBYTE(LOWORD(version)));
- 
+
     if (majorMinor < WINVER) {
         fprintf(stderr, "Windows version 0x%04x is too old (required: at least 0x%04x)\n",
                 majorMinor, WINVER);

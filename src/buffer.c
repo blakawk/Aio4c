@@ -238,11 +238,11 @@ Buffer* BufferCopy(Buffer* dst, Buffer* src) {
     return dst;
 }
 
-aio4c_bool_t BufferHasRemaining(Buffer* buffer) {
+bool BufferHasRemaining(Buffer* buffer) {
     return (buffer->position < buffer->limit);
 }
 
-aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size) {
+bool BufferGet(Buffer* buffer, void* out, int size) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
     if (buffer->position + size > buffer->limit) {
@@ -258,7 +258,7 @@ aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size) {
     return true;
 }
 
-aio4c_bool_t BufferGetString(Buffer* buffer, char** out) {
+bool BufferGetString(Buffer* buffer, char** out) {
     int len = strlen((char*)&buffer->data[buffer->position]) + 1;
 
     if (len > (buffer->limit - buffer->position)) {
@@ -273,7 +273,7 @@ aio4c_bool_t BufferGetString(Buffer* buffer, char** out) {
     return true;
 }
 
-aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size) {
+bool BufferPut(Buffer* buffer, void* in, int size) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
     if (buffer->position + size > buffer->limit) {
@@ -289,7 +289,7 @@ aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size) {
     return true;
 }
 
-aio4c_bool_t BufferPutString(Buffer* buffer, char* in) {
+bool BufferPutString(Buffer* buffer, char* in) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     size_t inLen = 0;
 

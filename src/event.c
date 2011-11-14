@@ -37,7 +37,7 @@
 
 struct s_EventHandler {
     Event           event;
-    aio4c_bool_t    once;
+    bool    once;
     EventCallback   callback;
     EventData       data;
 };
@@ -65,7 +65,7 @@ EventQueue* NewEventQueue(void) {
     return eventQueue;
 }
 
-EventHandler* NewEventHandler(Event event, EventCallback callback, EventData data, aio4c_bool_t once) {
+EventHandler* NewEventHandler(Event event, EventCallback callback, EventData data, bool once) {
     EventHandler* eventHandler = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 

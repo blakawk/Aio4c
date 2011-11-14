@@ -93,7 +93,7 @@ extern AIO4C_API Selector* NewSelector(void);
 
 extern AIO4C_API SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_socket_t fd, void* attachment);
 
-extern AIO4C_API void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAll, aio4c_bool_t* isLastRegistration);
+extern AIO4C_API void Unregister(Selector* selector, SelectionKey* key, bool unregisterAll, bool* isLastRegistration);
 
 #define Select(selector) \
     _Select(__FILE__, __LINE__, selector)
@@ -103,7 +103,7 @@ extern AIO4C_API aio4c_size_t _Select(char* file, int line, Selector* selector);
     _SelectorWakeUp(__FILE__, __LINE__, selector)
 extern AIO4C_API void _SelectorWakeUp(char* file, int line, Selector* selector);
 
-extern AIO4C_API aio4c_bool_t SelectionKeyReady(Selector* selector, SelectionKey** key);
+extern AIO4C_API bool SelectionKeyReady(Selector* selector, SelectionKey** key);
 
 extern AIO4C_API void FreeSelector(Selector** selector);
 

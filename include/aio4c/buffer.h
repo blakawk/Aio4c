@@ -322,7 +322,7 @@ extern AIO4C_API int BufferGetCapacity(Buffer* buffer);
 extern AIO4C_API int BufferRemaining(Buffer* buffer);
 
 /**
- * @fn aio4c_bool_t BufferHasRemaining(Buffer*)
+ * @fn bool BufferHasRemaining(Buffer*)
  * @brief Determines if a Buffer has remaining data.
  *
  * A Buffer is considered having remaining data when its position is less than
@@ -333,7 +333,7 @@ extern AIO4C_API int BufferRemaining(Buffer* buffer);
  * @return
  *   true if the Buffer has remaining data, false in any other case.
  */
-extern AIO4C_API aio4c_bool_t BufferHasRemaining(Buffer* buffer);
+extern AIO4C_API bool BufferHasRemaining(Buffer* buffer);
 
 /**
  * @fn aio4c_byte_t* BufferGetBytes(Buffer*)
@@ -496,7 +496,7 @@ extern AIO4C_API aio4c_byte_t* BufferGetBytes(Buffer* buffer);
     BufferGet(buffer, out, sizeof(double))
 
 /**
- * @fn aio4c_bool_t BufferGet(Buffer*,void*,int)
+ * @fn bool BufferGet(Buffer*,void*,int)
  * @brief Retrieves data from a Buffer.
  *
  * Checks if the Buffer has enough remaining data to fulfill the request, if
@@ -519,10 +519,10 @@ extern AIO4C_API aio4c_byte_t* BufferGetBytes(Buffer* buffer);
  *
  * @see AIO4C_BUFFER_UNDERFLOW_ERROR
  */
-extern AIO4C_API aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size);
+extern AIO4C_API bool BufferGet(Buffer* buffer, void* out, int size);
 
 /**
- * @fn aio4c_bool_t BufferGetString(Buffer*,char**)
+ * @fn bool BufferGetString(Buffer*,char**)
  * @brief Retrieves a string from a Buffer.
  *
  * Tries to retrieve a null-terminated string from the Buffer.
@@ -543,7 +543,7 @@ extern AIO4C_API aio4c_bool_t BufferGet(Buffer* buffer, void* out, int size);
  * @return
  *   Always true.
  */
-extern AIO4C_API aio4c_bool_t BufferGetString(Buffer* buffer, char** out);
+extern AIO4C_API bool BufferGetString(Buffer* buffer, char** out);
 
 /**
  * @def BufferPutByte(buffer,in)
@@ -711,10 +711,10 @@ extern AIO4C_API aio4c_bool_t BufferGetString(Buffer* buffer, char** out);
  *   been detected (meaning that there was not enough remaining space in the
  *   Buffer).
  */
-extern AIO4C_API aio4c_bool_t BufferPutString(Buffer* buffer, char* in);
+extern AIO4C_API bool BufferPutString(Buffer* buffer, char* in);
 
 /**
- * @fn aio4c_bool_t BufferPut(Buffer*,void*,int)
+ * @fn bool BufferPut(Buffer*,void*,int)
  * @brief Stores data in a Buffer.
  *
  * Checks that there is enough space in the Buffer to store the requested
@@ -738,6 +738,6 @@ extern AIO4C_API aio4c_bool_t BufferPutString(Buffer* buffer, char* in);
  *
  * @see AIO4C_BUFFER_OVERFLOW_ERROR
  */
-extern AIO4C_API aio4c_bool_t BufferPut(Buffer* buffer, void* in, int size);
+extern AIO4C_API bool BufferPut(Buffer* buffer, void* in, int size);
 
 #endif /* __AIO4C_BUFFER_H__ */

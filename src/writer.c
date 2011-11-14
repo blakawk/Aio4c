@@ -41,7 +41,7 @@
 
 #include <string.h>
 
-static aio4c_bool_t _WriterInit(Writer* writer) {
+static bool _WriterInit(Writer* writer) {
     if ((writer->queue = NewQueue()) == NULL) {
         return false;
     }
@@ -51,7 +51,7 @@ static aio4c_bool_t _WriterInit(Writer* writer) {
     return true;
 }
 
-static aio4c_bool_t _WriterRemove(QueueItem* item, QueueDiscriminant discriminant) {
+static bool _WriterRemove(QueueItem* item, QueueDiscriminant discriminant) {
     switch (QueueItemGetType(item)) {
         case AIO4C_QUEUE_ITEM_EVENT:
             if ((Connection*)QueueEventItemGetSource(item) == (Connection*)discriminant) {
@@ -65,7 +65,7 @@ static aio4c_bool_t _WriterRemove(QueueItem* item, QueueDiscriminant discriminan
     return false;
 }
 
-static aio4c_bool_t _WriterRun(Writer* writer) {
+static bool _WriterRun(Writer* writer) {
     QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
 

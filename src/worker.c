@@ -40,7 +40,7 @@
 
 #endif /* AIO4C_WIN32 */
 
-static aio4c_bool_t _WorkerInit(Worker* worker) {
+static bool _WorkerInit(Worker* worker) {
     if ((worker->queue = NewQueue()) == NULL) {
         return false;
     }
@@ -58,7 +58,7 @@ static aio4c_bool_t _WorkerInit(Worker* worker) {
     return true;
 }
 
-static aio4c_bool_t _removeCallback(QueueItem* item, QueueDiscriminant discriminant) {
+static bool _removeCallback(QueueItem* item, QueueDiscriminant discriminant) {
     Buffer* buffer = NULL;
     if (QueueItemGetType(item) == AIO4C_QUEUE_ITEM_TASK) {
         if (QueueTaskItemGetConnection(item) == (Connection*)discriminant) {
@@ -71,7 +71,7 @@ static aio4c_bool_t _removeCallback(QueueItem* item, QueueDiscriminant discrimin
     return false;
 }
 
-static aio4c_bool_t _WorkerRun(Worker* worker) {
+static bool _WorkerRun(Worker* worker) {
     QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
     Buffer* buffer = NULL;

@@ -66,8 +66,8 @@ struct s_Queue {
     List         free;
     Condition*   condition;
     Lock*        lock;
-    aio4c_bool_t exit;
-    aio4c_bool_t emptied;
+    bool exit;
+    bool emptied;
 };
 
 Queue* NewQueue(void) {
@@ -122,8 +122,8 @@ QueueItemType QueueItemGetType(QueueItem* item) {
     return item->type;
 }
 
-aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait) {
-    aio4c_bool_t dequeued = false;
+bool Dequeue(Queue* queue, QueueItem* item, bool wait) {
+    bool dequeued = false;
     Node* node = NULL;
 
     TakeLock(queue->lock);
@@ -180,7 +180,7 @@ static QueueItem* _NewItem(void) {
     return item;
 }
 
-static aio4c_bool_t _Enqueue(Queue* queue, QueueItem* item) {
+static bool _Enqueue(Queue* queue, QueueItem* item) {
     Node* node = NULL;
 
     if (queue == NULL || queue->lock == NULL) {
@@ -215,7 +215,7 @@ static aio4c_bool_t _Enqueue(Queue* queue, QueueItem* item) {
     return true;
 }
 
-aio4c_bool_t EnqueueDataItem(Queue* queue, void* data) {
+bool EnqueueDataItem(Queue* queue, void* data) {
     QueueItem item;
 
     memset(&item, 0, sizeof(QueueItem));
@@ -230,7 +230,7 @@ void* QueueDataItemGet(QueueItem* item) {
     return item->content.data;
 }
 
-aio4c_bool_t EnqueueExitItem(Queue* queue) {
+bool EnqueueExitItem(Queue* queue) {
     QueueItem item;
 
     memset(&item, 0, sizeof(QueueItem));
@@ -240,7 +240,7 @@ aio4c_bool_t EnqueueExitItem(Queue* queue) {
     return _Enqueue(queue, &item);
 }
 
-aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, EventSource source) {
+bool EnqueueEventItem(Queue* queue, Event type, EventSource source) {
     QueueItem item;
 
     memset(&item, 0, sizeof(QueueItem));
@@ -260,7 +260,7 @@ EventSource QueueEventItemGetSource(QueueItem* item) {
     return item->content.event.source;
 }
 
-aio4c_bool_t EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer) {
+bool EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer) {
     QueueItem item;
 
     memset(&item, 0, sizeof(QueueItem));
@@ -285,8 +285,8 @@ Buffer* QueueTaskItemGetBuffer(QueueItem* item) {
     return item->content.task.buffer;
 }
 
-aio4c_bool_t RemoveAll(Queue* queue, QueueRemoveCallback removeCallback, QueueDiscriminant discriminant) {
-    aio4c_bool_t removed = false;
+bool RemoveAll(Queue* queue, QueueRemoveCallback removeCallback, QueueDiscriminant discriminant) {
+    bool removed = false;
     Node* i = NULL;
     Node* toRemove = NULL;
 

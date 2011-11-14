@@ -41,7 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static aio4c_bool_t _ReaderInit(Reader* reader) {
+static bool _ReaderInit(Reader* reader) {
     if ((reader->selector = NewSelector()) == NULL) {
         return false;
     }
@@ -59,7 +59,7 @@ static aio4c_bool_t _ReaderInit(Reader* reader) {
     return true;
 }
 
-static aio4c_bool_t _ReaderRun(Reader* reader) {
+static bool _ReaderRun(Reader* reader) {
     QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
     SelectionKey* key = NULL;

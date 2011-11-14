@@ -199,7 +199,7 @@ extern AIO4C_API void ListAddLast(List* list, Node* newNode);
 extern AIO4C_API Node* ListPop(List* list);
 
 /**
- * @fn aio4c_bool_t ListEmpty(List*)
+ * @fn bool ListEmpty(List*)
  * @brief Determines if a List is empty.
  *
  * A List is determined empty if there is neither a first Node nor a las Node.
@@ -209,7 +209,7 @@ extern AIO4C_API Node* ListPop(List* list);
  * @return
  *   <code>true</code> if the List is empty, else <code>false</code>.
  */
-extern AIO4C_API aio4c_bool_t ListEmpty(List* list);
+extern AIO4C_API bool ListEmpty(List* list);
 
 /**
  * @fn void ListRemove(List*,Node*)

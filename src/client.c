@@ -56,8 +56,8 @@ struct s_Client {
     int               interval;
     int               retryCount;
     int               bufferSize;
-    aio4c_bool_t      connected;
-    aio4c_bool_t      exiting;
+    bool      connected;
+    bool      exiting;
 };
 
 static void _clientEventHandler(Event event, Connection* source, Client* client) {
@@ -82,7 +82,7 @@ static void _connection(Client* client) {
     ConnectionInit(client->connection);
 }
 
-static aio4c_bool_t _clientInit(Client* client) {
+static bool _clientInit(Client* client) {
     char* pipeName = aio4c_malloc(strlen(client->name) + 1);
 
     client->pool = NewBufferPool(client->bufferSize);
@@ -103,9 +103,9 @@ static aio4c_bool_t _clientInit(Client* client) {
     return true;
 }
 
-static aio4c_bool_t _clientRun(Client* client) {
+static bool _clientRun(Client* client) {
     QueueItem* item = NewQueueItem();
-    aio4c_bool_t closedForError = false;
+    bool closedForError = false;
     Connection* connection;
 
     while (Dequeue(client->queue, item, true)) {
@@ -246,7 +246,7 @@ Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t
     return client;
 }
 
-aio4c_bool_t ClientStart(Client* client) {
+bool ClientStart(Client* client) {
     return ThreadStart(client->thread);
 }
 

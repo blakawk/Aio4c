@@ -345,7 +345,7 @@ SelectionKey* Register(Selector* selector, SelectionOperation operation, aio4c_s
     return key;
 }
 
-void Unregister(Selector* selector, SelectionKey* key, aio4c_bool_t unregisterAll, aio4c_bool_t* isLastRegistration) {
+void Unregister(Selector* selector, SelectionKey* key, bool unregisterAll, bool* isLastRegistration) {
     int i = 0;
     int pollIndex = key->poll;
     SelectionKey* curKey = NULL;
@@ -416,7 +416,7 @@ aio4c_size_t _Select(char* file, int line, Selector* selector) {
 #ifndef AIO4C_HAVE_POLL
     fd_set wSet, rSet, eSet;
     int i = 0, maxFd = 0;
-    aio4c_bool_t fdAdded = false;
+    bool fdAdded = false;
 
     FD_ZERO(&wSet);
     FD_ZERO(&rSet);
@@ -604,10 +604,10 @@ void _SelectorWakeUp(char* file, int line, Selector* selector) {
     }
 }
 
-aio4c_bool_t SelectionKeyReady (Selector* selector, SelectionKey** key) {
+bool SelectionKeyReady (Selector* selector, SelectionKey** key) {
     Node* i = NULL;
     SelectionKey* curKey = NULL;
-    aio4c_bool_t result = true;
+    bool result = true;
 #ifdef AIO4C_HAVE_POLL
     aio4c_poll_t polls[1] = { { .fd = 0, .events = 0, .revents = 0 } };
 #else /* AIO4C_HAVE_POLL */

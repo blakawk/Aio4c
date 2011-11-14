@@ -91,7 +91,7 @@ typedef enum e_ProbeSizeType {
 
 extern int AIO4C_STATS_INTERVAL;
 
-extern AIO4C_API aio4c_bool_t AIO4C_STATS_ENABLE_PERIODIC_OUTPUT;
+extern AIO4C_API bool AIO4C_STATS_ENABLE_PERIODIC_OUTPUT;
 
 extern char* AIO4C_STATS_OUTPUT_FILE;
 

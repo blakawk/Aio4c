@@ -51,7 +51,7 @@ char* ThreadStateString[AIO4C_THREAD_STATE_MAX] = {
 };
 
 static Thread*      _threads[AIO4C_MAX_THREADS];
-static aio4c_bool_t _threadsInitialized = false;
+static bool _threadsInitialized = false;
 static int          _numThreads = 0;
 static int          _numThreadsRunning = 0;
 #ifndef AIO4C_WIN32
@@ -105,7 +105,7 @@ static Thread* _runThread(Thread* thread) {
     /* no thread cleanup on Win32 */
 #endif /* AIO4C_WIN32 */
 
-    aio4c_bool_t run = true;
+    bool run = true;
 
     _numThreadsRunning++;
 
@@ -229,7 +229,7 @@ Thread* _ThreadSelf(void) {
     return self;
 }
 
-aio4c_bool_t ThreadStart(Thread* thread) {
+bool ThreadStart(Thread* thread) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
     TakeLock(thread->lock);
@@ -258,7 +258,7 @@ aio4c_bool_t ThreadStart(Thread* thread) {
     return true;
 }
 
-Thread* NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg) {
+Thread* NewThread(char* name, bool (*init)(void*), bool (*run)(void*), void (*exit)(void*), void* arg) {
     Thread* thread = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -299,8 +299,8 @@ Thread* NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(v
     return thread;
 }
 
-aio4c_bool_t ThreadRunning(Thread* thread) {
-    aio4c_bool_t running = false;
+bool ThreadRunning(Thread* thread) {
+    bool running = false;
 
     if (thread != NULL) {
         running = (running || thread->state == AIO4C_THREAD_STATE_RUNNING);

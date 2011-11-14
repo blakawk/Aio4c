@@ -180,7 +180,7 @@ typedef struct s_QueueDiscriminant* QueueDiscriminant;
  * @typedef QueueRemoveCallback
  * @brief Callback used to determine if a QueueItem is to be removed.
  */
-typedef aio4c_bool_t (*QueueRemoveCallback)(QueueItem*,QueueDiscriminant);
+typedef bool (*QueueRemoveCallback)(QueueItem*,QueueDiscriminant);
 
 /**
  * @fn Queue* NewQueue(void)
@@ -216,7 +216,7 @@ extern AIO4C_API QueueItem* NewQueueItem(void);
 extern AIO4C_API QueueItemType QueueItemGetType(QueueItem* item);
 
 /**
- * @fn aio4c_bool_t EnqueueDataItem(Queue*,void*)
+ * @fn bool EnqueueDataItem(Queue*,void*)
  * @brief Enqueue an item of type DATA.
  *
  * @param queue
@@ -226,7 +226,7 @@ extern AIO4C_API QueueItemType QueueItemGetType(QueueItem* item);
  * @return
  *   <code>true</code> if the item has been enqueued with success, else <code>false</code>.
  */
-extern AIO4C_API aio4c_bool_t EnqueueDataItem(Queue* queue, void* data);
+extern AIO4C_API bool EnqueueDataItem(Queue* queue, void* data);
 
 /**
  * @fn void* QueueDataItemGet(QueueItem*)
@@ -240,7 +240,7 @@ extern AIO4C_API aio4c_bool_t EnqueueDataItem(Queue* queue, void* data);
 extern AIO4C_API void* QueueDataItemGet(QueueItem* item);
 
 /**
- * @fn aio4c_bool_t EnqueueExitItem(Queue*)
+ * @fn bool EnqueueExitItem(Queue*)
  * @brief Enqueue an item of type EXIT.
  *
  * Theses item are generally used in order to terminate the Thread waiting on the Queue.
@@ -250,10 +250,10 @@ extern AIO4C_API void* QueueDataItemGet(QueueItem* item);
  * @return
  *   <code>true</code> if the item has been enqueued with success, else <code>false</code>.
  */
-extern AIO4C_API aio4c_bool_t EnqueueExitItem(Queue* queue);
+extern AIO4C_API bool EnqueueExitItem(Queue* queue);
 
 /**
- * @fn aio4c_bool_t EnqueueEventItem(Queue*,Event,EventSource)
+ * @fn bool EnqueueEventItem(Queue*,Event,EventSource)
  * @brief Enqueue an item of type EVENT.
  *
  * A QueueItem of type Event allows to deliver a specific Event from an EventSource.
@@ -267,7 +267,7 @@ extern AIO4C_API aio4c_bool_t EnqueueExitItem(Queue* queue);
  * @return
  *   <code>true</code> if the item has been enqueued with success, else <code>false</code>.
  */
-extern AIO4C_API aio4c_bool_t EnqueueEventItem(Queue* queue, Event type, EventSource source);
+extern AIO4C_API bool EnqueueEventItem(Queue* queue, Event type, EventSource source);
 
 /**
  * @fn Event QueueEventItemGetEvent(QueueItem*)
@@ -292,7 +292,7 @@ extern AIO4C_API Event QueueEventItemGetEvent(QueueItem* item);
 extern AIO4C_API EventSource QueueEventItemGetSource(QueueItem* item);
 
 /**
- * @fn aio4c_bool_t EnqueueTaskItem(Queue*,Event,Connection*,Buffer*)
+ * @fn bool EnqueueTaskItem(Queue*,Event,Connection*,Buffer*)
  * @brief Enqueue an item of type TASK.
  *
  * A QueueItem of type TASK allows to send a Task to a Worker in order to process
@@ -309,7 +309,7 @@ extern AIO4C_API EventSource QueueEventItemGetSource(QueueItem* item);
  * @return
  *   <code>true</code> if the item has been enqueued with success, else <code>false</code>.
  */
-extern AIO4C_API aio4c_bool_t EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer);
+extern AIO4C_API bool EnqueueTaskItem(Queue* queue, Event event, Connection* connection, Buffer* buffer);
 
 /**
  * @fn Event QueueTaskItemGetEvent(QueueItem*)
@@ -345,7 +345,7 @@ extern AIO4C_API Connection* QueueTaskItemGetConnection(QueueItem* item);
 extern AIO4C_API Buffer* QueueTaskItemGetBuffer(QueueItem* item);
 
 /**
- * @fn aio4c_bool_t Dequeue(Queue*,QueueItem*,aio4c_bool_t)
+ * @fn bool Dequeue(Queue*,QueueItem*,bool)
  * @brief Dequeue an item from a Queue.
  *
  * In order to remove an item from a Queue, the queue should be not empty.
@@ -364,10 +364,10 @@ extern AIO4C_API Buffer* QueueTaskItemGetBuffer(QueueItem* item);
  * @return
  *   <code>true</code> if an item has been dequeued, <code>false</code> if not.
  */
-extern AIO4C_API aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_t wait);
+extern AIO4C_API bool Dequeue(Queue* queue, QueueItem* item, bool wait);
 
 /**
- * @fn aio4c_bool_t RemoveAll(Queue*,QueueRemoveCallback,QueueDiscriminant)
+ * @fn bool RemoveAll(Queue*,QueueRemoveCallback,QueueDiscriminant)
  * @brief Removes several items from a Queue.
  *
  * For each item present in the Queue, the QueueRemoveCallback is called with the discriminant as parameter. If the callback
@@ -382,7 +382,7 @@ extern AIO4C_API aio4c_bool_t Dequeue(Queue* queue, QueueItem* item, aio4c_bool_
  * @return
  *   <code>true</code> if at least one item has been removed from the Queue, else <code>false</code>.
  */
-extern AIO4C_API aio4c_bool_t RemoveAll(Queue* queue, QueueRemoveCallback removeCallback, QueueDiscriminant discriminant);
+extern AIO4C_API bool RemoveAll(Queue* queue, QueueRemoveCallback removeCallback, QueueDiscriminant discriminant);
 
 /**
  * @fn void FreeQueueItem(QueueItem**)

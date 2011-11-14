@@ -36,10 +36,10 @@
 #include <stdio.h>
 
 #define aio4c_thread_run(run) \
-    (aio4c_bool_t(*)(void*))run
+    (bool(*)(void*))run
 
 #define aio4c_thread_init(init) \
-    (aio4c_bool_t(*)(void*))init
+    (bool(*)(void*))init
 
 #define aio4c_thread_exit(exit) \
     (void(*)(void*))exit
@@ -105,12 +105,12 @@ struct s_Thread {
     HANDLE            handle;
 #endif /* AIO4C_WIN32 */
     ThreadState       state;
-    aio4c_bool_t      running;
+    bool      running;
     Lock*             lock;
-    aio4c_bool_t      initialized;
+    bool      initialized;
     Condition*        condInit;
-    aio4c_bool_t    (*init)(void*);
-    aio4c_bool_t    (*run)(void*);
+    bool    (*init)(void*);
+    bool    (*run)(void*);
     void            (*exit)(void*);
     void*             arg;
     void            (*start)(void);
@@ -120,19 +120,17 @@ extern AIO4C_API void ThreadMain(void);
 
 extern AIO4C_API int GetNumThreads(void);
 
-extern AIO4C_API Thread* NewThread(char* name, aio4c_bool_t (*init)(void*), aio4c_bool_t (*run)(void*), void (*exit)(void*), void* arg);
+extern AIO4C_API Thread* NewThread(char* name, bool (*init)(void*), bool (*run)(void*), void (*exit)(void*), void* arg);
 
-extern AIO4C_API aio4c_bool_t ThreadStart(Thread* thread);
+extern AIO4C_API bool ThreadStart(Thread* thread);
 
-extern AIO4C_API aio4c_bool_t ThreadRunning(Thread* thread);
+extern AIO4C_API bool ThreadRunning(Thread* thread);
 
-#ifdef AIO4C_DEBUG
-#define ThreadSelf() \
-    _ThreadSelf()
-#else /* AIO4C_DEBUG */
-#define ThreadSelf() \
-    NULL
-#endif /* AIO4C_DEBUG */
+#if AIO4C_DEBUG_THREADS
+#define ThreadSelf() _ThreadSelf()
+#else /* AIO4C_DEBUG_THREADS */
+#define ThreadSelf() NULL
+#endif /* AIO4C_DEBUG_THREADS */
 extern AIO4C_API Thread* _ThreadSelf(void);
 
 extern AIO4C_API void ThreadJoin(Thread* thread);

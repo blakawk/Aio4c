@@ -21,13 +21,13 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include <aio4c/jni/client.h>
-
 #include <aio4c/alloc.h>
 #include <aio4c/connection.h>
 #include <aio4c/client.h>
 #include <aio4c/jni.h>
 #include <aio4c/stats.h>
+
+#include "com_aio4c_Client.h"
 
 typedef struct s_JavaClient {
     Client* client;

@@ -21,12 +21,12 @@
  * Aio4c    <http://aio4c.so>.   If   not,   see
  * <http://www.gnu.org/licenses/>.
  */
-#include <aio4c/jni/buffer.h>
-
 #include <aio4c/alloc.h>
 #include <aio4c/buffer.h>
 #include <aio4c/jni.h>
 #include <aio4c/log.h>
+
+#include "com_aio4c_buffer_Buffer.h"
 
 #define _ThrowBufferUnderflow(jvm,buffer) \
     RaiseJavaException(jvm,"com/aio4c/buffer/BufferUnderflowException","(Lcom/aio4c/buffer/Buffer;)V",buffer)

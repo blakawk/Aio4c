@@ -67,7 +67,7 @@ struct s_Acceptor {
     Queue*         queue;
 };
 
-static aio4c_bool_t _AcceptorInit(Acceptor* acceptor) {
+static bool _AcceptorInit(Acceptor* acceptor) {
     int i = 0;
     aio4c_addr_t* addr = NULL;
     int addrSize = 0;
@@ -185,7 +185,7 @@ static Reader* _ChooseReader(Acceptor* acceptor) {
     return acceptor->readers[choosen];
 }
 
-static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
+static bool _AcceptorRun(Acceptor* acceptor) {
     struct sockaddr addr;
     struct sockaddr_in addr_in;
     struct sockaddr_in6 addr_in6;
@@ -253,7 +253,7 @@ static aio4c_bool_t _AcceptorRun(Acceptor* acceptor) {
     return true;
 }
 
-static aio4c_bool_t _AcceptorRemoveCallback(QueueItem* item, QueueDiscriminant discriminant) {
+static bool _AcceptorRemoveCallback(QueueItem* item, QueueDiscriminant discriminant) {
     Connection* c1 = NULL;
     Connection* c2 = (Connection*)discriminant;
 
