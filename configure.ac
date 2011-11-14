@@ -33,17 +33,46 @@ AC_ARG_ENABLE([debug-threading],
     [AC_DEFINE([AIO4C_DEBUG_THREADS],[1],[Defines whether to debug thread module])],
     [AC_DEFINE([AIO4C_DEBUG_THREADS],[0],[Defines whether to debug thread module])])
 AC_HEADER_STDBOOL
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h jni.h])
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h])
+AC_ARG_VAR([JAVA_HOME], [Path to the JDK home])
+AC_ARG_WITH([JNI], [
+    AS_HELP_STRING([--with-jni-headers],
+        [Path to the location where to found jni.h header file])],
+    [JNIPATHSET=1],
+    [JNIPATHSET=0])
+AC_CHECK_HEADER([jni.h], [JNI_BUILTIN=1], [JNI_BUILTIN=0])
+if test "x$JNI_BUILTIN" != x1; then
+    if test -z "`echo $host | egrep '(win|mingw|cyg)'`"; then
+        jni_sub="linux"
+    else
+        jni_sub="win32"
+    fi
+    if test "x$JNIPATHSET" = x1; then
+        jni_CPPFLAGS="-I$with_jni_headers/include -I$with_jni_headers/include/$jni_sub"
+    elif test "x$JAVA_HOME" != x; then
+        jni_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/$jni_sub"
+    fi
+    if test -n "$jni_CPPFLAGS"; then
+        AM_CPPFLAGS="$AM_CPPFLAGS $jni_CPPFLAGS"
+        AC_SUBST([AM_CPPFLAGS])
+        AC_DEFINE([HAVE_JNI_H], [1], [Defines if jni.h headers has been found])
+    fi
+fi
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 AC_CHECK_SIZEOF([void*], [0])
 AC_CHECK_LIB([pthread],[pthread_create])
 AC_CHECK_FUNCS([gettimeofday memchr memset select socket strcasecmp strerror strtol strtoul pipe poll])
-AC_PATH_PROG([JAVAH], [javah], [no])
-AC_PATH_PROG([JAVAC], [javac], [no])
-AC_PATH_PROG([JAR], [jar], [no])
+if test "x$JAVA_HOME" != x; then
+    javapath="$JAVA_HOME/bin$PATH_SEPARATOR$PATH"
+else
+    javapath="$PATH"
+fi
+AC_PATH_PROG([JAVAH], [javah], [no], [$javapath])
+AC_PATH_PROG([JAVAC], [javac], [no], [$javapath])
+AC_PATH_PROG([JAR], [jar], [no], [$javapath])
 have_java=no
-if test "x$JAVAH" != xno -a "x$JAVAC" != xno -a "x$JAR" != xno; then have_java=yes; fi
+if test "x$JAVAH" != xno -a "x$JAVAC" != xno -a "x$JAR" != xno -a "x$HAVE_JNI_H" != x; then have_java=yes; fi
 AM_CONDITIONAL([HAVE_JAVA], [test "x$have_java" = xyes])
 AC_ARG_VAR([JAVAH], [Path to the javah program to generate JNI interface header files])
 AC_ARG_VAR([JAVAC], [Path to the java compiler])
@@ -54,7 +83,7 @@ have_doxygen=no
 if test "x$DOXYGEN" != xno; then have_doxygen=yes; fi
 AM_CONDITIONAL([HAVE_DOXYGEN], [test "x$have_doxygen" = xyes])
 AC_ARG_VAR([DOXYGEN], [Path to Doxygen])
-AC_PATH_PROG([JAVADOC], [javadoc], [no])
+AC_PATH_PROG([JAVADOC], [javadoc], [no], [$javapath])
 have_javadoc=no
 if test "x$JAVADOC" != xno; then have_javadoc=yes; fi
 AM_CONDITIONAL([HAVE_JAVADOC], [test "x$have_javadoc" = xyes])

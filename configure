@@ -628,6 +628,8 @@ HAVE_JAVA_TRUE
 JAR
 JAVAC
 JAVAH
+AM_CPPFLAGS
+JAVA_HOME
 STATS_ENABLED_FALSE
 STATS_ENABLED_TRUE
 OTOOL64
@@ -756,6 +758,7 @@ enable_libtool_lock
 with_windows_vista
 enable_statistics
 enable_debug_threading
+with_JNI
 '
       ac_precious_vars='build_alias
 host_alias
@@ -766,6 +769,7 @@ LDFLAGS
 LIBS
 CPPFLAGS
 CPP
+JAVA_HOME
 JAVAH
 JAVAC
 JAR
@@ -1415,6 +1419,9 @@ Optional Packages:
                         (or the compiler's sysroot if not specified).
   --with-windows-vista    Enable build for Windows Vista version or higher
 
+      --with-jni-headers      Path to the location where to found jni.h header
+                          file
+
 Some influential environment variables:
   CC          C compiler command
   CFLAGS      C compiler flags
@@ -1424,6 +1431,7 @@ Some influential environment variables:
   CPPFLAGS    (Objective) C/C++ preprocessor flags, e.g. -I<include dir> if
               you have headers in a nonstandard directory <include dir>
   CPP         C preprocessor
+  JAVA_HOME   Path to the JDK home
   JAVAH       Path to the javah program to generate JNI interface header files
   JAVAC       Path to the java compiler
   JAR         Path to the java archiver
@@ -12158,7 +12166,7 @@ $as_echo "#define HAVE_STDBOOL_H 1" >>confdefs.h
 
 fi
 
-for ac_header in arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h jni.h
+for ac_header in arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -12171,6 +12179,42 @@ fi
 
 done
 
+
+
+# Check whether --with-JNI was given.
+if test "${with_JNI+set}" = set; then :
+  withval=$with_JNI; JNIPATHSET=1
+else
+  JNIPATHSET=0
+fi
+
+ac_fn_c_check_header_mongrel "$LINENO" "jni.h" "ac_cv_header_jni_h" "$ac_includes_default"
+if test "x$ac_cv_header_jni_h" = xyes; then :
+  JNI_BUILTIN=1
+else
+  JNI_BUILTIN=0
+fi
+
+
+if test "x$JNI_BUILTIN" != x1; then
+    if test -z "`echo $host | egrep '(win|mingw|cyg)'`"; then
+        jni_sub="linux"
+    else
+        jni_sub="win32"
+    fi
+    if test "x$JNIPATHSET" = x1; then
+        jni_CPPFLAGS="-I$with_jni_headers/include -I$with_jni_headers/include/$jni_sub"
+    elif test "x$JAVA_HOME" != x; then
+        jni_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/$jni_sub"
+    fi
+    if test -n "$jni_CPPFLAGS"; then
+        AM_CPPFLAGS="$AM_CPPFLAGS $jni_CPPFLAGS"
+
+
+$as_echo "#define HAVE_JNI_H 1" >>confdefs.h
+
+    fi
+fi
 ac_fn_c_check_type "$LINENO" "pid_t" "ac_cv_type_pid_t" "$ac_includes_default"
 if test "x$ac_cv_type_pid_t" = xyes; then :
 
@@ -12283,6 +12327,11 @@ _ACEOF
 fi
 done
 
+if test "x$JAVA_HOME" != x; then
+    javapath="$JAVA_HOME/bin$PATH_SEPARATOR$PATH"
+else
+    javapath="$PATH"
+fi
 # Extract the first word of "javah", so it can be a program name with args.
 set dummy javah; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -12296,7 +12345,7 @@ else
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
+for as_dir in $javapath
 do
   IFS=$as_save_IFS
   test -z "$as_dir" && as_dir=.
@@ -12337,7 +12386,7 @@ else
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
+for as_dir in $javapath
 do
   IFS=$as_save_IFS
   test -z "$as_dir" && as_dir=.
@@ -12378,7 +12427,7 @@ else
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
+for as_dir in $javapath
 do
   IFS=$as_save_IFS
   test -z "$as_dir" && as_dir=.
@@ -12407,7 +12456,7 @@ fi
 
 
 have_java=no
-if test "x$JAVAH" != xno -a "x$JAVAC" != xno -a "x$JAR" != xno; then have_java=yes; fi
+if test "x$JAVAH" != xno -a "x$JAVAC" != xno -a "x$JAR" != xno -a "x$HAVE_JNI_H" != x; then have_java=yes; fi
  if test "x$have_java" = xyes; then
   HAVE_JAVA_TRUE=
   HAVE_JAVA_FALSE='#'
@@ -12485,7 +12534,7 @@ else
   ;;
   *)
   as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
-for as_dir in $PATH
+for as_dir in $javapath
 do
   IFS=$as_save_IFS
   test -z "$as_dir" && as_dir=.

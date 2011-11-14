@@ -163,6 +163,9 @@ am__relativize = \
   reldir="$$dir2"
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_CPPFLAGS = @AM_CPPFLAGS@ -Werror -Wextra -Wall -pedantic -std=c99 \
+	-I@top_srcdir@/include -D_POSIX_C_SOURCE=199506L \
+	$(am__append_3)
 AR = @AR@
 AS = @AS@
 AUTOCONF = @AUTOCONF@
@@ -199,6 +202,7 @@ JAVACFLAGS = @JAVACFLAGS@
 JAVADOC = @JAVADOC@
 JAVADOCFLAGS = @JAVADOCFLAGS@
 JAVAH = @JAVAH@
+JAVA_HOME = @JAVA_HOME@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
@@ -288,9 +292,6 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 SUBDIRS = .
 lib_LTLIBRARIES = libaio4c.la
-AM_CPPFLAGS = -Werror -Wextra -Wall -pedantic -std=c99 \
-	-I@top_srcdir@/include -D_POSIX_C_SOURCE=199506L \
-	$(am__append_3)
 AM_LDFLAGS = \
 	-no-undefined
 

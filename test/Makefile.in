@@ -85,6 +85,16 @@ red=; grn=; lgn=; blu=; std=
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMTAR = @AMTAR@
+AM_CPPFLAGS = \
+	@AM_CPPFLAGS@ \
+	-Werror \
+	-Wextra \
+	-Wall \
+	-pedantic \
+	-std=c99 \
+	-I@top_srcdir@/include \
+	-D_POSIX_C_SOURCE=199506L
+
 AR = @AR@
 AS = @AS@
 AUTOCONF = @AUTOCONF@
@@ -121,6 +131,7 @@ JAVACFLAGS = @JAVACFLAGS@
 JAVADOC = @JAVADOC@
 JAVADOCFLAGS = @JAVADOCFLAGS@
 JAVAH = @JAVAH@
+JAVA_HOME = @JAVA_HOME@
 LD = @LD@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
@@ -209,15 +220,6 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 TESTS = $(check_PROGRAMS)
-AM_CPPFLAGS = \
-	-Werror \
-	-Wextra \
-	-Wall \
-	-pedantic \
-	-std=c99 \
-	-I@top_srcdir@/include \
-	-D_POSIX_C_SOURCE=199506L
-
 LDADD = @top_builddir@/src/libaio4c.la
 test_buffer_SOURCES = buffer.c
 test_queue_SOURCES = queue.c

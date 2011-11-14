@@ -1,5 +1,6 @@
 TESTS = $(check_PROGRAMS)
 AM_CPPFLAGS = \
+	@AM_CPPFLAGS@ \
 	-Werror \
 	-Wextra \
 	-Wall \

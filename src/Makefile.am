@@ -1,6 +1,7 @@
 SUBDIRS =
 lib_LTLIBRARIES = libaio4c.la
 AM_CPPFLAGS = \
+	@AM_CPPFLAGS@ \
 	-Werror \
 	-Wextra \
 	-Wall \
