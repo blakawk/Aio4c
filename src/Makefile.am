@@ -22,7 +22,6 @@ libaio4c_la_SOURCES = \
 	queue.c \
 	error.c \
 	writer.c \
-	jni.c \
 	address.c \
 	list.c \
 	lock.c \
@@ -42,6 +41,7 @@ endif
 
 if HAVE_JAVA
 libaio4c_la_SOURCES += \
+	jni.c \
 	jni/aio4c.c \
 	jni/buffer.c \
 	jni/client.c \

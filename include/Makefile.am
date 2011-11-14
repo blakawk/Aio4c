@@ -20,5 +20,8 @@ nobase_include_HEADERS = \
 	aio4c/condition.h \
 	aio4c/address.h \
 	aio4c/log.h \
-	aio4c/jni.h \
 	aio4c/selector.h
+
+if HAVE_JAVA
+nobase_include_HEADERS += aio4c/jni.h
+endif

@@ -35,20 +35,22 @@ AC_ARG_ENABLE([debug-threading],
 AC_HEADER_STDBOOL
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdlib.h string.h strings.h sys/socket.h sys/time.h unistd.h windows.h winsock2.h])
 AC_ARG_VAR([JAVA_HOME], [Path to the JDK home])
-AC_ARG_WITH([JNI], [
-    AS_HELP_STRING([--with-jni-headers],
-        [Path to the location where to found jni.h header file])],
-    [JNIPATHSET=1],
-    [JNIPATHSET=0])
+AC_ARG_WITH([java],
+    [AS_HELP_STRING([--with-java],
+        [Path to the location where to found a JDK])
+AS_HELP_STRING([--without-java],
+        [Disable support for java interface])],
+    [],
+    [with_java=yes])
 AC_CHECK_HEADER([jni.h], [JNI_BUILTIN=1], [JNI_BUILTIN=0])
-if test "x$JNI_BUILTIN" != x1; then
+if test "x$with_java" != xno -a "x$JNI_BUILTIN" != x1; then
     if test -z "`echo $host | egrep '(win|mingw|cyg)'`"; then
         jni_sub="linux"
     else
         jni_sub="win32"
     fi
-    if test "x$JNIPATHSET" = x1; then
-        jni_CPPFLAGS="-I$with_jni_headers/include -I$with_jni_headers/include/$jni_sub"
+    if test "x$with_java" != xyes; then
+        jni_CPPFLAGS="-I$with_java/include -I$with_java/include/$jni_sub"
     elif test "x$JAVA_HOME" != x; then
         jni_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/$jni_sub"
     fi
@@ -58,7 +60,7 @@ if test "x$JNI_BUILTIN" != x1; then
         AC_DEFINE([HAVE_JNI_H], [1], [Defines if jni.h headers has been found])
         HAVE_JNI_H=1
     fi
-else
+elif test "x$with_java" != xno; then
     AC_DEFINE([HAVE_JNI_H], [1], [Defines if jni.h headers has been found])
     HAVE_JNI_H=1
 fi
@@ -67,8 +69,10 @@ AC_TYPE_SIZE_T
 AC_CHECK_SIZEOF([void*], [0])
 AC_CHECK_LIB([pthread],[pthread_create])
 AC_CHECK_FUNCS([gettimeofday memchr memset select socket strcasecmp strerror strtol strtoul pipe poll])
-if test "x$JAVA_HOME" != x; then
-    javapath="$JAVA_HOME/bin$PATH_SEPARATOR$PATH"
+if test "x$with_java" != xno -a "x$with_java" != xyes; then
+    javapath="$with_java/bin"
+elif test "x$JAVA_HOME" != x; then
+    javapath="$JAVA_HOME/bin"
 else
     javapath="$PATH"
 fi

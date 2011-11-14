@@ -758,7 +758,7 @@ enable_libtool_lock
 with_windows_vista
 enable_statistics
 enable_debug_threading
-with_JNI
+with_java
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1418,9 +1418,8 @@ Optional Packages:
   --with-sysroot=DIR Search for dependent libraries within DIR
                         (or the compiler's sysroot if not specified).
   --with-windows-vista    Enable build for Windows Vista version or higher
-
-      --with-jni-headers      Path to the location where to found jni.h header
-                          file
+  --with-java             Path to the location where to found a JDK
+  --without-java          Disable support for java interface
 
 Some influential environment variables:
   CC          C compiler command
@@ -12181,11 +12180,11 @@ done
 
 
 
-# Check whether --with-JNI was given.
-if test "${with_JNI+set}" = set; then :
-  withval=$with_JNI; JNIPATHSET=1
+# Check whether --with-java was given.
+if test "${with_java+set}" = set; then :
+  withval=$with_java;
 else
-  JNIPATHSET=0
+  with_java=yes
 fi
 
 ac_fn_c_check_header_mongrel "$LINENO" "jni.h" "ac_cv_header_jni_h" "$ac_includes_default"
@@ -12196,14 +12195,14 @@ else
 fi
 
 
-if test "x$JNI_BUILTIN" != x1; then
+if test "x$with_java" != xno -a "x$JNI_BUILTIN" != x1; then
     if test -z "`echo $host | egrep '(win|mingw|cyg)'`"; then
         jni_sub="linux"
     else
         jni_sub="win32"
     fi
-    if test "x$JNIPATHSET" = x1; then
-        jni_CPPFLAGS="-I$with_jni_headers/include -I$with_jni_headers/include/$jni_sub"
+    if test "x$with_java" != xyes; then
+        jni_CPPFLAGS="-I$with_java/include -I$with_java/include/$jni_sub"
     elif test "x$JAVA_HOME" != x; then
         jni_CPPFLAGS="-I$JAVA_HOME/include -I$JAVA_HOME/include/$jni_sub"
     fi
@@ -12215,7 +12214,7 @@ $as_echo "#define HAVE_JNI_H 1" >>confdefs.h
 
         HAVE_JNI_H=1
     fi
-else
+elif test "x$with_java" != xno; then
 
 $as_echo "#define HAVE_JNI_H 1" >>confdefs.h
 
@@ -12333,8 +12332,10 @@ _ACEOF
 fi
 done
 
-if test "x$JAVA_HOME" != x; then
-    javapath="$JAVA_HOME/bin$PATH_SEPARATOR$PATH"
+if test "x$with_java" != xno -a "x$with_java" != xyes; then
+    javapath="$with_java/bin"
+elif test "x$JAVA_HOME" != x; then
+    javapath="$JAVA_HOME/bin"
 else
     javapath="$PATH"
 fi

@@ -35,8 +35,9 @@ POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
+@HAVE_JAVA_TRUE@am__append_1 = aio4c/jni.h
 subdir = include
-DIST_COMMON = $(nobase_include_HEADERS) $(srcdir)/Makefile.am \
+DIST_COMMON = $(am__nobase_include_HEADERS_DIST) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -51,6 +52,12 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 SOURCES =
 DIST_SOURCES =
+am__nobase_include_HEADERS_DIST = aio4c.h aio4c/error.h aio4c/client.h \
+	aio4c/reader.h aio4c/buffer.h aio4c/writer.h aio4c/thread.h \
+	aio4c/worker.h aio4c/types.h aio4c/stats.h aio4c/connection.h \
+	aio4c/server.h aio4c/acceptor.h aio4c/lock.h aio4c/queue.h \
+	aio4c/alloc.h aio4c/list.h aio4c/event.h aio4c/condition.h \
+	aio4c/address.h aio4c/log.h aio4c/selector.h aio4c/jni.h
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -204,31 +211,12 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-nobase_include_HEADERS = \
-	aio4c.h \
-	aio4c/error.h \
-	aio4c/client.h \
-	aio4c/reader.h \
-	aio4c/buffer.h \
-	aio4c/writer.h \
-	aio4c/thread.h \
-	aio4c/worker.h \
-	aio4c/types.h \
-	aio4c/stats.h \
-	aio4c/connection.h \
-	aio4c/server.h \
-	aio4c/acceptor.h \
-	aio4c/lock.h \
-	aio4c/queue.h \
-	aio4c/alloc.h \
-	aio4c/list.h \
-	aio4c/event.h \
-	aio4c/condition.h \
-	aio4c/address.h \
-	aio4c/log.h \
-	aio4c/jni.h \
-	aio4c/selector.h
-
+nobase_include_HEADERS = aio4c.h aio4c/error.h aio4c/client.h \
+	aio4c/reader.h aio4c/buffer.h aio4c/writer.h aio4c/thread.h \
+	aio4c/worker.h aio4c/types.h aio4c/stats.h aio4c/connection.h \
+	aio4c/server.h aio4c/acceptor.h aio4c/lock.h aio4c/queue.h \
+	aio4c/alloc.h aio4c/list.h aio4c/event.h aio4c/condition.h \
+	aio4c/address.h aio4c/log.h aio4c/selector.h $(am__append_1)
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
