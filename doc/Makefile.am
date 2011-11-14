@@ -47,16 +47,21 @@ doc_targets =
 all-local: $(doc_targets)
 
 if HAVE_DOXYGEN
-doc_targets += doxy.stamp
+doc_targets += html
+html: doxy.stamp
 endif
 
+EXTRA_DIST = Doxyfile.in
+CLEANFILES = doxy.stamp javadoc.stamp
+
 doxy.stamp: Doxyfile $(doxygen_header_files)
-	-mkdir -p html
+	-$(MKDIR_P) html
 	$(DOXYGEN) Doxyfile
 	echo timestamp > doxy.stamp
 
 if HAVE_JAVADOC
-doc_targets += javadoc.stamp
+doc_targets += javadoc
+javadoc: javadoc.stamp
 endif
 
 AMJAVADOCFLAGS = \
@@ -74,10 +79,50 @@ AMJAVADOCFLAGS = \
 	-source 1.6
 
 javadoc.stamp: $(javadoc_sources)
-	-mkdir -p javadoc
+	-$(MKDIR_P) javadoc
 	$(JAVADOC) $(AMJAVADOCFLAGS) $(JAVADOCFLAGS) $(javadoc_sources)
 	echo timestamp > javadoc.stamp
 
 clean-local:
-	-rm -f doxy.stamp javadoc.stamp
-	-rm -rf html javadoc
+	-rm -rf $(builddir)/html $(builddir)/javadoc
+
+doxy_target_dir = $(DESTDIR)$(docdir)/html
+javadoc_target_dir = $(DESTDIR)$(docdir)/javadoc
+
+install-data-local:
+	-$(MKDIR_P) $(doxy_target_dir) $(javadoc_target_dir)
+	-$(INSTALL_DATA) html/*.html $(doxy_target_dir)
+	-$(INSTALL_DATA) html/*.png $(doxy_target_dir)
+	-$(INSTALL_DATA) html/*.css $(doxy_target_dir)
+	-$(INSTALL_DATA) html/*.js $(doxy_target_dir)
+	-$(INSTALL_DATA) javadoc/*.html $(javadoc_target_dir)
+	-$(INSTALL_DATA) javadoc/*.css $(javadoc_target_dir)
+	-$(INSTALL_DATA) javadoc/package-list $(javadoc_target_dir)
+	-$(MKDIR_P) $(javadoc_target_dir)/resources
+	-$(INSTALL_DATA) javadoc/resources/*.gif $(javadoc_target_dir)/resources
+	-list="`cat javadoc/package-list | sed 's@\.@/@g'`"; \
+	for dir in $$list; do \
+		$(MKDIR_P) $(javadoc_target_dir)/$$dir $(javadoc_target_dir)/$$dir/class-use || exit $$?; \
+		$(INSTALL_DATA) javadoc/$$dir/*.html $(javadoc_target_dir)/$$dir || exit $$?; \
+		$(INSTALL_DATA) javadoc/$$dir/class-use/*.html $(javadoc_target_dir)/$$dir/class-use || exit $$?; \
+	done
+
+uninstall-local:
+	-rm -f $(doxy_target_dir)/*.html
+	-rm -f $(doxy_target_dir)/*.png
+	-rm -f $(doxy_target_dir)/*.css
+	-rm -f $(doxy_target_dir)/*.js
+	-rmdir $(doxy_target_dir)
+	-list="`tac $(javadoc_target_dir)/package-list | sed 's@\.@/@g'`"; \
+	for dir in $$list; do \
+		rm -f $(javadoc_target_dir)/$$dir/class-use/*.html || exit $$?; \
+		rm -f $(javadoc_target_dir)/$$dir/*.html || exit $$?; \
+		rmdir $(javadoc_target_dir)/$$dir/class-use $(javadoc_target_dir)/$$dir || exit $$?; \
+	done
+	-rm -f $(javadoc_target_dir)/resources/*.gif
+	-rmdir $(javadoc_target_dir)/resources
+	-rm -f $(javadoc_target_dir)/package-list
+	-rm -f $(javadoc_target_dir)/*.css
+	-rm -f $(javadoc_target_dir)/*.html
+	-rmdir $(javadoc_target_dir)
+

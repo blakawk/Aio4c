@@ -1,7 +1,9 @@
+AC_PREREQ([2.68])
 AC_INIT([aio4c], [0.2], [http://aio4c.so/newticket], [aio4c], [http://aio4c.so])
+AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_HOST
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror foreign])
+AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror foreign 1.9.6])
 AC_LANG([C])
 AC_PROG_CC
 AM_PROG_CC_C_O
@@ -9,6 +11,7 @@ AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
+AC_PROG_MKDIR_P
 AC_LIBTOOL_WIN32_DLL
 AC_PROG_LIBTOOL
 AC_ARG_WITH([windows-vista],
@@ -36,24 +39,24 @@ AC_TYPE_SIZE_T
 AC_CHECK_SIZEOF([void*], [0])
 AC_CHECK_LIB([pthread],[pthread_create])
 AC_CHECK_FUNCS([gettimeofday memchr memset select socket strcasecmp strerror strtol strtoul pipe poll])
-AC_CHECK_PROG([JAVAH], [javah], [javah], [no])
-AC_CHECK_PROG([JAVAC], [javac], [javac], [no])
-AC_CHECK_PROG([JAR], [jar], [jar], [no])
+AC_PATH_PROG([JAVAH], [javah], [no])
+AC_PATH_PROG([JAVAC], [javac], [no])
+AC_PATH_PROG([JAR], [jar], [no])
 have_java=no
-if test "x$JAVAH" = xjavah -a "x$JAVAC" = xjavac -o "x$JAR" = xjar; then have_java=yes; fi
+if test "x$JAVAH" != xno -a "x$JAVAC" != xno -a "x$JAR" != xno; then have_java=yes; fi
 AM_CONDITIONAL([HAVE_JAVA], [test "x$have_java" = xyes])
 AC_ARG_VAR([JAVAH], [Path to the javah program to generate JNI interface header files])
 AC_ARG_VAR([JAVAC], [Path to the java compiler])
 AC_ARG_VAR([JAR], [Path to the java archiver])
 AC_ARG_VAR([JAVACFLAGS], [Flags to pass to the java compiler])
-AC_CHECK_PROG([DOXYGEN], [doxygen], [doxygen], [no])
+AC_PATH_PROG([DOXYGEN], [doxygen], [no])
 have_doxygen=no
-if test "x$DOXYGEN" = xdoxygen; then have_doxygen=yes; fi
+if test "x$DOXYGEN" != xno; then have_doxygen=yes; fi
 AM_CONDITIONAL([HAVE_DOXYGEN], [test "x$have_doxygen" = xyes])
 AC_ARG_VAR([DOXYGEN], [Path to Doxygen])
-AC_CHECK_PROG([JAVADOC], [javadoc], [javadoc], [no])
+AC_PATH_PROG([JAVADOC], [javadoc], [no])
 have_javadoc=no
-if test "x$JAVADOC" = xjavadoc; then have_javadoc=yes; fi
+if test "x$JAVADOC" != xno; then have_javadoc=yes; fi
 AM_CONDITIONAL([HAVE_JAVADOC], [test "x$have_javadoc" = xyes])
 AC_ARG_VAR([JAVADOC], [Path to the java documentation generator])
 AC_ARG_VAR([JAVADOCFLAGS], [Additional flags to pass to the java documentation generator])
