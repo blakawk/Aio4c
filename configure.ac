@@ -3,7 +3,7 @@ AC_INIT([aio4c], [0.2], [http://aio4c.so/newticket], [aio4c], [http://aio4c.so])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_HOST
 AC_CANONICAL_SYSTEM
-AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror foreign 1.9.6])
+AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror foreign parallel-tests 1.9.6])
 AC_LANG([C])
 AC_PROG_CC
 AM_PROG_CC_C_O
@@ -79,12 +79,14 @@ fi
 AC_PATH_PROG([JAVAH], [javah], [no], [$javapath])
 AC_PATH_PROG([JAVAC], [javac], [no], [$javapath])
 AC_PATH_PROG([JAR], [jar], [no], [$javapath])
+AC_PATH_PROG([JAVA], [java], [no], [$javapath])
 have_java=no
 if test "x$JAVAH" != xno -a "x$JAVAC" != xno -a "x$JAR" != xno -a "x$HAVE_JNI_H" != x; then have_java=yes; fi
 AM_CONDITIONAL([HAVE_JAVA], [test "x$have_java" = xyes])
 AC_ARG_VAR([JAVAH], [Path to the javah program to generate JNI interface header files])
 AC_ARG_VAR([JAVAC], [Path to the java compiler])
 AC_ARG_VAR([JAR], [Path to the java archiver])
+AC_ARG_VAR([JAVA], [Path to the java excutable])
 AC_ARG_VAR([JAVACFLAGS], [Flags to pass to the java compiler])
 AC_PATH_PROG([DOXYGEN], [doxygen], [no])
 have_doxygen=no

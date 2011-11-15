@@ -625,6 +625,7 @@ DOXYGEN
 JAVACFLAGS
 HAVE_JAVA_FALSE
 HAVE_JAVA_TRUE
+JAVA
 JAR
 JAVAC
 JAVAH
@@ -773,6 +774,7 @@ JAVA_HOME
 JAVAH
 JAVAC
 JAR
+JAVA
 JAVACFLAGS
 DOXYGEN
 JAVADOC
@@ -1434,6 +1436,7 @@ Some influential environment variables:
   JAVAH       Path to the javah program to generate JNI interface header files
   JAVAC       Path to the java compiler
   JAR         Path to the java archiver
+  JAVA        Path to the java excutable
   JAVACFLAGS  Flags to pass to the java compiler
   DOXYGEN     Path to Doxygen
   JAVADOC     Path to the java documentation generator
@@ -12462,6 +12465,47 @@ $as_echo "no" >&6; }
 fi
 
 
+# Extract the first word of "java", so it can be a program name with args.
+set dummy java; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_JAVA+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $JAVA in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_JAVA="$JAVA" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $javapath
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if { test -f "$as_dir/$ac_word$ac_exec_ext" && $as_test_x "$as_dir/$ac_word$ac_exec_ext"; }; then
+    ac_cv_path_JAVA="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  test -z "$ac_cv_path_JAVA" && ac_cv_path_JAVA="no"
+  ;;
+esac
+fi
+JAVA=$ac_cv_path_JAVA
+if test -n "$JAVA"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $JAVA" >&5
+$as_echo "$JAVA" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
 have_java=no
 if test "x$JAVAH" != xno -a "x$JAVAC" != xno -a "x$JAR" != xno -a "x$HAVE_JNI_H" != x; then have_java=yes; fi
  if test "x$have_java" = xyes; then
@@ -12471,6 +12515,7 @@ else
   HAVE_JAVA_TRUE='#'
   HAVE_JAVA_FALSE=
 fi
+
 
 
 

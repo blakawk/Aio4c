@@ -34,50 +34,46 @@ public class TestBuffer {
         try {
             try {
                 Buffer b = Buffer.allocate(Integer.MAX_VALUE);
-                System.out.println("KO (1)");
+                System.exit(1);
             } catch (OutOfMemoryError oom) {
-                oom.printStackTrace();
                 Buffer b = Buffer.allocate(BUFSZ);
                 try {
                     for (int i = 0; i <= BUFSZ; i++) {
                         b.get();
                     }
-                    System.out.println("KO (2)");
+                    System.exit(2);
                 } catch (BufferUnderflowException bu) {
-                    bu.printStackTrace();
                     try {
                         b.position(BUFSZ + 1);
-                        System.out.println("KO (3)");
+                        System.exit(3);
                     } catch (IllegalArgumentException ia) {
-                        ia.printStackTrace();
                         b.reset();
                         try {
                             for (int i = 0; i <= BUFSZ; i++) {
                                 b.put((byte)1);
                             }
-                            System.out.println("KO (4)");
+                            System.exit(4);
                         } catch (BufferOverflowException bo) {
-                            bo.printStackTrace();
                             b.flip();
                             if (b.position() == 0 && b.limit() == BUFSZ) {
                                 b.putString("€");
                                 b.flip();
                                 if (b.getString().equals("€")) {
-                                    System.out.println("OK");
+                                    ;
                                 } else {
-                                    System.out.println("KO (6)");
+                                    System.exit(6);
                                 }
                             } else {
-                                System.out.println("KO (5)");
+                                System.exit(5);
                             }
                         }
                     }
                 }
             }
         } catch (Throwable t) {
-            t.printStackTrace();
-            System.out.println("KO (exception)");
+            System.exit(-1);
         }
         Aio4c.end();
+        System.exit(0);
     }
 }
