@@ -67,7 +67,8 @@ struct s_Acceptor {
     Queue*         queue;
 };
 
-static bool _AcceptorInit(Acceptor* acceptor) {
+static bool _AcceptorInit(ThreadData _acceptor) {
+    Acceptor* acceptor = (Acceptor*)_acceptor;
     int i = 0;
     aio4c_addr_t* addr = NULL;
     int addrSize = 0;
@@ -185,7 +186,8 @@ static Reader* _ChooseReader(Acceptor* acceptor) {
     return acceptor->readers[choosen];
 }
 
-static bool _AcceptorRun(Acceptor* acceptor) {
+static bool _AcceptorRun(ThreadData _acceptor) {
+    Acceptor* acceptor = (Acceptor*)_acceptor;
     struct sockaddr addr;
     struct sockaddr_in addr_in;
     struct sockaddr_in6 addr_in6;
@@ -283,7 +285,8 @@ static void _AcceptorCloseHandler(Event event, Connection* source, Acceptor* acc
     ProbeSize(AIO4C_PROBE_CONNECTION_COUNT, -1);
 }
 
-static void _AcceptorExit(Acceptor* acceptor) {
+static void _AcceptorExit(ThreadData _acceptor) {
+    Acceptor* acceptor = (Acceptor*)_acceptor;
     QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
     int i = 0;
@@ -366,10 +369,10 @@ Acceptor* NewAcceptor(char* name, Address* address, Connection* factory, int nbP
 
     acceptor->thread = NewThread(
             acceptor->name,
-            aio4c_thread_init(_AcceptorInit),
-            aio4c_thread_run(_AcceptorRun),
-            aio4c_thread_exit(_AcceptorExit),
-            aio4c_thread_arg(acceptor));
+            _AcceptorInit,
+            _AcceptorRun,
+            _AcceptorExit,
+            (ThreadData)acceptor);
 
     if (acceptor->thread == NULL) {
         FreeAddress(&acceptor->address);
@@ -396,7 +399,7 @@ Acceptor* NewAcceptor(char* name, Address* address, Connection* factory, int nbP
 
 void AcceptorEnd(Acceptor* acceptor) {
     if (acceptor->thread != NULL) {
-        acceptor->thread->running = false;
+        ThreadStop(acceptor->thread);
 
         if (acceptor->selector != NULL) {
             SelectorWakeUp(acceptor->selector);

@@ -39,24 +39,26 @@
 
 #endif /* AIO4C_WIN32 */
 
-static bool _serverInit(Server* server) {
+static bool _serverInit(ThreadData _server) {
+    Server* server = (Server*)_server;
     ConnectionAddHandler(server->factory, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(server->handler), NULL, true);
     ConnectionAddHandler(server->factory, AIO4C_READ_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_CLOSE_EVENT, aio4c_connection_handler(server->handler), NULL, true);
     ConnectionAddHandler(server->factory, AIO4C_FREE_EVENT, aio4c_connection_handler(server->handler), NULL, true);
-    server->acceptor = NewAcceptor(server->thread->name, server->address, server->factory, server->nbPipes);
+    server->acceptor = NewAcceptor(ThreadGetName(server->thread), server->address, server->factory, server->nbPipes);
 
     if (server->acceptor == NULL) {
         return false;
     }
 
-    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", server->thread->id);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", ThreadGetId(server->thread));
 
     return true;
 }
 
-static bool _serverRun(Server* server) {
+static bool _serverRun(ThreadData _server) {
+    Server* server = (Server*)_server;
     QueueItem* item = NewQueueItem();
 
     while (Dequeue(server->queue, item, true)) {
@@ -71,7 +73,8 @@ static bool _serverRun(Server* server) {
     return true;
 }
 
-static void _serverExit(Server* server) {
+static void _serverExit(ThreadData _server) {
+    Server* server = (Server*)_server;
     if (server->acceptor != NULL) {
         AcceptorEnd(server->acceptor);
     }
@@ -108,10 +111,10 @@ Server* NewServer(AddressType type, char* host, aio4c_port_t port, int bufferSiz
     server->nbPipes    = nbPipes;
     server->thread     = NewThread(
             "server",
-            aio4c_thread_init(_serverInit),
-            aio4c_thread_run(_serverRun),
-            aio4c_thread_exit(_serverExit),
-            aio4c_thread_arg(server));
+            _serverInit,
+            _serverRun,
+            _serverExit,
+            (ThreadData)server);
 
     if (server->thread == NULL) {
         FreeAddress(&server->address);

@@ -82,7 +82,8 @@ static void _connection(Client* client) {
     ConnectionInit(client->connection);
 }
 
-static bool _clientInit(Client* client) {
+static bool _clientInit(ThreadData _client) {
+    Client* client = (Client*)_client;
     char* pipeName = aio4c_malloc(strlen(client->name) + 1);
 
     client->pool = NewBufferPool(client->bufferSize);
@@ -98,12 +99,13 @@ static bool _clientInit(Client* client) {
 
     _connection(client);
 
-    Log(AIO4C_LOG_LEVEL_DEBUG, "started with tid 0x%08lx", client->thread->id);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "started with tid 0x%08lx", ThreadGetId(client->thread));
 
     return true;
 }
 
-static bool _clientRun(Client* client) {
+static bool _clientRun(ThreadData _client) {
+    Client* client = (Client*)_client;
     QueueItem* item = NewQueueItem();
     bool closedForError = false;
     Connection* connection;
@@ -180,7 +182,8 @@ static bool _clientRun(Client* client) {
     return true;
 }
 
-static void _clientExit(Client* client) {
+static void _clientExit(ThreadData _client) {
+    Client* client = (Client*)_client;
     if (client->reader != NULL) {
         ReaderEnd(client->reader);
     }
@@ -228,10 +231,10 @@ Client* NewClient(int clientIndex, AddressType type, char* address, aio4c_port_t
 
     client->thread = NewThread(
             client->name,
-            aio4c_thread_init(_clientInit),
-            aio4c_thread_run(_clientRun),
-            aio4c_thread_exit(_clientExit),
-            aio4c_thread_arg(client));
+            _clientInit,
+            _clientRun,
+            _clientExit,
+            (ThreadData)client);
 
     if (client->thread == NULL) {
         FreeQueue(&client->queue);

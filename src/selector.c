@@ -409,7 +409,7 @@ aio4c_size_t _Select(char* file, int line, Selector* selector) {
     unsigned char dummy = 0;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     Thread* current = ThreadSelf();
-    char* name = (current!=NULL)?current->name:NULL;
+    char* name = (current!=NULL)?ThreadGetName(current):NULL;
 
     TakeLock(selector->lock);
 
@@ -538,7 +538,7 @@ void _SelectorWakeUp(char* file, int line, Selector* selector) {
     unsigned char dummy = 1;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     Thread* current = ThreadSelf();
-    char* name = (current!=NULL)?current->name:NULL;
+    char* name = (current!=NULL)?ThreadGetName(current):NULL;
 
     dthread("%s:%d: %s WAKING UP %p\n", file, line, name, (void*)selector);
 

@@ -115,7 +115,7 @@ Condition* NewCondition(void) {
 bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
     Thread* current = ThreadSelf();
-    char* name = (current!=NULL)?current->name:NULL;
+    char* name = (current!=NULL)?ThreadGetName(current):NULL;
 
     condition->owner = current;
     condition->state = AIO4C_COND_STATE_WAITED;
@@ -123,7 +123,7 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
     LockSetState(LockSetOwner(lock, NULL), AIO4C_COND_STATE_FREE);
 
     if (current != NULL) {
-        current->state = AIO4C_THREAD_STATE_IDLE;
+        ThreadSetState(current, AIO4C_THREAD_STATE_IDLE);
     }
 
     dthread("%s:%d: %s WAIT CONDITION %p\n", file, line, name, (void*)condition);
@@ -135,7 +135,7 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
         condition->owner = NULL;
         condition->state = AIO4C_COND_STATE_FREE;
         if (current != NULL) {
-            current->state = AIO4C_THREAD_STATE_RUNNING;
+            ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
         }
         return false;
     }
@@ -148,7 +148,7 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
         condition->owner = NULL;
         condition->state = AIO4C_COND_STATE_FREE;
         if (current != NULL) {
-            current->state = AIO4C_THREAD_STATE_RUNNING;
+            ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
         }
         return false;
     }
@@ -164,7 +164,7 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
             condition->owner = NULL;
             condition->state = AIO4C_COND_STATE_FREE;
             if (current != NULL) {
-                current->state = AIO4C_THREAD_STATE_RUNNING;
+                ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
             }
             return false;
         case WAIT_FAILED:
@@ -175,7 +175,7 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
             condition->owner = NULL;
             condition->state = AIO4C_COND_STATE_FREE;
             if (current != NULL) {
-                current->state = AIO4C_THREAD_STATE_RUNNING;
+                ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
             }
             return false;
         default:
@@ -195,7 +195,7 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
             condition->owner = NULL;
             condition->state = AIO4C_COND_STATE_FREE;
             if (current != NULL) {
-                current->state = AIO4C_THREAD_STATE_RUNNING;
+                ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
             }
             return false;
         case WAIT_FAILED:
@@ -206,7 +206,7 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
             condition->owner = NULL;
             condition->state = AIO4C_COND_STATE_FREE;
             if (current != NULL) {
-                current->state = AIO4C_THREAD_STATE_RUNNING;
+                ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
             }
             return false;
         default:
@@ -229,7 +229,7 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
     condition->state = AIO4C_COND_STATE_FREE;
 
     if (current != NULL) {
-        current->state = AIO4C_THREAD_STATE_RUNNING;
+        ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
     }
 
     return true;
@@ -237,8 +237,8 @@ bool _WaitCondition(char* file, int line, Condition* condition, Lock* lock) {
 
 void _NotifyCondition(char* file, int line, Condition* condition) {
     Thread* current = ThreadSelf();
-    char* name = (current!=NULL)?current->name:NULL;
-    dthread("%s:%d: %s NOTIFY %s ON %p\n", file, line, name, (condition->owner!=NULL)?condition->owner->name:NULL, (void*)condition);
+    char* name = (current!=NULL)?ThreadGetName(current):NULL;
+    dthread("%s:%d: %s NOTIFY %s ON %p\n", file, line, name, (condition->owner!=NULL)?ThreadGetName(condition->owner):NULL, (void*)condition);
 
 #ifndef AIO4C_WIN32
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;

@@ -54,7 +54,8 @@ static int fds[2][3] = {{-1,-1,-1},{-1,-1,-1}};
 static struct sockaddr_in to[2];
 static unsigned char token[2][BUFSZ];
 
-static bool init(int* type) {
+static bool init(ThreadData _type) {
+    int* type = (int*)_type;
     switch (*type) {
         case 1:
             assert((selector[1] = NewSelector()) != NULL);
@@ -69,7 +70,8 @@ static bool init(int* type) {
     return true;
 }
 
-static void end(int* type) {
+static void end(ThreadData _type) {
+    int *type = (int*)_type;
     switch(*type) {
         case 0:
             FreeSelector(&selector[0]);
@@ -202,7 +204,8 @@ static void producer(void) {
     assert(isLastRegistration);
 }
 
-static bool run(int* type) {
+static bool run(ThreadData _type) {
+    int* type = (int*)_type;
     bool cont = true;
     static int connected[2] = {0,0};
 
@@ -265,6 +268,7 @@ void channel(int fd[2], struct sockaddr_in* to) {
 
 int main(int argc, char* argv[]) {
     int consumerType = 0, producerType = 1;
+    int* _consumerType = &consumerType, *_producerType = &producerType;
     Thread* consumer = NULL, * producer = NULL;
     int ko = 1;
 #ifndef AIO4C_WIN32
@@ -292,8 +296,8 @@ int main(int argc, char* argv[]) {
 
     assert((lock = NewLock()) != NULL);
 
-    consumer = NewThread("consumer", aio4c_thread_init(init), aio4c_thread_run(run), aio4c_thread_exit(end), aio4c_thread_arg(&consumerType));
-    producer = NewThread("producer", aio4c_thread_init(init), aio4c_thread_run(run), aio4c_thread_exit(end), aio4c_thread_arg(&producerType));
+    consumer = NewThread("consumer", init, run, end, (ThreadData)_consumerType);
+    producer = NewThread("producer", init, run, end, (ThreadData)_producerType);
 
     assert(ThreadStart(consumer));
     assert(ThreadStart(producer));

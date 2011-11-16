@@ -40,7 +40,8 @@
 
 #endif /* AIO4C_WIN32 */
 
-static bool _WorkerInit(Worker* worker) {
+static bool _WorkerInit(ThreadData _worker) {
+    Worker* worker = (Worker*)_worker;
     if ((worker->queue = NewQueue()) == NULL) {
         return false;
     }
@@ -53,7 +54,7 @@ static bool _WorkerInit(Worker* worker) {
         return false;
     }
 
-    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", worker->thread->id);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", ThreadGetId(worker->thread));
 
     return true;
 }
@@ -71,7 +72,8 @@ static bool _removeCallback(QueueItem* item, QueueDiscriminant discriminant) {
     return false;
 }
 
-static bool _WorkerRun(Worker* worker) {
+static bool _WorkerRun(ThreadData _worker) {
+    Worker* worker = (Worker*)_worker;
     QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
     Buffer* buffer = NULL;
@@ -109,7 +111,8 @@ static bool _WorkerRun(Worker* worker) {
     return true;
 }
 
-static void _WorkerExit(Worker* worker) {
+static void _WorkerExit(ThreadData _worker) {
+    Worker* worker = (Worker*)_worker;
     if (worker->writer != NULL) {
         WriterEnd(worker->writer);
     }
@@ -154,10 +157,10 @@ Worker* NewWorker(char* pipeName, aio4c_size_t bufferSize) {
 
     worker->thread = NewThread(
             worker->name,
-            aio4c_thread_init(_WorkerInit),
-            aio4c_thread_run(_WorkerRun),
-            aio4c_thread_exit(_WorkerExit),
-            aio4c_thread_arg(worker));
+            _WorkerInit,
+            _WorkerRun,
+            _WorkerExit,
+            (ThreadData)worker);
 
     if (worker->thread == NULL) {
         if (worker->name != NULL) {

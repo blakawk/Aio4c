@@ -100,6 +100,7 @@ install-data-local:
 	-$(INSTALL_DATA) javadoc/package-list $(javadoc_target_dir)
 	-$(MKDIR_P) $(javadoc_target_dir)/resources
 	-$(INSTALL_DATA) javadoc/resources/*.gif $(javadoc_target_dir)/resources
+	-$(MKDIR_P) $(javadoc_target_dir)/com
 	-list="`cat javadoc/package-list | sed 's@\.@/@g'`"; \
 	for dir in $$list; do \
 		$(MKDIR_P) $(javadoc_target_dir)/$$dir $(javadoc_target_dir)/$$dir/class-use || exit $$?; \
@@ -119,6 +120,7 @@ uninstall-local:
 		rm -f $(javadoc_target_dir)/$$dir/*.html || exit $$?; \
 		rmdir $(javadoc_target_dir)/$$dir/class-use $(javadoc_target_dir)/$$dir || exit $$?; \
 	done
+	-rmdir $(javadoc_target_dir)/com
 	-rm -f $(javadoc_target_dir)/resources/*.gif
 	-rmdir $(javadoc_target_dir)/resources
 	-rm -f $(javadoc_target_dir)/package-list

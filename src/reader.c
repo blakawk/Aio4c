@@ -41,7 +41,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static bool _ReaderInit(Reader* reader) {
+static bool _ReaderInit(ThreadData _reader) {
+    Reader* reader = (Reader*)_reader;
     if ((reader->selector = NewSelector()) == NULL) {
         return false;
     }
@@ -54,12 +55,13 @@ static bool _ReaderInit(Reader* reader) {
         return false;
     }
 
-    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", reader->thread->id);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", ThreadGetId(reader->thread));
 
     return true;
 }
 
-static bool _ReaderRun(Reader* reader) {
+static bool _ReaderRun(ThreadData _reader) {
+    Reader* reader = (Reader*)_reader;
     QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
     SelectionKey* key = NULL;
@@ -118,7 +120,8 @@ static bool _ReaderRun(Reader* reader) {
     return true;
 }
 
-static void _ReaderExit(Reader* reader) {
+static void _ReaderExit(ThreadData _reader) {
+    Reader* reader = (Reader*)_reader;
     if (reader->worker != NULL) {
         WorkerEnd(reader->worker);
     }
@@ -163,10 +166,10 @@ Reader* NewReader(char* pipeName, aio4c_size_t bufferSize) {
 
     reader->thread = NewThread(
             reader->name,
-           aio4c_thread_init(_ReaderInit),
-           aio4c_thread_run(_ReaderRun),
-           aio4c_thread_exit(_ReaderExit),
-           aio4c_thread_arg(reader));
+           _ReaderInit,
+           _ReaderRun,
+           _ReaderExit,
+           (ThreadData)reader);
 
     if (reader->thread == NULL) {
         FreeSelector(&reader->selector);

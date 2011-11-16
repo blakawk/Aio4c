@@ -41,12 +41,13 @@
 
 #include <string.h>
 
-static bool _WriterInit(Writer* writer) {
+static bool _WriterInit(ThreadData _writer) {
+    Writer* writer = (Writer*)_writer;
     if ((writer->queue = NewQueue()) == NULL) {
         return false;
     }
 
-    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", writer->thread->id);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "initialized with tid 0x%08lx", ThreadGetId(writer->thread));
 
     return true;
 }
@@ -65,7 +66,8 @@ static bool _WriterRemove(QueueItem* item, QueueDiscriminant discriminant) {
     return false;
 }
 
-static bool _WriterRun(Writer* writer) {
+static bool _WriterRun(ThreadData _writer) {
+    Writer* writer = (Writer*)_writer;
     QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
 
@@ -106,7 +108,8 @@ static bool _WriterRun(Writer* writer) {
     return true;
 }
 
-static void _WriterExit(Writer* writer) {
+static void _WriterExit(ThreadData _writer) {
+    Writer* writer = (Writer*)_writer;
     FreeQueue(&writer->queue);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "exited");
@@ -140,10 +143,10 @@ Writer* NewWriter(char* pipeName, aio4c_size_t bufferSize) {
     }
     writer->thread       = NewThread(
             writer->name,
-            aio4c_thread_init(_WriterInit),
-            aio4c_thread_run(_WriterRun),
-            aio4c_thread_exit(_WriterExit),
-            aio4c_thread_arg(writer));
+            _WriterInit,
+            _WriterRun,
+            _WriterExit,
+            (ThreadData)writer);
 
     if (writer->thread == NULL) {
         if (writer->name != NULL) {

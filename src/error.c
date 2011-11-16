@@ -125,14 +125,14 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
             break;
         case AIO4C_THREAD_ERROR_TYPE:
             Log(level, "[E:%02d,T:%02d] %s:%d: %s for thread %s[i:0x%lx,s:%s]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                    code->thread->name, (unsigned long)code->thread->id, ThreadStateString[code->thread->state],
+                    ThreadGetName(code->thread), ThreadGetId(code->thread), ThreadStateString[ThreadGetState(code->thread)],
                     errorCode, errorMessage);
             break;
         case AIO4C_THREAD_LOCK_ERROR_TYPE:
             if (LockGetOwner(code->lock) != NULL) {
                 Log(level, "[E:%02d,T:%02d] %s:%d: %s lock %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                        (void*)code->lock, LockStateString[LockGetState(code->lock)], LockGetOwner(code->lock)->name,
-                        (unsigned long)LockGetOwner(code->lock)->id, ThreadStateString[LockGetOwner(code->lock)->state], errorCode, errorMessage);
+                        (void*)code->lock, LockStateString[LockGetState(code->lock)], ThreadGetName(LockGetOwner(code->lock)),
+                        ThreadGetId(LockGetOwner(code->lock)), ThreadStateString[ThreadGetState(LockGetOwner(code->lock))], errorCode, errorMessage);
             } else {
                 Log(level, "[E:%02d,T:%02d] %s:%d: %s lock %p[s:%s,o:none]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                         (void*)code->lock, LockStateString[LockGetState(code->lock)], errorCode, errorMessage);
@@ -141,8 +141,8 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
         case AIO4C_THREAD_CONDITION_ERROR_TYPE:
             if (ConditionGetOwner(code->condition) != NULL) {
                 Log(level, "[E:%02d,T:%02d] %s:%d: %s condition %p[s:%s,o:%s[i:0x%lx,s:%s]]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
-                        (void*)code->condition, ConditionStateString[ConditionGetState(code->condition)], ConditionGetOwner(code->condition)->name,
-                        (unsigned long)ConditionGetOwner(code->condition)->id, ThreadStateString[ConditionGetOwner(code->condition)->state], errorCode, errorMessage);
+                        (void*)code->condition, ConditionStateString[ConditionGetState(code->condition)], ThreadGetName(ConditionGetOwner(code->condition)),
+                        ThreadGetId(ConditionGetOwner(code->condition)), ThreadStateString[ThreadGetState(ConditionGetOwner(code->condition))], errorCode, errorMessage);
             } else {
                 Log(level, "[E:%02d,T:%02d] %s:%d: %s condition %p[s:%s,o:none]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                         (void*)code->condition, ConditionStateString[ConditionGetState(code->condition)], errorCode, errorMessage);

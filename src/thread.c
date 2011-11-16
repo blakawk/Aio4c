@@ -41,6 +41,26 @@
 #include <stdarg.h>
 #include <string.h>
 
+struct s_Thread {
+    char*                name;
+#ifndef AIO4C_WIN32
+    pthread_t            id;
+#else /* AIO4C_WIN32 */
+    DWORD                id;
+    HANDLE               handle;
+#endif /* AIO4C_WIN32 */
+    ThreadState          state;
+    bool                 running;
+    Lock*                lock;
+    bool                 initialized;
+    Condition*           condInit;
+    ThreadInitialization init;
+    ThreadRoutine        run;
+    ThreadFinalization   exit;
+    ThreadData           arg;
+};
+
+
 char* ThreadStateString[AIO4C_THREAD_STATE_MAX] = {
     "NONE",
     "RUNNING",
@@ -51,7 +71,7 @@ char* ThreadStateString[AIO4C_THREAD_STATE_MAX] = {
 };
 
 static Thread*      _threads[AIO4C_MAX_THREADS];
-static bool _threadsInitialized = false;
+static bool         _threadsInitialized = false;
 static int          _numThreads = 0;
 static int          _numThreadsRunning = 0;
 #ifndef AIO4C_WIN32
@@ -258,7 +278,7 @@ bool ThreadStart(Thread* thread) {
     return true;
 }
 
-Thread* NewThread(char* name, bool (*init)(void*), bool (*run)(void*), void (*exit)(void*), void* arg) {
+Thread* NewThread(char* name, ThreadInitialization initialize, ThreadRoutine routine, ThreadFinalization finalize, ThreadData data) {
     Thread* thread = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 
@@ -290,13 +310,33 @@ Thread* NewThread(char* name, bool (*init)(void*), bool (*run)(void*), void (*ex
     }
 
     thread->initialized = false;
-    thread->init = init;
-    thread->run = run;
-    thread->exit = exit;
-    thread->arg = arg;
+    thread->init = initialize;
+    thread->run = routine;
+    thread->exit = finalize;
+    thread->arg = data;
     thread->running = false;
 
     return thread;
+}
+
+char* ThreadGetName(Thread* thread) {
+    return thread->name;
+}
+
+unsigned long ThreadGetId(Thread* thread) {
+    return (unsigned long)thread->id;
+}
+
+ThreadState ThreadGetState(Thread* thread) {
+    return thread->state;
+}
+
+void ThreadSetState(Thread* thread, ThreadState state) {
+    thread->state = state;
+}
+
+void ThreadStop(Thread* thread) {
+    thread->running = false;
 }
 
 bool ThreadRunning(Thread* thread) {

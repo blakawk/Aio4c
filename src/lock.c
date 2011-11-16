@@ -96,17 +96,17 @@ Lock* _TakeLock(char* file, int line, Lock* lock) {
     ProbeTimeStart(AIO4C_TIME_PROBE_BLOCK);
 
     if (current != NULL) {
-        current->state = AIO4C_THREAD_STATE_BLOCKED;
+        ThreadSetState(current, AIO4C_THREAD_STATE_BLOCKED);
     }
 
-    dthread("%s:%d: %s lock %p\n", file, line, (current!=NULL)?current->name:NULL, (void*)lock);
+    dthread("%s:%d: %s lock %p\n", file, line, (current!=NULL)?ThreadGetName(current):NULL, (void*)lock);
 
 #ifndef AIO4C_WIN32
     if ((code.error = pthread_mutex_lock(&lock->mutex)) != 0) {
         code.lock = lock;
 
         if (current != NULL) {
-            current->state = AIO4C_THREAD_STATE_RUNNING;
+            ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
         }
 
         Raise(AIO4C_LOG_LEVEL_ERROR, AIO4C_THREAD_LOCK_ERROR_TYPE, AIO4C_THREAD_LOCK_TAKE_ERROR, &code);
@@ -120,7 +120,7 @@ Lock* _TakeLock(char* file, int line, Lock* lock) {
     lock->state = AIO4C_LOCK_STATE_LOCKED;
 
     if (current != NULL) {
-        current->state = AIO4C_THREAD_STATE_RUNNING;
+        ThreadSetState(current, AIO4C_THREAD_STATE_RUNNING);
     }
 
     ProbeTimeEnd(AIO4C_TIME_PROBE_BLOCK);
@@ -134,7 +134,7 @@ Lock* _ReleaseLock(char* file, int line, Lock* lock) {
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
 #endif /* AIO4C_WIN32 */
 
-    dthread("%s:%d: %s unlock %p\n", file, line, (current!=NULL)?current->name:NULL, (void*)lock);
+    dthread("%s:%d: %s unlock %p\n", file, line, (current!=NULL)?ThreadGetName(current):NULL, (void*)lock);
 
     lock->state = AIO4C_LOCK_STATE_FREE;
     lock->owner = NULL;

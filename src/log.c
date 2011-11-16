@@ -98,12 +98,14 @@ static void _LogPrintMessage(Logger* logger, LogMessage* message) {
     aio4c_free(message);
 }
 
-static bool _LogInit(Logger* logger) {
-    Log(AIO4C_LOG_LEVEL_INFO, "logging is initialized, logger tid is 0x%08lx", logger->thread->id);
+static bool _LogInit(ThreadData _logger) {
+    Logger* logger = (Logger*)_logger;
+    Log(AIO4C_LOG_LEVEL_INFO, "logging is initialized, logger tid is 0x%08lx", ThreadGetId(logger->thread));
     return true;
 }
 
-static bool _LogRun(Logger* logger) {
+static bool _LogRun(ThreadData _logger) {
+    Logger* logger = (Logger*)_logger;
     QueueItem* item = NewQueueItem();
 
     while (Dequeue(logger->queue, item, true)) {
@@ -123,10 +125,11 @@ static bool _LogRun(Logger* logger) {
     return true;
 }
 
-static void _LogExit(Logger* logger) {
+static void _LogExit(ThreadData _logger) {
+    Logger* logger = (Logger*)_logger;
     Log(AIO4C_LOG_LEVEL_INFO, "logging finished");
 
-    _LogRun(logger);
+    _LogRun(_logger);
 
     fclose(logger->file);
     logger->file = NULL;
@@ -152,6 +155,7 @@ static void _LogDefaultHandler(Logger* logger, LogLevel level, char* message) {
 
 void LogInit(void (*handler)(void*,LogLevel,char*), void* logger) {
     static unsigned char initialized = 0;
+    Logger* threadData = &_logger;
 
     if (initialized || initialized++) {
         return;
@@ -182,10 +186,10 @@ void LogInit(void (*handler)(void*,LogLevel,char*), void* logger) {
     } else {
         _logger.thread = NewThread(
                 "logger",
-                aio4c_thread_init(_LogInit),
-                aio4c_thread_run(_LogRun),
-                aio4c_thread_exit(_LogExit),
-                aio4c_thread_arg(&_logger));
+                _LogInit,
+                _LogRun,
+                _LogExit,
+                (ThreadData)threadData);
         if (_logger.thread == NULL) {
             Log(AIO4C_LOG_LEVEL_WARN, "cannot create logging thread, logging may slow down performances");
         } else if (!ThreadStart(_logger.thread)) {
@@ -240,8 +244,8 @@ static void _logprefix(char** pMessage, int* pos, bool allocate) {
 
     from = ThreadSelf();
 
-    if (from != NULL && from->name != NULL) {
-        _logsnprintf(message, pos, AIO4C_LOG_MESSAGE_SIZE, "%s: ", from->name);
+    if (from != NULL && ThreadGetName(from) != NULL) {
+        _logsnprintf(message, pos, AIO4C_LOG_MESSAGE_SIZE, "%s: ", ThreadGetName(from));
     }
 
     *pMessage = message;
