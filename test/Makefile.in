@@ -36,8 +36,14 @@ host_triplet = @host@
 target_triplet = @target@
 check_PROGRAMS = test-buffer$(EXEEXT) test-queue$(EXEEXT) \
 	test-selector$(EXEEXT)
+@HAVE_JAVA_TRUE@am__append_1 = \
+@HAVE_JAVA_TRUE@	TestBuffer.class
+
+@HAVE_JAVA_TRUE@am__append_2 = \
+@HAVE_JAVA_TRUE@	@srcdir@/TestBuffer.java
+
 subdir = test
-DIST_COMMON = $(dist_check_JAVA) $(srcdir)/Makefile.am \
+DIST_COMMON = $(am__dist_check_JAVA_DIST) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -79,6 +85,7 @@ SOURCES = $(test_buffer_SOURCES) $(test_queue_SOURCES) \
 	$(test_selector_SOURCES)
 DIST_SOURCES = $(test_buffer_SOURCES) $(test_queue_SOURCES) \
 	$(test_selector_SOURCES)
+am__dist_check_JAVA_DIST = @srcdir@/TestBuffer.java
 CLASSPATH_ENV = CLASSPATH=$(JAVAROOT):$(srcdir)/$(JAVAROOT):$$CLASSPATH
 ETAGS = etags
 CTAGS = ctags
@@ -294,7 +301,11 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-TESTS = $(check_PROGRAMS) TestBuffer.class
+TESTS = $(check_PROGRAMS) $(am__append_1)
+dist_check_JAVA = $(am__append_2)
+test_buffer_SOURCES = buffer.c
+test_queue_SOURCES = queue.c
+test_selector_SOURCES = selector.c
 TEST_EXTENSIONS = .class
 CLASS_LOG_COMPILER = @srcdir@/java-wrapper.sh
 AM_CLASS_LOG_FLAGS = \
@@ -306,10 +317,6 @@ LDADD = @top_builddir@/src/libaio4c.la
 dist_checkdir = @builddir@
 JAVAROOT = @builddir@
 EXTRA_DIST = java-wrapper.sh
-dist_check_JAVA = @srcdir@/TestBuffer.java
-test_buffer_SOURCES = buffer.c
-test_queue_SOURCES = queue.c
-test_selector_SOURCES = selector.c
 all: all-am
 
 .SUFFIXES:
