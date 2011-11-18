@@ -48,9 +48,70 @@
 
 #include <string.h>
 
+struct s_SelectionKey {
+    SelectionOperation operation;
+    Node*              node;
+    aio4c_socket_t     fd;
+    void*              attachment;
+    int                poll;
+    int                count;
+    int                curCount;
+    SelectionOperation result;
+};
+
+#ifndef AIO4C_HAVE_POLL
+typedef struct s_Poll {
+    aio4c_socket_t fd;
+    short          events;
+    short          revents;
+} Poll;
+#endif /* AIO4C_HAVE_POLL */
+
+struct s_Selector {
+    aio4c_pipe_t    pipe;
+    List            busyKeys;
+    List            freeKeys;
+    SelectionKey*   curKey;
+#ifdef AIO4C_HAVE_POLL
+    aio4c_poll_t*   polls;
+#else /* AIO4C_HAVE_POLL */
+    Poll*           polls;
+#endif /* AIO4C_HAVE_POLL */
+    int             numPolls;
+    int             maxPolls;
+    Lock*           lock;
 #ifndef AIO4C_HAVE_PIPE
-static int _selectorNextPort = 8000;
+    aio4c_port_t    port;
 #endif /* AIO4C_HAVE_PIPE */
+};
+
+#ifndef AIO4C_HAVE_PIPE
+static aio4c_port_t _selectorNextPort = 8000;
+#endif /* AIO4C_HAVE_PIPE */
+
+aio4c_socket_t SelectionKeyGetSocket(SelectionKey* key) {
+    return key->fd;
+}
+
+void* SelectionKeyGetAttachment(SelectionKey* key) {
+    return key->attachment;
+}
+
+SelectionOperation SelectionKeyGetResult(SelectionKey* key) {
+    return key->result;
+}
+
+bool SelectionKeyIsOperationSuccessful(SelectionKey* key) {
+    return (((short)(key->result) & (short)(key->operation)) == (short)(key->operation));
+}
+
+int SelectionKeyGetCurrentCount(SelectionKey* key) {
+    return key->curCount;
+}
+
+int SelectionKeyGetRegistrationCount(SelectionKey* key) {
+    return key->count;
+}
 
 Selector* NewSelector(void) {
     Selector* selector = NULL;
@@ -231,6 +292,32 @@ Selector* NewSelector(void) {
     return selector;
 }
 
+int SelectorGetPollsNumber(Selector* selector) {
+    return selector->numPolls;
+}
+
+int SelectorGetPollsMax(Selector* selector) {
+    return selector->maxPolls;
+}
+
+#ifndef AIO4C_HAVE_PIPE
+aio4c_port_t SelectorGetPort(Selector* selector) {
+    return selector->port;
+}
+#endif /* AIO4C_HAVE_PIPE */
+
+SelectionKey* SelectorGetCurrentKey(Selector* selector) {
+    return selector->curKey;
+}
+
+int SelectionKeyGetCurrentRegistrationCount(SelectionKey* key) {
+    return key->curCount;
+}
+
+SelectionOperation SelectionKeyGetOperation(SelectionKey* key) {
+    return key->operation;
+}
+
 SelectionKey* _NewSelectionKey(void) {
     SelectionKey* key = NULL;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;
@@ -404,7 +491,7 @@ void Unregister(Selector* selector, SelectionKey* key, bool unregisterAll, bool*
     ReleaseLock(selector->lock);
 }
 
-aio4c_size_t _Select(char* file, int line, Selector* selector) {
+int _Select(char* file, int line, Selector* selector) {
     int nbPolls = 0;
     unsigned char dummy = 0;
     ErrorCode code = AIO4C_ERROR_CODE_INITIALIZER;

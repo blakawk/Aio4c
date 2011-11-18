@@ -108,8 +108,8 @@ static bool _ReaderRun(ThreadData _reader) {
     if (numConnectionsReady > 0) {
         ProbeTimeStart(AIO4C_TIME_PROBE_NETWORK_READ);
         while (SelectionKeyReady(reader->selector, &key)) {
-            if (key->result & (int)key->operation) {
-                connection = ConnectionRead((Connection*)key->attachment);
+            if (SelectionKeyIsOperationSuccessful(key)) {
+                connection = ConnectionRead(SelectionKeyGetAttachment(key));
             }
         }
         ProbeTimeEnd(AIO4C_TIME_PROBE_NETWORK_READ);

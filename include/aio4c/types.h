@@ -141,8 +141,6 @@ typedef unsigned char _Bool;
 
 typedef unsigned int aio4c_size_t;
 
-typedef unsigned int aio4c_position_t;
-
 typedef struct sockaddr aio4c_addr_t;
 
 typedef int aio4c_port_t;

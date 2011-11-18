@@ -103,24 +103,25 @@ static void consumer(void) {
     bool isLastRegistration = false;
 
     assert((readkey = Register(selector[0], AIO4C_OP_READ, fds[0][2], &token[0])) != NULL);
-    assert(readkey->fd == fds[0][2]);
-    assert(readkey->attachment == &token[0]);
-    assert(readkey->operation == AIO4C_OP_READ);
+    assert(SelectionKeyGetSocket(readkey) == fds[0][2]);
+    assert(SelectionKeyGetAttachment(readkey) == &token[0]);
+    assert(SelectionKeyGetOperation(readkey) == AIO4C_OP_READ);
+    assert(SelectionKeyGetRegistrationCount(readkey) == 1);
 
     for (i = 0; i < 1000; i++) {
         assert(Select(selector[0]) == 1);
-        assert(SelectionKeyReady(selector[0], &mykey) == true);
-        assert(selector[0]->curKey == mykey);
+        assert(SelectionKeyReady(selector[0], &mykey));
+        assert(SelectorGetCurrentKey(selector[0]) == mykey);
         assert(mykey == readkey);
-        assert(mykey->attachment == &token[0]);
-        assert(mykey->fd == fds[0][2]);
-        assert(mykey->result == AIO4C_OP_READ);
-        assert(mykey->curCount == 1);
+        assert(SelectionKeyGetAttachment(mykey) == &token[0]);
+        assert(SelectionKeyGetSocket(mykey) == fds[0][2]);
+        assert(SelectionKeyIsOperationSuccessful(mykey));
+        assert(SelectionKeyGetCurrentCount(mykey) == 1);
         assert(recv(fds[0][2], (char*)dummy, BUFSZ, MSG_WAITALL) == BUFSZ);
         assert(memcmp(dummy, token[0], BUFSZ) == 0);
         assert(SelectionKeyReady(selector[0], &mykey) == false);
-        assert(readkey->curCount == 0);
-        assert(selector[0]->curKey == NULL);
+        assert(SelectionKeyGetCurrentCount(readkey) == 0);
+        assert(SelectorGetCurrentKey(selector[0]) == NULL);
         assert(mykey == NULL);
     }
 
@@ -129,15 +130,15 @@ static void consumer(void) {
     Unregister(selector[0], readkey, false, &isLastRegistration);
     assert(isLastRegistration);
     assert((writekey = Register(selector[0], AIO4C_OP_WRITE, fds[1][1], &token[1])) != NULL);
-    assert(writekey->fd == fds[1][1]);
-    assert(writekey->attachment == &token[1]);
-    assert(writekey->operation == AIO4C_OP_WRITE);
+    assert(SelectionKeyGetSocket(writekey) == fds[1][1]);
+    assert(SelectionKeyGetAttachment(writekey) == &token[1]);
+    assert(SelectionKeyGetOperation(writekey) == AIO4C_OP_WRITE);
     assert(Select(selector[0]) == 1);
     assert(SelectionKeyReady(selector[0], &mykey) == true);
     assert(mykey == writekey);
-    assert(mykey->attachment == &token[1]);
-    assert(mykey->fd == fds[1][1]);
-    assert(mykey->result == AIO4C_OP_WRITE);
+    assert(SelectionKeyGetAttachment(mykey) == &token[1]);
+    assert(SelectionKeyGetSocket(mykey) == fds[1][1]);
+    assert(SelectionKeyIsOperationSuccessful(mykey));
     assert(send(fds[1][1], (char*)token[1], BUFSZ, 0) == BUFSZ);
     assert(SelectionKeyReady(selector[0], &mykey) == false);
     assert(mykey == NULL);
@@ -154,23 +155,23 @@ static void producer(void) {
 
     for (i = 0; i < 1000; i++) {
         assert((writekey = Register(selector[1], AIO4C_OP_WRITE, fds[0][1], &token[0])) != NULL);
-        assert(writekey->fd == fds[0][1]);
-        assert(writekey->attachment == &token[0]);
-        assert(writekey->operation == AIO4C_OP_WRITE);
-        assert(writekey->count == i + 1);
+        assert(SelectionKeyGetSocket(writekey) == fds[0][1]);
+        assert(SelectionKeyGetAttachment(writekey) == &token[0]);
+        assert(SelectionKeyGetOperation(writekey) == AIO4C_OP_WRITE);
+        assert(SelectionKeyGetRegistrationCount(writekey) == i + 1);
     }
 
-    assert(writekey->count == 1000);
+    assert(SelectionKeyGetRegistrationCount(writekey) == 1000);
     assert(Select(selector[1]) == 1);
 
     for (i = 0; i < 1000; ) {
         if (SelectionKeyReady(selector[1], &mykey)) {
             assert(mykey == writekey);
-            assert(mykey->attachment == &token[0]);
-            assert(mykey->fd == fds[0][1]);
-            assert(mykey->result == AIO4C_OP_WRITE);
-            assert(selector[1]->curKey == mykey);
-            assert(mykey->curCount == i + 1);
+            assert(SelectionKeyGetAttachment(mykey) == &token[0]);
+            assert(SelectionKeyGetSocket(mykey) == fds[0][1]);
+            assert(SelectionKeyIsOperationSuccessful(mykey));
+            assert(SelectorGetCurrentKey(selector[1]) == mykey);
+            assert(SelectionKeyGetCurrentCount(mykey) == i + 1);
             assert(send(fds[0][1], (char*)token[0], BUFSZ, 0) == BUFSZ);
             i++;
         } else {
@@ -180,23 +181,23 @@ static void producer(void) {
 
     assert(SelectionKeyReady(selector[1], &mykey) == false);
     assert(mykey == NULL);
-    assert(selector[1]->curKey == NULL);
+    assert(SelectorGetCurrentKey(selector[1]) == NULL);
     for (i = 0; i < 1000; i++) {
         Unregister(selector[1], writekey, false, &isLastRegistration);
         assert(isLastRegistration == (i + 1 == 1000));
     }
     assert((readkey = Register(selector[1], AIO4C_OP_READ, fds[1][2], &token[1])) != NULL);
-    assert(readkey->fd == fds[1][2]);
-    assert(readkey->attachment == &token[1]);
-    assert(readkey->operation == AIO4C_OP_READ);
+    assert(SelectionKeyGetSocket(readkey) == fds[1][2]);
+    assert(SelectionKeyGetAttachment(readkey) == &token[1]);
+    assert(SelectionKeyGetOperation(readkey) == AIO4C_OP_READ);
     assert(Select(selector[1]) == 1);
     assert(SelectionKeyReady(selector[1], &mykey) == true);
     assert(mykey == readkey);
-    assert(mykey->attachment == &token[1]);
-    assert(mykey->fd == fds[1][2]);
-    assert(mykey->result == AIO4C_OP_READ);
-    assert(mykey->curCount == 1);
-    assert(recv(fds[1][2], (char*)dummy, BUFSZ, 0) == BUFSZ);
+    assert(SelectionKeyGetAttachment(mykey) == &token[1]);
+    assert(SelectionKeyGetSocket(mykey) == fds[1][2]);
+    assert(SelectionKeyIsOperationSuccessful(mykey));
+    assert(SelectionKeyGetCurrentCount(mykey) == 1);
+    assert(recv(fds[1][2], (char*)dummy, BUFSZ, MSG_WAITALL) == BUFSZ);
     assert(memcmp(token[1], dummy, BUFSZ) == 0);
     assert(SelectionKeyReady(selector[1], &mykey) == false);
     assert(mykey == NULL);
