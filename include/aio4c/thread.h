@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (c) 2011 blakawk
  *
  * This file is part of Aio4c <http://aio4c.so>.

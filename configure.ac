@@ -4,6 +4,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_HOST
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE([subdir-objects -Wall -Werror foreign parallel-tests 1.9.6])
+AM_MAINTAINER_MODE([disable])
 AC_LANG([C])
 AC_PROG_CC
 AM_PROG_CC_C_O
