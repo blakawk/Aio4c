@@ -113,7 +113,7 @@ void _Raise(char* file, int line, LogLevel level, ErrorType type, Error error, E
             if (error == AIO4C_CONNECTION_DISCONNECTED) {
                 Log(level, "connection %s disconnected", code->connection->string);
             } else {
-                Log(level, "[E:%02d,T:%02d] %s:%d: %s for connection %s[%s]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
+                Log(level, "[E:%02d,T:%02d] %s:%d: %s for connection %s [%s]: [%08ld] %s", error, type, file, line, ErrorStrings[error],
                         code->connection->string, ConnectionStateString[code->connection->state],
                         errorCode, errorMessage);
             }

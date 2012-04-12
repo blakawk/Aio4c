@@ -69,6 +69,7 @@ struct s_Connection {
     EventQueue*          userHandlers;
     bool         closedForError;
     char*                string;
+    bool                 stringAllocated;
     bool         closedBy[AIO4C_CONNECTION_OWNER_MAX];
     Lock*                closedByLock;
     bool         managedBy[AIO4C_CONNECTION_OWNER_MAX];

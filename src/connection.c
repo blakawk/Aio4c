@@ -81,6 +81,7 @@ Connection* NewConnection(BufferPool* pool, Address* address, bool freeAddress) 
     connection->address = address;
     connection->closedForError = false;
     connection->string = AddressGetString(address);
+    connection->stringAllocated = false;
     memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(bool));
     connection->closedBy[AIO4C_CONNECTION_OWNER_ACCEPTOR] = true;
     connection->closedByLock = NewLock();
@@ -120,6 +121,7 @@ Connection* NewConnectionFactory(BufferPool* pool, void* (*dataFactory)(Connecti
     connection->address = NULL;
     connection->closedForError = false;
     connection->string = "factory";
+    connection->stringAllocated = false;
     memset(connection->closedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(bool));
     connection->closedByLock = NULL;
     memset(connection->managedBy, 0, AIO4C_CONNECTION_OWNER_MAX * sizeof(bool));
@@ -207,11 +209,39 @@ void _ConnectionState(char* file, int line, Connection* connection, ConnectionSt
             connection->canWrite = false;
             _ConnectionEventHandle(connection, AIO4C_CONNECTING_EVENT);
             break;
-        case AIO4C_CONNECTION_STATE_CONNECTED:
+        case AIO4C_CONNECTION_STATE_CONNECTED: {
+            char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+            char* newName = NULL;
+            aio4c_addr_t* addr = NULL;
+            socklen_t addrSize = 0;
+            memset(hbuf, 0, NI_MAXHOST * sizeof(char));
+            memset(sbuf, 0, NI_MAXSERV * sizeof(char));
+            if (connection->string != NULL) {
+                addrSize = AddressGetAddrSize(connection->address);
+                addr = aio4c_malloc(addrSize);
+                if (addr != NULL) {
+                    memcpy(addr, AddressGetAddr(connection->address), addrSize);
+                    if (getsockname(connection->socket, addr, &addrSize) == 0) {
+                        if (getnameinfo(addr, addrSize, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
+                            if (connection->stringAllocated) {
+                                newName = aio4c_realloc(connection->string, (strlen(AddressGetString(connection->address)) + strlen(hbuf) + strlen(sbuf) + 8) * sizeof(char));
+                            } else {
+                                newName = aio4c_malloc((strlen(AddressGetString(connection->address)) + strlen(hbuf) + strlen(sbuf) + 8) * sizeof(char));
+                            }
+                            if (newName != NULL) {
+                                snprintf(newName, strlen(AddressGetString(connection->address)) + strlen(hbuf) + strlen(sbuf) + 8, "[%s]:%s -> %s", hbuf, sbuf, AddressGetString(connection->address));
+                                connection->string = newName;
+                                connection->stringAllocated = true;
+                            }
+                        }
+                    }
+                }
+                aio4c_free(addr);
+            }
             connection->canRead = true;
             connection->canWrite = true;
             _ConnectionEventHandle(connection, AIO4C_CONNECTED_EVENT);
-            break;
+        }; break;
         case AIO4C_CONNECTION_STATE_PENDING_CLOSE:
             connection->canRead = false;
             connection->canWrite = true;
@@ -650,6 +680,11 @@ void FreeConnection(Connection** connection) {
 
         if (pConnection->closedByLock != NULL) {
             FreeLock(&pConnection->closedByLock);
+        }
+
+        if (pConnection->stringAllocated) {
+            aio4c_free(pConnection->string);
+            pConnection->stringAllocated = false;
         }
 
         aio4c_free(pConnection);

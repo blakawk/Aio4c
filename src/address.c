@@ -137,8 +137,8 @@ Address* NewAddress(AddressType type, char* address, aio4c_port_t port) {
             ipv4->sin_port = htons(port);
             ResolveIP(type, address, (struct sockaddr*)ipv4);
             if (getnameinfo((struct sockaddr*)ipv4, sizeof(struct sockaddr_in), hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV) == 0) {
-                if ((pAddress->string = aio4c_malloc((strlen(hbuf) + strlen(sbuf) + 2) * sizeof(char))) != NULL) {
-                    snprintf(pAddress->string, strlen(hbuf) + strlen(sbuf) + 2, "%s:%s", hbuf, sbuf);
+                if ((pAddress->string = aio4c_malloc((strlen(hbuf) + strlen(sbuf) + 4) * sizeof(char))) != NULL) {
+                    snprintf(pAddress->string, strlen(hbuf) + strlen(sbuf) + 4, "[%s]:%s", hbuf, sbuf);
                 }
             }
             break;
