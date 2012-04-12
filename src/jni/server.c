@@ -46,6 +46,8 @@ static void _jniServerEventHandler(Event event, Connection* connection, JavaServ
     jobject jBuffer = NULL;
     jmethodID jMethod = NULL;
 
+    Log(AIO4C_LOG_LEVEL_DEBUG, "[JNI] handling event %d : server=%p, jvm=%p\n", event, (void*)server, (void*)server->jvm);
+
     (*server->jvm)->AttachCurrentThreadAsDaemon(server->jvm, &pJvm, NULL);
     jvm = (JNIEnv*)pJvm;
 

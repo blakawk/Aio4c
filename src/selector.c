@@ -572,6 +572,8 @@ int _Select(char* file, int line, Selector* selector) {
 #endif /* AIO4C_WIN32 */
     }
 
+    dthread("[SELECT SELECTOR %p] %s returned %d ready poll\n", (void*)selector, name, nbPolls);
+
 #ifdef AIO4C_HAVE_POLL
     if (selector->polls[0].revents & AIO4C_OP_READ) {
 #else /* AIO4C_HAVE_POLL */
@@ -776,6 +778,7 @@ bool SelectionKeyReady (Selector* selector, SelectionKey** key) {
         if (!ListEmpty(&selector->busyKeys)) {
             selector->curKey = (SelectionKey*)selector->busyKeys.first->data;
         } else {
+            Log(AIO4C_LOG_LEVEL_WARN, "selecting with no busy key");
             *key = NULL;
             return false;
         }
@@ -800,9 +803,12 @@ bool SelectionKeyReady (Selector* selector, SelectionKey** key) {
     }
 
     if (i == NULL) {
+        Log(AIO4C_LOG_LEVEL_WARN, "selecting did not find ready key");
         selector->curKey = NULL;
         *key = NULL;
         result = false;
+    } else {
+        Log(AIO4C_LOG_LEVEL_DEBUG, "returning ready key");
     }
 
     ReleaseLock(selector->lock);

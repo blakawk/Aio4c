@@ -110,6 +110,8 @@ static bool _ReaderRun(ThreadData _reader) {
         while (SelectionKeyReady(reader->selector, &key)) {
             if (SelectionKeyIsOperationSuccessful(key)) {
                 connection = ConnectionRead(SelectionKeyGetAttachment(key));
+            } else {
+                Log(AIO4C_LOG_LEVEL_WARN, "select operation unsuccessful for connection %s", ((Connection*)SelectionKeyGetAttachment(key))->string);
             }
         }
         ProbeTimeEnd(AIO4C_TIME_PROBE_NETWORK_READ);

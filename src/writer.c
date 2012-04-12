@@ -72,6 +72,7 @@ static bool _WriterRun(ThreadData _writer) {
     Connection* connection = NULL;
 
     while (Dequeue(writer->queue, item, true)) {
+        Log(AIO4C_LOG_LEVEL_DEBUG, "dequeued item %d", QueueItemGetType(item));
         switch(QueueItemGetType(item)) {
             case AIO4C_QUEUE_ITEM_EXIT:
                 FreeQueueItem(&item);
@@ -86,6 +87,7 @@ static bool _WriterRun(ThreadData _writer) {
                         FreeConnection(&connection);
                     }
                 } else if (connection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
+                    Log(AIO4C_LOG_LEVEL_DEBUG, "pending close received for connection %s", connection->string);
                     if (!RemoveAll(writer->queue, _WriterRemove, (QueueDiscriminant)connection)) {
                         ConnectionShutdown(connection);
                     } else {
@@ -183,7 +185,8 @@ void WriterEnd(Writer* writer) {
     aio4c_free(writer);
 }
 
-static void _WriterCloseHandler(Event event __attribute__((unused)), Connection* source, Writer* writer) {
+static void _WriterCloseHandler(Event event, Connection* source, Writer* writer) {
+    Log(AIO4C_LOG_LEVEL_DEBUG, "sending close event %d for connection %s to writer %s", event, source->string, ThreadGetName(writer->thread));
     if (writer->queue == NULL || !EnqueueDataItem(writer->queue, source)) {
         if (ConnectionNoMoreUsed(source, AIO4C_CONNECTION_OWNER_WRITER)) {
             FreeConnection(&source);
@@ -193,6 +196,7 @@ static void _WriterCloseHandler(Event event __attribute__((unused)), Connection*
 }
 
 static void _WriterEventHandler(Event event, Connection* source, Writer* writer) {
+    Log(AIO4C_LOG_LEVEL_DEBUG, "sending event %d for connection %s to writer %s", event, source->string, ThreadGetName(writer->thread));
     if (source->state != AIO4C_CONNECTION_STATE_CLOSED) {
         if (!EnqueueEventItem(writer->queue, event, (EventSource)source)) {
             Log(AIO4C_LOG_LEVEL_WARN, "event %d for connection %s lost", event, source->string);

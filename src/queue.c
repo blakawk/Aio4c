@@ -31,6 +31,7 @@
 #include <aio4c/lock.h>
 #include <aio4c/log.h>
 #include <aio4c/stats.h>
+#include <aio4c/thread.h>
 #include <aio4c/types.h>
 
 #ifndef AIO4C_WIN32
@@ -146,6 +147,7 @@ bool Dequeue(Queue* queue, QueueItem* item, bool wait) {
 
     if (!ListEmpty(&queue->busy)) {
         node = ListPop(&queue->busy);
+        dthread("dequeue item #%d %p from queue %p\n", QueueItemGetType(node->data), (void*)node->data, (void*)queue);
         memcpy(item, node->data, sizeof(QueueItem));
         ListAddLast(&queue->free, node);
         queue->emptied = ListEmpty(&queue->busy);
@@ -186,6 +188,8 @@ static bool _Enqueue(Queue* queue, QueueItem* item) {
     if (queue == NULL || queue->lock == NULL) {
         return false;
     }
+
+    dthread("enqueue item #%d %p to queue %p\n", QueueItemGetType(item), (void*)item, (void*)queue);
 
     TakeLock(queue->lock);
 

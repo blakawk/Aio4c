@@ -179,6 +179,7 @@ Connection* ConnectionFactoryCreate(Connection* factory, Address* address, aio4c
 }
 
 static void _ConnectionEventHandle(Connection* connection, Event event) {
+    Log(AIO4C_LOG_LEVEL_DEBUG, "handling event %d for connection %s", event, connection->string);
     EventHandle(connection->systemHandlers, event, (EventSource)connection);
     EventHandle(connection->userHandlers, event, (EventSource)connection);
 }
@@ -443,6 +444,7 @@ Connection* ConnectionRead(Connection* connection) {
     }
 
     if (!connection->canRead) {
+        Log(AIO4C_LOG_LEVEL_WARN, "received data on connection %s when reading is not allowed", connection->string);
         BufferReset(buffer);
         return connection;
     }
