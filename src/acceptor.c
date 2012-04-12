@@ -243,6 +243,8 @@ static bool _AcceptorRun(ThreadData _acceptor) {
 
                 connection = ConnectionFactoryCreate(acceptor->factory, address, sock);
 
+                ConnectionState(connection, AIO4C_CONNECTION_STATE_INITIALIZED);
+
                 EnqueueDataItem(acceptor->queue, connection);
 
                 ReaderManageConnection(_ChooseReader(acceptor), connection);

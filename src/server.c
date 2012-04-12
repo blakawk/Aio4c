@@ -41,6 +41,7 @@
 
 static bool _serverInit(ThreadData _server) {
     Server* server = (Server*)_server;
+    ConnectionAddHandler(server->factory, AIO4C_INIT_EVENT, aio4c_connection_handler(server->handler), NULL, true);
     ConnectionAddHandler(server->factory, AIO4C_CONNECTED_EVENT, aio4c_connection_handler(server->handler), NULL, true);
     ConnectionAddHandler(server->factory, AIO4C_READ_EVENT, aio4c_connection_handler(server->handler), NULL, false);
     ConnectionAddHandler(server->factory, AIO4C_WRITE_EVENT, aio4c_connection_handler(server->handler), NULL, false);
