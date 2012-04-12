@@ -61,17 +61,21 @@ void onWrite(Connection* source, int* seq) {
     Buffer* buffer = source->writeBuffer;
     struct timeval ping;
 
-    (*seq) ++;
+    if (source->state != AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
+        (*seq) ++;
 
-    gettimeofday(&ping, NULL);
-    BufferPutString(buffer, "PING ");
-    BufferPut(buffer, &ping, sizeof(struct timeval));
-    BufferPutInt(buffer, seq);
+        gettimeofday(&ping, NULL);
+        BufferPutString(buffer, "PING ");
+        BufferPut(buffer, &ping, sizeof(struct timeval));
+        BufferPutInt(buffer, seq);
 
-    BufferFlip(buffer);
-    LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
-    BufferPosition(buffer, BufferGetLimit(buffer));
-    BufferLimit(buffer, BufferGetCapacity(buffer));
+        BufferFlip(buffer);
+        LogBuffer(AIO4C_LOG_LEVEL_DEBUG, buffer);
+        BufferPosition(buffer, BufferGetLimit(buffer));
+        BufferLimit(buffer, BufferGetCapacity(buffer));
+    } else {
+        BufferPutString(buffer, "GOODBYE");
+    }
 }
 
 void handler(Event event, Connection* source, ClientHandlerData _seq) {

@@ -28,16 +28,16 @@ import com.aio4c.ConnectionFactory;
 import com.aio4c.buffer.Buffer;
 import com.aio4c.buffer.BufferOverflowException;
 import com.aio4c.log.Log;
+import com.aio4c.log.DefaultLogger;
 
 public class Client {
     public static void main(String[] args) {
-        Aio4c.init(args, null);
+        Aio4c.init(args, new DefaultLogger());
 
         com.aio4c.Client c = new com.aio4c.Client(new ClientConfig(), new ConnectionFactory () {
             @Override
             public Connection create() {
                 return new Connection () {
-                    private boolean toClose = false;
                     @Override
                     public void onInit() {
                         Log.debug("[" + this + "] init from java !");
@@ -55,27 +55,26 @@ public class Client {
                         while (data.hasRemaining()) {
                             String str = data.getString();
                             Log.debug("[" + this + "] received data "+data+" from java: '" + str + "' !");
-                            if (str.trim().equals("QUIT")) {
-                                toClose = true;
-                            }
                             enableWriteInterest();
+                            if (str.trim().equals("QUIT")) {
+                                close(false);
+                            }
                         }
                     }
                     @Override
                     public void onWrite(Buffer data) {
+                        String str = "GOODBYE";
                         try {
                             if (closing()) {
-                                data.putString("GOODBYE");
+                                data.putString(str);
                             } else {
-                                data.putString("HELLO");
-                                if (toClose) {
-                                    close(false);
-                                }
+                                str = "HELLO";
+                                data.putString(str);
                             }
                         } catch (BufferOverflowException e) {
                             close(true);
                         }
-                        Log.debug("[" + this + "] sending data "+data+" from java !");
+                        Log.debug("[" + this + "] sending data "+data+" from java:'" + str + "' !");
                     }
                 };
             }

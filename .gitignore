@@ -21,9 +21,13 @@ libtool
 config.status
 include/config.h
 test/test-*
+test/benchmark
+test/client
+test/server
 java/*.jar
 *.stamp
 java/com_aio4c_*.h
 doc/Doxyfile
 doc/html
 doc/javadoc
+*.swp

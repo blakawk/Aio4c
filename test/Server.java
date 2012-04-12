@@ -49,16 +49,20 @@ public class Server {
             String s = data.getString();
             Log.debug("["+this+"] received '"+s+"', buffer "+data);
             if (first) {
-                enableWriteInterest();
                 first = false;
+                enableWriteInterest();
             }
         }
         @Override
         public void onWrite(Buffer data) {
             try {
-                data.putString("BONJOUR");
-                data.putString("QUIT");
-                Log.debug("["+this+"] sending "+data);
+                if (first) {
+                   data.putString("BONJOUR");
+                   Log.debug("["+this+"] sending "+data+" BONJOUR");
+                } else {
+                   data.putString("QUIT");
+                   Log.debug("["+this+"] sending "+data+" QUIT");
+                }
             } catch (BufferOverflowException e) {
                 e.printStackTrace();
                 close(true);

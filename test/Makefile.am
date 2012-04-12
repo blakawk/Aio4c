@@ -9,6 +9,15 @@ test_buffer_SOURCES = buffer.c
 test_queue_SOURCES = queue.c
 test_selector_SOURCES = selector.c
 
+benchmark_SOURCES = benchmark.c
+server_SOURCES = server.c
+client_SOURCES = client.c
+
+bin_PROGRAMS = \
+	benchmark \
+	server \
+	client
+
 if HAVE_JAVA
 TESTS += \
 	TestBuffer.class
