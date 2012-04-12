@@ -138,6 +138,10 @@ static Thread* _runThread(Thread* thread) {
     thread->initialized = true;
     thread->running = run;
 
+    if (thread->running) {
+        thread->state = AIO4C_THREAD_STATE_RUNNING;
+    }
+
     NotifyCondition(thread->condInit);
 
     while (thread->running) {
