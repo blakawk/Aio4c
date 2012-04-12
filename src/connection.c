@@ -527,7 +527,11 @@ bool ConnectionWrite(Connection* connection) {
 void EnableWriteInterest(Connection* connection) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "write interest for connection %s", connection->string);
 
-    _ConnectionEventHandle(connection, AIO4C_OUTBOUND_DATA_EVENT);
+    if (connection->state != AIO4C_CONNECTION_STATE_CLOSED) {
+        _ConnectionEventHandle(connection, AIO4C_OUTBOUND_DATA_EVENT);
+    } else {
+        Log(AIO4C_LOG_LEVEL_WARN, "lost write interest for connection %s", connection->string);
+    }
 }
 
 Connection* ConnectionClose(Connection* connection, bool force) {
