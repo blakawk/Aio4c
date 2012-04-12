@@ -108,6 +108,8 @@ static bool _WorkerRun(ThreadData _worker) {
         }
     }
 
+    FreeQueueItem(&item);
+
     return true;
 }
 

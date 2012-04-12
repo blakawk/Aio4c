@@ -107,6 +107,8 @@ static bool _WriterRun(ThreadData _writer) {
         }
     }
 
+    FreeQueueItem(&item);
+
     return true;
 }
 
