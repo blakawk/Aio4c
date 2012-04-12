@@ -49,7 +49,7 @@ static void _jniClientEventHandler(Event event, Connection* connection, ClientHa
     jobject jBuffer = NULL;
     jmethodID jMethod = NULL;
 
-    (*client->jvm)->AttachCurrentThreadAsDaemon(client->jvm, pJvm, NULL);
+    (*client->jvm)->AttachCurrentThreadAsDaemon(client->jvm, &pJvm, NULL);
     jvm = (JNIEnv*)pJvm;
 
     CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, jFactory), cFactory);
