@@ -499,7 +499,7 @@ bool ConnectionWrite(Connection* connection) {
     }
 
     data = BufferGetBytes(buffer);
-    if ((nbWrite = send(connection->socket, (void*)&data[BufferGetPosition(buffer)], BufferRemaining(buffer), 0)) < 0) {
+    if ((nbWrite = send(connection->socket, (void*)&data[BufferGetPosition(buffer)], BufferRemaining(buffer), MSG_NOSIGNAL)) < 0) {
 #ifndef AIO4C_WIN32
         code.error = errno;
 #else /* AIO4C_WIN32 */
