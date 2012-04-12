@@ -184,14 +184,13 @@ static void _ConnectionEventHandle(Connection* connection, Event event) {
 }
 
 void _ConnectionState(char* file, int line, Connection* connection, ConnectionState state) {
-    TakeLock(connection->stateLock);
-
     if (connection->state == state) {
         Log(AIO4C_LOG_LEVEL_DEBUG, "%s:%d: connection %s already in state %s", file, line,
                 connection->string, ConnectionStateString[state]);
-        ReleaseLock(connection->stateLock);
         return;
     }
+
+    TakeLock(connection->stateLock);
 
     Log(AIO4C_LOG_LEVEL_DEBUG, "%s:%d: connection %s [%s] -> [%s]", file, line, connection->string,
            ConnectionStateString[connection->state], ConnectionStateString[state]);
