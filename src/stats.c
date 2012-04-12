@@ -61,8 +61,7 @@ static CRITICAL_SECTION _timeProbesLock;
 static CRITICAL_SECTION _sizeProbesLock;
 #endif /* AIO4C_WIN32 */
 
-static bool _statsInit(void* dummy __attribute__((unused))) {
-    dummy = NULL;
+static bool _statsInit(ThreadData dummy __attribute__((unused))) {
 #ifndef AIO4C_WIN32
     pid_t pid = getpid();
 #else /* AIO4C_WIN32 */
@@ -93,9 +92,7 @@ void _PrintStats(void);
 
 void _WriteStats(void);
 
-static bool _statsRun(void* dummy __attribute__((unused))) {
-    dummy = NULL;
-
+static bool _statsRun(ThreadData dummy __attribute__((unused))) {
     if (AIO4C_STATS_ENABLE_PERIODIC_OUTPUT) {
         _PrintStats();
     }
@@ -113,8 +110,7 @@ static bool _statsRun(void* dummy __attribute__((unused))) {
     return true;
 }
 
-static void _statsExit(void* dummy __attribute__((unused))) {
-    dummy = NULL;
+static void _statsExit(ThreadData dummy __attribute__((unused))) {
     if (_statsFile != NULL) {
         fclose(_statsFile);
     }
@@ -135,10 +131,10 @@ void StatsInit(void) {
     _statsThread = NULL;
     if (AIO4C_STATS_INTERVAL) {
         _statsThread = NewThread("stats",
-                aio4c_thread_init(_statsInit),
-                aio4c_thread_run(_statsRun),
-                aio4c_thread_exit(_statsExit),
-                aio4c_thread_arg(NULL));
+                _statsInit,
+                _statsRun,
+                _statsExit,
+                NULL);
 
         if (_statsThread != NULL && !ThreadStart(_statsThread)) {
             FreeThread(&_statsThread);
@@ -383,7 +379,7 @@ void _WriteStats(void) {
 
 void StatsEnd(void) {
     if (_statsThread != NULL) {
-        _statsThread->running = false;
+        ThreadStop(_statsThread);
         ThreadJoin(_statsThread);
     }
     if (AIO4C_STATS_ENABLE_PERIODIC_OUTPUT) {
