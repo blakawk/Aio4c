@@ -85,6 +85,7 @@ static bool _WorkerRun(ThreadData _worker) {
                 return false;
             case AIO4C_QUEUE_ITEM_TASK:
                 connection = QueueTaskItemGetConnection(item);
+                Log(AIO4C_LOG_LEVEL_DEBUG, "dequeued task for connection %s", connection->string);
                 ProbeTimeStart(AIO4C_TIME_PROBE_DATA_PROCESS);
                 buffer = QueueTaskItemGetBuffer(item);
                 connection->dataBuffer = buffer;

@@ -803,12 +803,9 @@ bool SelectionKeyReady (Selector* selector, SelectionKey** key) {
     }
 
     if (i == NULL) {
-        Log(AIO4C_LOG_LEVEL_WARN, "selecting did not find ready key");
         selector->curKey = NULL;
         *key = NULL;
         result = false;
-    } else {
-        Log(AIO4C_LOG_LEVEL_DEBUG, "returning ready key");
     }
 
     ReleaseLock(selector->lock);
