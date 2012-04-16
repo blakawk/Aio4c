@@ -46,7 +46,7 @@ static void _jniServerEventHandler(Event event, Connection* connection, JavaServ
     jobject jBuffer = NULL;
     jmethodID jMethod = NULL;
 
-    Log(AIO4C_LOG_LEVEL_DEBUG, "[JNI] handling event %d : server=%p, jvm=%p\n", event, (void*)server, (void*)server->jvm);
+    Log(AIO4C_LOG_LEVEL_DEBUG, "[JNI] handling event %d : server=%p, jvm=%p", event, (void*)server, (void*)server->jvm);
 
     (*server->jvm)->AttachCurrentThreadAsDaemon(server->jvm, &pJvm, NULL);
     jvm = (JNIEnv*)pJvm;
@@ -55,7 +55,6 @@ static void _jniServerEventHandler(Event event, Connection* connection, JavaServ
 
     switch (event) {
         case AIO4C_INIT_EVENT:
-            ConnectionAddSystemHandler(connection, AIO4C_FREE_EVENT, aio4c_connection_handler(_jniServerEventHandler), aio4c_connection_handler_arg(server), true);
             CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onInit", "()V"), jMethod);
             (*jvm)->CallVoidMethod(jvm, server->jConnection, jMethod);
             break;

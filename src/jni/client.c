@@ -64,7 +64,6 @@ static void _jniClientEventHandler(Event event, Connection* connection, ClientHa
             CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cFactory, "create", "()Lcom/aio4c/Connection;"), jMethod);
             CheckJNICall(jvm, (*jvm)->CallObjectMethod(jvm, jFactory, jMethod), client->jConnection);
             CheckJNICall(jvm, (*jvm)->NewGlobalRef(jvm, client->jConnection), client->jConnection);
-            ConnectionAddSystemHandler(connection, AIO4C_FREE_EVENT, aio4c_connection_handler(_jniClientEventHandler), aio4c_connection_handler_arg(client), true);
             SetPointer(jvm, client->jConnection, connection);
             CheckJNICall(jvm, (*jvm)->GetObjectClass(jvm, client->jConnection), cConnection);
             CheckJNICall(jvm, (*jvm)->GetMethodID(jvm, cConnection, "onInit", "()V"), jMethod);
