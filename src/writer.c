@@ -70,6 +70,7 @@ static bool _WriterRun(ThreadData _writer) {
     Writer* writer = (Writer*)_writer;
     QueueItem* item = NewQueueItem();
     Connection* connection = NULL;
+    Event event = AIO4C_INIT_EVENT;
 
     while (Dequeue(writer->queue, item, true)) {
         Log(AIO4C_LOG_LEVEL_DEBUG, "dequeued item %d", QueueItemGetType(item));
@@ -77,29 +78,28 @@ static bool _WriterRun(ThreadData _writer) {
             case AIO4C_QUEUE_ITEM_EXIT:
                 FreeQueueItem(&item);
                 return false;
-            case AIO4C_QUEUE_ITEM_DATA:
-                connection = (Connection*)QueueDataItemGet(item);
-                if (connection->state == AIO4C_CONNECTION_STATE_CLOSED) {
-                    RemoveAll(writer->queue, _WriterRemove, (QueueDiscriminant)connection);
-                    Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
-                    if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WRITER)) {
-                        Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
-                        FreeConnection(&connection);
-                    }
-                } else if (connection->state == AIO4C_CONNECTION_STATE_PENDING_CLOSE) {
-                    Log(AIO4C_LOG_LEVEL_DEBUG, "pending close received for connection %s", connection->string);
-                    if (!RemoveAll(writer->queue, _WriterRemove, (QueueDiscriminant)connection)) {
-                        ConnectionShutdown(connection);
-                    } else {
-                        EnqueueEventItem(writer->queue, AIO4C_OUTBOUND_DATA_EVENT, (EventSource)connection);
-                    }
-                }
-                break;
             case AIO4C_QUEUE_ITEM_EVENT:
+                event = QueueEventItemGetEvent(item);
                 connection = (Connection*)QueueEventItemGetSource(item);
-                Log(AIO4C_LOG_LEVEL_DEBUG, "processing write interest for connection %s", connection->string);
-                if (ConnectionWrite(connection)) {
-                    EnqueueEventItem(writer->queue, QueueEventItemGetEvent(item), QueueEventItemGetSource(item));
+                switch(event) {
+                    case AIO4C_OUTBOUND_DATA_EVENT:
+                        Log(AIO4C_LOG_LEVEL_DEBUG, "processing write interest for connection %s", connection->string);
+                        if (ConnectionWrite(connection)) {
+                            Log(AIO4C_LOG_LEVEL_DEBUG, "did not write all data for connection %s, reenqueueing", connection->string);
+                            EnqueueEventItem(writer->queue, QueueEventItemGetEvent(item), QueueEventItemGetSource(item));
+                        }
+                        break;
+                    case AIO4C_CLOSE_EVENT:
+                        RemoveAll(writer->queue, _WriterRemove, (QueueDiscriminant)connection);
+                        Log(AIO4C_LOG_LEVEL_DEBUG, "close received for connection %s", connection->string);
+                        if (ConnectionNoMoreUsed(connection, AIO4C_CONNECTION_OWNER_WRITER)) {
+                            Log(AIO4C_LOG_LEVEL_DEBUG, "freeing connection %s", connection->string);
+                            FreeConnection(&connection);
+                        }
+                        break;
+                    default:
+                        Log(AIO4C_LOG_LEVEL_WARN, "received unexpected event %d", event);
+                        break;
                 }
                 break;
             default:
@@ -187,30 +187,16 @@ void WriterEnd(Writer* writer) {
     aio4c_free(writer);
 }
 
-static void _WriterCloseHandler(Event event, Connection* source, Writer* writer) {
-    Log(AIO4C_LOG_LEVEL_DEBUG, "sending close event %d for connection %s to writer %s", event, source->string, ThreadGetName(writer->thread));
-    if (writer->queue == NULL || !EnqueueDataItem(writer->queue, source)) {
-        if (ConnectionNoMoreUsed(source, AIO4C_CONNECTION_OWNER_WRITER)) {
-            FreeConnection(&source);
-        }
-        return;
-    }
-}
-
 static void _WriterEventHandler(Event event, Connection* source, Writer* writer) {
     Log(AIO4C_LOG_LEVEL_DEBUG, "sending event %d for connection %s to writer %s", event, source->string, ThreadGetName(writer->thread));
-    if (source->state != AIO4C_CONNECTION_STATE_CLOSED) {
-        if (!EnqueueEventItem(writer->queue, event, (EventSource)source)) {
-            Log(AIO4C_LOG_LEVEL_WARN, "event %d for connection %s lost", event, source->string);
-            return;
-        }
+    if (!EnqueueEventItem(writer->queue, event, (EventSource)source)) {
+        Log(AIO4C_LOG_LEVEL_WARN, "event %d for connection %s lost", event, source->string);
+        return;
     }
 }
 
 void WriterManageConnection(Writer* writer, Connection* connection) {
     ConnectionAddSystemHandler(connection, AIO4C_OUTBOUND_DATA_EVENT, aio4c_connection_handler(_WriterEventHandler), aio4c_connection_handler_arg(writer), false);
-    ConnectionAddSystemHandler(connection, AIO4C_PENDING_CLOSE_EVENT, aio4c_connection_handler(_WriterCloseHandler), aio4c_connection_handler_arg(writer), true);
-    ConnectionAddSystemHandler(connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_WriterCloseHandler), aio4c_connection_handler_arg(writer), true);
+    ConnectionAddSystemHandler(connection, AIO4C_CLOSE_EVENT, aio4c_connection_handler(_WriterEventHandler), aio4c_connection_handler_arg(writer), true);
     ConnectionManagedBy(connection, AIO4C_CONNECTION_OWNER_WRITER);
 }
-
