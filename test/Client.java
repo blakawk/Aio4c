@@ -55,10 +55,10 @@ public class Client {
                         while (data.hasRemaining()) {
                             String str = data.getString();
                             Log.debug("[" + this + "] received data "+data+" from java: '" + str + "' !");
-                            enableWriteInterest();
                             if (str.trim().equals("QUIT")) {
                                 close(false);
                             }
+                            enableWriteInterest();
                         }
                     }
                     @Override
